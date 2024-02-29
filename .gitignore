@@ -1,0 +1,9 @@
+# Python files
+__pycache__
+.ipynb_checkpoints
+*/.ipynb_checkpoints
+
+# Mac hidden files
+.DS_Store
+*/.DS_Store
+*/*/.DS_Store
