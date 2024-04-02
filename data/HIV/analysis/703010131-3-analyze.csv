@@ -1,5 +1,5 @@
 polymorphic_index,alignment,HXB2_index,nucleotide,TF,consensus,epitope,escape,sc_old,sc_MPL,tc_MPL,f_at_0,f_at_21,f_at_28,f_at_34,f_at_63,f_at_91,f_at_175,f_at_273,f_at_333
-0,0,5041,-,A,A,RKAKIIKDY,True,-0.000484,-0.000039,nan,0.0,0.0,0.0,0.0,0.0,0.0,0.083333,0.0,0.0
+0,0,5041,-,A,A,RKAKIIKDY,False,-0.000484,-0.000039,nan,0.0,0.0,0.0,0.0,0.0,0.0,0.083333,0.0,0.0
 0,0,5041,A,A,A,RKAKIIKDY,False,0.000000,0.000000,nan,1.0,1.0,1.0,1.0,1.0,1.0,0.91667,1.0,1.0
 1,71,5112,A,A,A,nan,False,0.000000,0.000000,nan,1.0,1.0,0.875,1.0,1.0,1.0,1.0,1.0,1.0
 1,71,5112,G,A,A,nan,False,0.000916,-0.005615,nan,0.0,0.0,0.125,0.0,0.0,0.0,0.0,0.0,0.0

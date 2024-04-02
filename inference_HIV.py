@@ -12,10 +12,10 @@ import statistics
 import pickle
 from dataclasses import dataclass
 import time as time_module
+from itertools import product
 
 # GitHub
-HIV_DIR = '../data/HIV'
-SIM_DIR = '../data/simulation'
+HIV_DIR = 'data/HIV'
 FIG_DIR = 'figures'
 
 ## simulation parameter
@@ -30,13 +30,12 @@ class Result:
     special_sites: []
     uniq_t:[]
     time_step:0
-    gamma:0
     escape_group:[]
     escape_TF:[]
     trait_dis:[]
     IntTime:[]
 
-def AnalyzeData(tag,gamma1):
+def AnalyzeData(tag):
     df_info = pd.read_csv('%s/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
     seq     = np.loadtxt('%s/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
 
@@ -68,11 +67,15 @@ def AnalyzeData(tag,gamma1):
             special_sites.append(unique_sites)
         else:
             escape_group.append(list(unique_sites))
-            tf_values = []
+            escape_TF_epi = []
             for site in unique_sites:
-                tf_value = df_e[df_e['polymorphic_index'] == site]['TF'].values
-                tf_values.append(NUC.index(tf_value[0]))
-            escape_TF.append(tf_values)
+                tf_values = []
+                df_site = df_info[df_info['polymorphic_index'] == site]
+                for i in range(len(df_site)):
+                    if df_site.iloc[i].escape != True:
+                        tf_values.append(int(NUC.index(df_site.iloc[i].nucleotide)))
+                escape_TF_epi.append(tf_values)
+            escape_TF.append(escape_TF_epi)
 
     special_sites = [item for sublist in special_sites for item in sublist]
 
@@ -118,10 +121,7 @@ def AnalyzeData(tag,gamma1):
             times.append(uniq_t[t])
     IntTime = list(times)
 
-    # regularize value gamma1, restricting the magnitude of the selection coefficients
-    gamma = round(gamma1/uniq_t[-1],3) # constant MPL gamma value / max time
-
-    return Result(variants, seq_length, special_sites, uniq_t, time_step, gamma, escape_group, escape_TF, trait_dis, IntTime)
+    return Result(variants, seq_length, special_sites, uniq_t, time_step, escape_group, escape_TF, trait_dis, IntTime)
 
 def main(args):
     """Infer time-varying selection coefficients from HIV data"""
@@ -187,7 +187,7 @@ def main(args):
                 for n in range(ne):
                     for nn in range(len(escape_group[n])):
                         index = escape_group[n][nn] + 2
-                        if history[t][index] != escape_TF[n][nn]:
+                        if history[t][index] not in escape_TF[n][nn]:
                             temp_escape[n] = 1
                             break
                 temp_eVec.append(temp_escape)
@@ -260,19 +260,33 @@ def main(args):
             pop_size_t = np.sum([nVec[t]])
             for k in range(len(sVec[t])):
                 for n in range(ne):
-                    n_mutations = 0
+                    site_mutation = []
                     for nn in escape_group[n]:
                         index = escape_group[n].index(nn)
                         WT = escape_TF[n][index]
-                        if sVec[t][k][nn] != WT:
-                            n_mutations += 1
-                            site = nn
-                    if n_mutations == 1:
+                        if sVec[t][k][nn] not in WT:
+                            site_mutation.append(nn)
+                    if len(site_mutation) == 1:
+                        site = site_mutation[0]
                         qq = int(sVec[t][k][site])
                         ex[t,n,site,qq] += nVec[t][k]
             ex[t,:,:,:] = ex[t,:,:,:] / pop_size_t
         return ex
 
+    def compareElements(k_bp, sVec_n, sWT_n_all, compare_end=False):
+        different = False
+        for k in range(len(sWT_n_all)):
+            sWT_n = sWT_n_all[k]
+            if not compare_end: # compare the sequence before k point
+                if sVec_n[:k_bp] != sWT_n[:k_bp]:
+                    different = True
+                    break
+            else: # compare the sequence after k point
+                if sVec_n[k_bp:] != sWT_n[k_bp:]:
+                    different = True
+                    break
+        return different
+    
     # calculate frequencies for recombination part (binary case)  
     def get_p_k(sVec,nVec,seq_length,escape_group,escape_TF):
         p_mut_k   = np.zeros((len(nVec),seq_length,3)) # 0: time, 1: all k point, 2: p_k, p_k-, p_k+
@@ -283,28 +297,35 @@ def main(args):
             
             for n in range(len(escape_group)):
                 escape_group_n = escape_group[n]
-                sWT_n     = [int(i) for i in escape_TF[n]]
+
+                sWT_n_all = list(product(*escape_TF[n]))
+                sWT_n_all = [list(combination) for combination in sWT_n_all]
                 
                 for k in range(len(sVec[t])): # different sequences at time t
                     sVec_n = [int(sVec[t][k][i]) for i in escape_group_n]
                     
                     # no mutation within the trait group
-                    if sWT_n == sVec_n:
+                    if sVec_n in sWT_n_all:
                         p_wt[t][n] += nVec[t][k]
 
                     for nn in range(len(escape_group_n)-1):
                         k_bp = nn + 1
+
+                        # compare sequence with all possible WT sequence
+                        # if the sequence is different from all WT sequence, result is True
+                        head = compareElements(k_bp, sVec_n, sWT_n_all, compare_end=False)
+                        tail = compareElements(k_bp, sVec_n, sWT_n_all, compare_end=True)
                         
                         # containing mutation before and after break point k,p_k
-                        if sWT_n[:k_bp] != sVec_n[:k_bp] and sWT_n[k_bp:] != sVec_n[k_bp:]:
+                        if head and tail:
                             p_mut_k[t][escape_group_n[0]+nn][0] += nVec[t][k]
                         
                         # MT before break point k and WT after break point k,p_k-
-                        if sWT_n[:k_bp] != sVec_n[:k_bp] and sWT_n[k_bp:] == sVec_n[k_bp:]:
+                        if head and not tail:
                             p_mut_k[t][escape_group_n[0]+nn][1] += nVec[t][k]
                         
                         # WT before break point k and MT after break point k,p_k+
-                        if sWT_n[:k_bp] == sVec_n[:k_bp] and sWT_n[k_bp:] != sVec_n[k_bp:]:
+                        if not head and tail:
                             p_mut_k[t][escape_group_n[0]+nn][2] += nVec[t][k]
 
             p_wt[t]    = p_wt[t] / pop_size_t
@@ -332,8 +353,9 @@ def main(args):
                     for a in range(q):
                         WT = escape_TF[n][nn]
                         index = escape_group[n][nn]
-                        if a != WT:
-                            flux[t, x_length-ne+n] += muMatrix[WT][a] * (1 - x[t,x_length-ne+n]) - muMatrix[a][WT] * ex[t,n,index,a]
+                        if a not in WT:
+                            for b in WT:
+                                flux[t, x_length-ne+n] += muMatrix[b][a] * (1 - x[t,x_length-ne+n]) - muMatrix[a][b] * ex[t,n,index,a]
         return flux
 
     # calculate recombination flux term
@@ -355,6 +377,7 @@ def main(args):
 
     # diffusion matrix C
     def diffusion_matrix_at_t(x,xx):
+        x_length = len(x[0])
         C = np.zeros([len(x),x_length,x_length])
         for t in range(len(x)):
             for i in range(x_length):
@@ -452,7 +475,7 @@ def main(args):
         data     = np.loadtxt("%s/sequence/%s-poly-seq2state.dat" %(HIV_DIR,tag))
 
         # information for escape group
-        result       = AnalyzeData(tag,gamma_1)
+        result       = AnalyzeData(tag)
         escape_group = result.escape_group
         escape_TF    = result.escape_TF
         trait_dis    = result.trait_dis
@@ -464,7 +487,6 @@ def main(args):
         ## regularization parameter
         p_sites      = result.special_sites
         time_step    = result.time_step
-        gamma_1s     = result.gamma
 
         # obtain sequence data and frequencies
         sVec,nVec,eVec = getSequence(data,escape_TF,escape_group)
@@ -491,7 +513,7 @@ def main(args):
         trait_dis    = np.array(trait_dis , dtype=object)
         np.savez_compressed(f, muVec=muVec, single_freq=x, double_freq=xx, escape_freq=ex, p_wt_freq=p_wt, p_mut_k_freq=p_mut_k,\
                             special_sites=p_sites, escape_group=escape_group, escape_TF=escape_TF,trait_dis=trait_dis,\
-                            seq_length=seq_length, gamma = gamma_1s, time_step=time_step, sample_times=sample_times, times=times)
+                            seq_length=seq_length, time_step=time_step, sample_times=sample_times, times=times)
         f.close()
 
     ################################################################################
@@ -525,9 +547,10 @@ def main(args):
 
             # regularization value gamma_1 and gamma_2
             # individual site: gamma_1s, escape group: gamma_1p
-            gamma_1s     = rawdata['gamma']
-            gamma_1p     = gamma_1s/10
-            gamma1 = np.ones(x_length)*gamma_1s
+            # regularize value gamma1, restricting the magnitude of the selection coefficients
+            gamma_1s = round(gamma_1/sample_times[-1],3) # constant MPL gamma value / max time
+            gamma_1p = gamma_1s/10
+            gamma1   = np.ones(x_length)*gamma_1s
             for n in range(ne):
                 gamma1[x_length-ne+n] = gamma_1p
 
@@ -629,7 +652,8 @@ def main(args):
         # Boundary conditions
         # solution to the system of differential equation with the derivative of the selection coefficients zero at the endpoints
         def bc(b1,b2):
-            return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
+            # return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
+            return np.ravel(np.array([b1[:x_length],b2[:x_length]])) # s = 0 at the extended endpoints
 
         ss_extend = np.zeros((2*x_length,len(ExTimes)))
         
@@ -653,6 +677,7 @@ def main(args):
 
         # save the solution with constant_time-varying selection coefficient
         g = open('%s/output/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), mode='w+b')
+        g = open('%s/output_s0/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), mode='w+b')
         np.savez_compressed(g, selection=desired_coefficients, all = selection_coefficients, time=times, \
                             mean_dev=mean_dev, std_dev=std_dev, max_var=max_var, mean_dev_auto=mean_dev_auto, \
                             std_dev_auto=std_dev_auto, max_var_auto=max_var_auto)

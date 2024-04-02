@@ -23,7 +23,7 @@ import mplot as mp
 import re
 import math
 from dataclasses import dataclass
-
+import json
 ############# PARAMETERS #############
 
 # Standard color scheme
@@ -98,7 +98,6 @@ def plot_simulation(**pdata):
     # unpack passed data
     NUC           = pdata['NUC']            # ['A','T']
     name          = pdata['name']           #'1-con'
-    dir           = pdata['dir']            # sample direction
 
     seq_length    = pdata['seq_length']     # 20
     generations   = pdata['generations']    # 500
@@ -107,33 +106,35 @@ def plot_simulation(**pdata):
     ytick_f       = pdata['ytick_f']
     yminorticks_f = pdata['yminorticks_f']
 
+    escape_group  = pdata['escape_group']   # [[12,15,19]], escape group
+    p_sites       = pdata['p_sites']        # [13,18] , special sites
+
     nB            = pdata['n_ben']          # 4
     nD            = pdata['n_del']          # 0.02
     fB            = pdata['s_ben']          # 4
     fD            = pdata['s_del']          # 0.02
-    escape_group  = pdata['escape_group']   # [[2,5,8]], escape group
-    p_sites       = pdata['p_sites']        # [13,18] , special sites
     fn            = pdata['fn']             # time-varying escape coefficient
     fi            = pdata['fi']             # time-varying selection coefficient
 
     binary        = pdata['binary']         # True
 
     # get data
-    data        = np.loadtxt("%s/example/example-%s.dat"%(SIM_DIR,name.split('_')[0]))
+    data        = np.loadtxt("%s/sequences/example-%s.dat"%(SIM_DIR,name.split('_')[0]))
     ne          = len(escape_group)
     timepoints  = int(generations) + 1
     times       = np.linspace(0,generations,timepoints)
 
-    # data_full   = np.load('%s/example/c_%s_binary.npz'%(SIM_DIR,name), allow_pickle="True")
-    data_full   = np.load('%s/example/c_%s.npz'%(SIM_DIR,name), allow_pickle="True")
-    sc_full     = data_full['selection']
-
     if binary=='True':
+        data_full   = np.load('%s/output/c_%s.npz'%(SIM_DIR,name), allow_pickle="True")
+        sc_full     = data_full['selection']
         TimeVaryingSC = [np.average(sc_full[i]) for i in range(seq_length)]
+        TimeVaryingTC = sc_full[-ne:]
+
     else:
+        data_full   = np.load('%s/output_multiple/c_%s.npz'%(SIM_DIR,name), allow_pickle="True")
+        sc_full     = data_full['selection']
         TimeVaryingSC = [np.average((sc_full[2*i+1]-sc_full[2*i])) for i in range(seq_length)]
-    
-    TimeVaryingTC = sc_full[-ne:]
+        TimeVaryingTC = sc_full[-ne:]
 
     # Allele frequency x
     x     = []
@@ -222,18 +223,19 @@ def plot_simulation(**pdata):
             if i < nB:
                 mp.line(ax=ax_tra1, x=[times], y=[x[i]], colors=[C_BEN], **pprops)
             elif i >= seq_length-nD:
-                mp.plot(type='line',ax=ax_tra1, x=[times], y=[x[i]], colors=[C_DEL], **pprops)
+                mp.line(ax=ax_tra1, x=[times], y=[x[i]], colors=[C_DEL], **pprops)
             else:
                 mp.line(ax=ax_tra1, x=[times], y=[x[i]], colors = [C_NEU], **pprops)
 
         else:
             # all special sites
-            if i < nB:
-                mp.line(ax=ax_tra3, x=[times], y=[x[i]], colors=[C_BEN], **pprops)
-            elif i >= seq_length-nD:
-                mp.plot(type='line',ax=ax_tra3, x=[times], y=[x[i]], colors=[C_DEL], **pprops)
-            else:
-                mp.line(ax=ax_tra3, x=[times], y=[x[i]], colors = [C_NEU], **pprops)
+            # if i < nB:
+            #     mp.line(ax=ax_tra3, x=[times], y=[x[i]], colors=[C_BEN], **pprops)
+            # elif i >= seq_length-nD:
+            #     mp.plot(type='line',ax=ax_tra3, x=[times], y=[x[i]], colors=[C_DEL], **pprops)
+            # else:
+            #     mp.line(ax=ax_tra3, x=[times], y=[x[i]], colors = [C_NEU], **pprops)
+            mp.line(ax=ax_tra3, x=[times], y=[x[i]], colors = [C_group[-2]], **pprops)
 
         # if the site is escape site, plot it in figure b
         found, group = find_in_nested_list(escape_group, i)
@@ -244,7 +246,12 @@ def plot_simulation(**pdata):
     # escape group
     pprops['plotprops']['alpha'] = 1
     for n in range(ne):
-        mp.plot(type='line',ax=ax_tra2, x=[times], y=[y[n]], colors=[C_group[n]], **pprops)
+        mp.line(ax=ax_tra2, x=[times], y=[y[n]], colors=[C_group[n]], **pprops)
+
+    pprops['plotprops'] = {'lw': SIZELINE, 'ls': '-', 'alpha': 0 }
+    mp.plot(type='line',ax=ax_tra1, x=[[0,500]], y=[[1,1]], colors=[C_NEU], **pprops)
+    mp.plot(type='line',ax=ax_tra2, x=[[0,500]], y=[[1,1]], colors=[C_NEU], **pprops)
+    mp.plot(type='line',ax=ax_tra3, x=[[0,500]], y=[[1,1]], colors=[C_NEU], **pprops)
 
     ax_tra1.text( box_tra1['left']+dx,  box_tra1['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
     ax_tra2.text( box_tra2['left']+dx,  box_tra2['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
@@ -358,22 +365,23 @@ def plot_simulation(**pdata):
         else:
             sc_p = sc_full[2*p_index+1] - sc_full[2*p_index]
 
-        if p_index < nB:
-            mp.line(ax=ax_sp, x=[times], y=[sc_p], colors=[C_BEN], **pprops)
-        elif p_index >= seq_length-nD:
-            mp.line(ax=ax_sp, x=[times], y=[sc_p], colors=[C_DEL], **pprops)
-        else:
-            mp.line(ax=ax_sp, x=[times], y=[sc_p], colors=[C_NEU], **pprops)
+        # if p_index < nB:
+        #     mp.line(ax=ax_sp, x=[times], y=[sc_p], colors=[C_BEN], **pprops)
+        # elif p_index >= seq_length-nD:
+        #     mp.line(ax=ax_sp, x=[times], y=[sc_p], colors=[C_DEL], **pprops)
+        # else:
+        #     mp.line(ax=ax_sp, x=[times], y=[sc_p], colors=[C_NEU], **pprops)
+        mp.line(ax=ax_sp, x=[times], y=[sc_p], colors=[C_group[-2]], **pprops)
 
     pprops['plotprops']['ls'] = ':'
-    mp.plot(type='line',ax=ax_sp, x=[[0, generations]], y=[[0, 0]], colors=[C_NEU], **pprops)
-    mp.plot(type='line',ax=ax_sp, x=[times], y=[fi], colors=[C_DEL], **pprops)
+    mp.plot(type='line',ax=ax_sp, x=[times], y=[fi], colors=[C_group[-2]], **pprops)
 
     ax_sp.text(box_sp['left']+dx, box_sp['top']+dy, 'f'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
-    plt.savefig('%s/simulation/%s.jpg' % (FIG_DIR,name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
-    # plt.close()
-    plt.show()
+    if binary=='True':
+        plt.savefig('%s/simulation/%s.jpg' % (FIG_DIR,name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+    else:
+        plt.savefig('%s/simulation_multiple/%s.jpg' % (FIG_DIR,name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
 def plot_his_sim(**pdata):
 
@@ -382,9 +390,6 @@ def plot_his_sim(**pdata):
     """
 
     # unpack passed data
-    name          = pdata['name']           # sample name
-    dir           = pdata['dir']            # sample direction
-
     seq_length    = pdata['seq_length']     # 20
     generations   = pdata['generations']    # 500
     ytick_e       = pdata['ytick_e']
@@ -397,33 +402,51 @@ def plot_his_sim(**pdata):
     nD            = pdata['n_del']          # 4
     fB            = pdata['s_ben']          # 0.02
     fD            = pdata['s_del']          # -0.02
-    escape_group  = pdata['escape_group']   # [[12,15,19]], escape group
-    p_sites       = pdata['p_sites']        # [13,18] , special sites
     fn            = pdata['fn']             # time-varying selection coefficient
+    fi            = pdata['fi']             # time-varying selection coefficient
+    binary        = pdata['binary']         # True
 
-    ne          = len(escape_group)
+    with open("%s/escape_groups.dat"%SIM_DIR, 'r') as file:
+        escape_groups = json.load(file)
+
+    with open("%s/special_groups.dat"%SIM_DIR, 'r') as file:
+        special_groups = json.load(file)
+
+    ne          = len(escape_groups[0])
     timepoints  = int(generations) + 1
     times       = np.linspace(0,generations,timepoints)
 
     # data for selection coefficients for different simulations
-    df       = pd.read_csv('%s/mpl_collected_%s.csv' % (SIM_DIR,dir), memory_map=True)
+    df       = pd.read_csv('%s/mpl_collected.csv' % (SIM_DIR), memory_map=True)
     ben_cols = ['sc_%d' % i for i in [0,1,2,3]]
-    neu_cols = ['sc_%d' % i for i in [4,5,6,7,8,9,10,11,12,14,15]]
-    del_cols = ['sc_%d' % i for i in [16,17,19]]
+    neu_cols = ['sc_%d' % i for i in [4,5,6,7,8,9,10,11,12,13,14,15]]
+    del_cols = ['sc_%d' % i for i in [16,17,18,19]]
 
-    # get data for trait frequencies for different simulations
+    # get data for inference results for different simulations
     tc_all   = np.zeros((100,ne,generations+1))
-    sc_p_all = np.zeros((100,len(p_sites),generations+1))
+    sc_p_all = np.zeros((100,len(special_groups[0]),generations+1))
+
     for k in range(100):
-        name = 'example-'+str(dir[:4])+'-'+str(k)
-        data_full     = np.load('%s/%s/c_%s.npz'%(SIM_DIR,dir,name), allow_pickle="True")
-        sc_full       = data_full['selection']
-        TimeVaryingTC = sc_full[2*seq_length:]
+        name = str(k)
+        p_sites       = special_groups[k]
+
+        if binary=='True':
+            data_full     = np.load('%s/output/c_%s.npz'%(SIM_DIR,name), allow_pickle="True")
+            sc_full       = data_full['selection']
+            TimeVaryingTC = sc_full[seq_length:]
+            for ii in range(len(p_sites)):
+                p_index = p_sites[ii]
+                sc_p_all[k][ii] = sc_full[p_index]
+        else:
+            data_full     = np.load('%s/output_multiple/c_%s.npz'%(SIM_DIR,name), allow_pickle="True")
+            sc_full       = data_full['selection']
+            TimeVaryingTC = sc_full[2*seq_length:]
+            for ii in range(len(p_sites)):
+                p_index = p_sites[ii]
+                sc_p_all[k][ii] = sc_full[2*p_index+1] - sc_full[2*p_index]
+
         for n in range(ne):
             tc_all[k][n] = TimeVaryingTC[n]
-        for ii in range(len(p_sites)):
-            p_index = p_sites[ii]
-            sc_p_all[k][ii] = sc_full[2*p_index+1] - sc_full[2*p_index]
 
     tc_average = np.zeros((ne,generations+1))
     tc_all_n   = np.swapaxes(tc_all, 0, 2)
@@ -573,44 +596,38 @@ def plot_his_sim(**pdata):
 
     for n in range(len(p_sites)):
         p_index = p_sites[n]
-        if p_index < nB:
-            color_sp = C_BEN
-        elif p_index >= seq_length-nD:
-            color_sp = C_DEL
-        else:
-            color_sp = C_NEU
 
         pprops['plotprops']['alpha'] = 0.15
         pprops['plotprops']['lw'] = SIZELINE
         for k in range(100):
-            mp.line(ax=ax_sc2, x=[times], y=[sc_p_all[k][n]], colors=[color_sp], **pprops)
+            mp.line(ax=ax_sc2, x=[times], y=[sc_p_all[k][n]], colors=[C_group[-2]], **pprops)
 
         pprops['plotprops']['alpha'] = 0.4
         pprops['plotprops']['lw'] = SIZELINE*1.2
-        mp.line(ax=ax_sc2, x=[times], y=[sc_p_all[0][n]], colors=[color_sp], **pprops)
+        mp.line(ax=ax_sc2, x=[times], y=[sc_p_all[0][n]], colors=[C_group[-2]], **pprops)
 
         pprops['plotprops']['alpha'] = 1
         pprops['plotprops']['lw'] = SIZELINE*3
-        mp.line(ax=ax_sc2, x=[times], y=[sc_average[n]], colors=[color_sp], **pprops)
+        mp.line(ax=ax_sc2, x=[times], y=[sc_average[n]], colors=[C_group[-2]], **pprops)
 
     pprops['plotprops']['ls'] = ':'
-    mp.plot(type='line',ax=ax_sc2, x=[[0, generations]], y=[[0, 0]], colors=[C_NEU], **pprops)
-    mp.plot(type='line',ax=ax_sc2, x=[[0, generations]], y=[[fD, fD]], colors=[C_DEL], **pprops)
+    mp.plot(type='line',ax=ax_sc2, x=[times], y=[fi], colors=[C_group[-2]], **pprops)
 
     ax_sc2.text(box_sc2['left']+dx, box_sc2['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
     # SAVE FIGURE
-    plt.savefig('%s/fig2-%s.pdf' % (FIG_DIR,dir), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
-    print('figure 2 done.')
+    if binary=='True':
+        plt.savefig('%s/sim_his.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+    else:
+        plt.savefig('%s/sim_his_mul.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
 def plot_epitope(**pdata):
 
     # unpack passed data
     tag      = pdata['tag']
-    name     = pdata['name']
+    dir     = pdata['dir']
     HIV_DIR  = pdata['HIV_DIR']
     FIG_DIR  = pdata['FIG_DIR']
-    output   = pdata['output']
     xtick      = pdata['xtick']
     xminortick = pdata['xminortick']
     ytick      = pdata['ytick']
@@ -629,14 +646,14 @@ def plot_epitope(**pdata):
         return
 
     # import data with extended time
-    data_sc = np.load('%s/output/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), allow_pickle="True")
+    data_sc = np.load('%s/%s/c_%s_%d.npz'%(HIV_DIR,dir,tag,time_step), allow_pickle="True")
     sc_all_ex   = data_sc['selection']# time range:times
 
-    # get ExTimes (extended time after interpolation)
-    TLeft = int(round(times[-1]*0.5/10)*10)
-    TRight = int(round(times[-1]*0.5/10)*10)
-    etleft  = np.linspace(-TLeft,-10,int(TLeft/10))
-    etright = np.linspace(times[-1]+10,times[-1]+TRight,int(TRight/10))
+    # # get ExTimes (extended time after interpolation)
+    # TLeft = int(round(times[-1]*0.5/10)*10)
+    # TRight = int(round(times[-1]*0.5/10)*10)
+    # etleft  = np.linspace(-TLeft,-10,int(TLeft/10))
+    # etright = np.linspace(times[-1]+10,times[-1]+TRight,int(TRight/10))
 
     time_index = []
     for t in range(len(sample_times)):
@@ -649,7 +666,7 @@ def plot_epitope(**pdata):
         index          = time_index[i]
         sc_sample_ex[:,i] = sc_all_ex[:,index]
 
-    df_escape   = pd.read_csv('%s/group/escape_group-%s.csv'%(HIV_DIR,tag), memory_map=True)
+    df_escape   = pd.read_csv('%s/epitopes/escape_group-%s.csv'%(HIV_DIR,tag), memory_map=True)
     epitopes = df_escape['epitope'].unique()
 
     var_ec     = [] # escape coefficients for constant case
@@ -749,17 +766,16 @@ def plot_epitope(**pdata):
         ax[n][1].axhline(y=var_ec[n], ls=':', lw=SIZELINE, color=C_group[n])
         ax[n][1].axhline(y=0, ls='--', lw=SIZELINE/2, color=BKCOLOR)
 
-    plt.savefig('%s/CH%s%s.jpg' % (FIG_DIR,tag[-5:],output), \
+    plt.savefig('%s/CH%s.jpg' % (FIG_DIR,tag[-5:]), \
                 facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
 def plot_special_site(**pdata):
 
     # unpack passed data
     tag        = pdata['tag']
-    name       = pdata['name']
+    dir       = pdata['dir']
     HIV_DIR    = pdata['HIV_DIR']
     FIG_DIR  = pdata['FIG_DIR']
-    output     = pdata['output']
     xtick      = pdata['xtick']
     xminortick = pdata['xminortick']
     ytick      = pdata['ytick_sp']
@@ -769,7 +785,6 @@ def plot_special_site(**pdata):
     data_pro = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle="True")
     muVec    = data_pro['muVec']
 
-    seq_length   = data_pro['seq_length']
     sample_times = data_pro['sample_times']
     times        = data_pro['times']
     time_step    = data_pro['time_step']
@@ -779,7 +794,7 @@ def plot_special_site(**pdata):
         return
 
     # import data with extended time
-    data_sc = np.load('%s/output/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), allow_pickle="True")
+    data_sc = np.load('%s/%s/c_%s_%d.npz'%(HIV_DIR,dir,tag,time_step), allow_pickle="True")
     sc_all_ex   = data_sc['selection']# time range:times
     sc_extended = data_sc['all']      # time range:ExTimes
 
@@ -930,7 +945,7 @@ def plot_special_site(**pdata):
             sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':1}
             mp.scatter(ax=ax[2], x=[sample_times], y=[sc_s_ex[i]], colors=[C_group[i]],plotprops=sprops, **pprops)
 
-    plt.savefig('%s/sp-CH%s%s.jpg' % (FIG_DIR,tag[-5:],output), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+    plt.savefig('%s/sp-CH%s.jpg' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
 @dataclass
 class FData:
@@ -958,7 +973,7 @@ def GetFigureData(tag,HIV_DIR,name):
     data_tc     = np.load('%s/output/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), allow_pickle="True")
     sc_all_ex   = data_tc['selection']# time range:times
 
-    df_escape   = pd.read_csv('%s/group/escape_group-%s.csv'%(HIV_DIR,tag), memory_map=True)
+    df_escape   = pd.read_csv('%s/epitopes/escape_group-%s.csv'%(HIV_DIR,tag), memory_map=True)
     epitopes    = df_escape['epitope'].unique()
 
     # get ExTimes (extended time after interpolation)
@@ -1063,7 +1078,7 @@ def plot_all_epitopes(**pdata):
                 'nudgey':      1.1,
                 'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.8 },
                 'xlabel':      'Times (days)',
-                'ylabel':      'Inferred escape \ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+                'ylabel':      'Trait frequencies ',
                 'axoffset':    0.1,
                 'theme':       'open',
                 'combine':     True}
@@ -1076,7 +1091,7 @@ def plot_all_epitopes(**pdata):
                 'nudgey':      1.1,
                 'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.8 },
                 'xlabel':      'Times (days)',
-                'ylabel':      'Inferred escape \ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+                'ylabel':      'Trait frequencies',
                 'axoffset':    0.1,
                 'theme':       'open',
                 'combine':     True}
