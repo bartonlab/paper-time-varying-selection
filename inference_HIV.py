@@ -14,10 +14,6 @@ from dataclasses import dataclass
 import time as time_module
 from itertools import product
 
-# GitHub
-HIV_DIR = 'data/HIV'
-FIG_DIR = 'figures'
-
 ## simulation parameter
 NUC = ['-', 'A', 'C', 'G', 'T']
 q = len(NUC)
@@ -35,7 +31,7 @@ class Result:
     trait_dis:[]
     IntTime:[]
 
-def AnalyzeData(tag):
+def AnalyzeData(tag,HIV_DIR):
     df_info = pd.read_csv('%s/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
     seq     = np.loadtxt('%s/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
 
@@ -130,26 +126,32 @@ def main(args):
     parser = argparse.ArgumentParser(description='Time Varying Selection coefficients inference')
     parser.add_argument('-tag',          type=str,    default='700010077-5',        help='input HIV data tag')
     parser.add_argument('-name',         type=str,    default='',                   help='suffix for output data')
+    parser.add_argument('-dir',          type=str,    default='data/HIV',           help='directory for HIV data')
     parser.add_argument('-r',            type=float,  default=1.4e-5,               help='recombination rate')
+    parser.add_argument('-theta',        type=float,  default=0.5,                  help='the extension of time range')
     parser.add_argument('-g1',           type=float,  default=10,                   help='regularization restricting the magnitude of the selection coefficients for constant MPL')
     parser.add_argument('-g2c',          type=float,  default=100000,               help='regularization restricting the time derivative of the selection coefficients,constant')
     parser.add_argument('-g2tv',         type=float,  default=200,                  help='regularization restricting the time derivative of the selection coefficients,time varying')
     parser.add_argument('--raw',         action='store_true',  default=False,       help='whether or not to save the raw data')
     parser.add_argument('--TV',          action='store_false', default=True,        help='whether or not to infer')
     parser.add_argument('--pt',          action='store_false', default=True,        help='whether or not to print the execution time')
+    parser.add_argument('--bc',          action='store_false', default=True,        help='whether or not to use Neumann boundary condition x')
 
     arg_list  = parser.parse_args(args)
 
     tag        = arg_list.tag
     name       = arg_list.name
+    HIV_DIR    = arg_list.dir
     r_rate     = arg_list.r
+    theta      = arg_list.theta
     gamma_1    = arg_list.g1  # regularization parameter, which will be change according to the time points
     gamma_2c   = arg_list.g2c
     gamma_2tv  = arg_list.g2tv
     raw_save   = arg_list.raw
     infer      = arg_list.TV
     print_time = arg_list.pt
-
+    bc_n       = arg_list.bc
+    
     ############################################################################
     ################################# function #################################
     # loading data from dat file
@@ -475,7 +477,7 @@ def main(args):
         data     = np.loadtxt("%s/sequence/%s-poly-seq2state.dat" %(HIV_DIR,tag))
 
         # information for escape group
-        result       = AnalyzeData(tag)
+        result       = AnalyzeData(tag,HIV_DIR)
         escape_group = result.escape_group
         escape_TF    = result.escape_TF
         trait_dis    = result.trait_dis
@@ -580,10 +582,11 @@ def main(args):
         delta_x      = cal_delta_x(single_freq,times)
 
         # extend the time range
-        TLeft   = int(round(times[-1]*0.5/10)*10)
-        TRight  = int(round(times[-1]*0.5/10)*10)
-        etleft  = np.linspace(-TLeft,-10,int(TLeft/10))
-        etright = np.linspace(times[-1]+10,times[-1]+TRight,int(TRight/10))
+        TLeft   = int(round(times[-1]*theta/10)*10)
+        TRight  = int(round(times[-1]*theta/10)*10)
+        ex_gap  = int(theta*20)
+        etleft  = np.linspace(-TLeft,-ex_gap,int(TLeft/ex_gap))
+        etright = np.linspace(times[-1]+ex_gap,times[-1]+TRight,int(TRight/ex_gap))
         ExTimes = np.concatenate((etleft, times, etright))
 
         start_time = time_module.time()
@@ -652,8 +655,10 @@ def main(args):
         # Boundary conditions
         # solution to the system of differential equation with the derivative of the selection coefficients zero at the endpoints
         def bc(b1,b2):
-            # return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
-            return np.ravel(np.array([b1[:x_length],b2[:x_length]])) # s = 0 at the extended endpoints
+            if bc_n:
+                return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
+            else:
+                return np.ravel(np.array([b1[:x_length],b2[:x_length]])) # s = 0 at the extended endpoints
 
         ss_extend = np.zeros((2*x_length,len(ExTimes)))
         
@@ -676,8 +681,10 @@ def main(args):
         max_var_auto  = max_min(autoconvolution(desired_coefficients))
 
         # save the solution with constant_time-varying selection coefficient
-        g = open('%s/output/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), mode='w+b')
-        g = open('%s/output_s0/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), mode='w+b')
+        if bc_n:
+            g = open('%s/output/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), mode='w+b')
+        else:
+            g = open('%s/output_s0/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), mode='w+b')
         np.savez_compressed(g, selection=desired_coefficients, all = selection_coefficients, time=times, \
                             mean_dev=mean_dev, std_dev=std_dev, max_var=max_var, mean_dev_auto=mean_dev_auto, \
                             std_dev_auto=std_dev_auto, max_var_auto=max_var_auto)

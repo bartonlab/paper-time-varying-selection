@@ -20,3 +20,26 @@ Execution time for CH198-3 : 191.91088604927063 seconds
 Execution time for CH164-3 : 1873.797955751419 seconds
 Execution time for CH164-5 : 314.89780020713806 seconds
 All scripts have been attempted.
+
+dt = 200
+Execution time for CH470-3 : 478.54170083999634 seconds
+Execution time for CH470-5 : 46.150733947753906 seconds
+Execution time for CH159-3 : 890.6365370750427 seconds
+Execution time for CH256-3 : 117.65193009376526 seconds
+Execution time for CH256-5 : 247.30066204071045 seconds
+Execution time for CH042-3 : 986.8455009460449 seconds
+Execution time for CH042-5 : 41.14184498786926 seconds
+Execution time for CH162-3 : 395.28038597106934 seconds
+Execution time for CH162-5 : 57.2886381149292 seconds
+Execution time for CH164-3 : 667.920835018158 seconds
+Execution time for CH164-5 : 32.31288814544678 seconds
+
+dt = 250
+Execution time for CH256-3 : 114.06621813774109 seconds
+Execution time for CH256-5 : 274.5103409290314 seconds
+Execution time for CH042-3 : 1991.7585587501526 seconds
+Execution time for CH042-5 : 82.09376382827759 seconds
+Execution time for CH162-3 : 1854.7729680538177 seconds
+Execution time for CH162-5 : 62.30660891532898 seconds
+Execution time for CH164-3 : 519.5212578773499 seconds
+Execution time for CH164-5 : 22.642827033996582 seconds

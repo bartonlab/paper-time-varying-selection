@@ -9,13 +9,13 @@ import pandas as pd
 from scipy import integrate
 import scipy.interpolate as sp_interpolate
 import statistics
-import math
+import pickle
 from dataclasses import dataclass
 import time as time_module
+from itertools import product
 
 # GitHub
 HIV_DIR = '../data/HIV200'
-SIM_DIR = '../data/simulation'
 FIG_DIR = 'figures'
 
 ## simulation parameter
@@ -30,9 +30,9 @@ class Result:
     special_sites: []
     uniq_t:[]
     time_step:0
-    gamma:0
     escape_group:[]
     escape_TF:[]
+    trait_dis:[]
     IntTime:[]
 
 def AnalyzeData(tag):
@@ -40,7 +40,7 @@ def AnalyzeData(tag):
     seq     = np.loadtxt('%s/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
 
     """get raw time points"""
-    times = [];
+    times = []
     for i in range(len(seq)):
         times.append(seq[i][0])
     uniq_t = np.unique(times)
@@ -67,13 +67,29 @@ def AnalyzeData(tag):
             special_sites.append(unique_sites)
         else:
             escape_group.append(list(unique_sites))
-            tf_values = []
+            escape_TF_epi = []
             for site in unique_sites:
-                tf_value = df_e[df_e['polymorphic_index'] == site]['TF'].values
-                tf_values.append(NUC.index(tf_value[0]))
-            escape_TF.append(tf_values)
+                tf_values = []
+                df_site = df_info[df_info['polymorphic_index'] == site]
+                for i in range(len(df_site)):
+                    if df_site.iloc[i].escape != True:
+                        tf_values.append(int(NUC.index(df_site.iloc[i].nucleotide)))
+                escape_TF_epi.append(tf_values)
+            escape_TF.append(escape_TF_epi)
 
     special_sites = [item for sublist in special_sites for item in sublist]
+
+    """trait distance"""
+    trait_dis = []
+    if len(escape_group) > 0:
+        df_sequence = pd.read_csv('%s/processed/%s-index.csv' %(HIV_DIR,tag), comment='#', memory_map=True,usecols=['alignment','polymorphic'])
+        for i in range(len(escape_group)):
+            i_dis = []
+            for j in range(len(escape_group[i])-1):
+                index0 = df_sequence[df_sequence['polymorphic']==escape_group[i][j]].iloc[0].alignment
+                index1 = df_sequence[df_sequence['polymorphic']==escape_group[i][j+1]].iloc[0].alignment
+                i_dis.append(int(index1-index0))
+            trait_dis.append(i_dis)
 
     """find proper time step"""
     if uniq_t[-1] < 100:
@@ -87,7 +103,6 @@ def AnalyzeData(tag):
             time_step = 5
 
     """find proper gamma value"""
-    time_points = math.ceil(uniq_t[-1]/time_step)+1
     # interpolation time according to the time step get above, all the inserted time points are integer
     times = [0]
     for t in range(1,len(uniq_t)):
@@ -105,9 +120,8 @@ def AnalyzeData(tag):
         else:
             times.append(uniq_t[t])
     IntTime = list(times)
-    gamma = round(10/uniq_t[-1],3)
 
-    return Result(variants,seq_length,special_sites,uniq_t,time_step,gamma, escape_group,escape_TF,IntTime)
+    return Result(variants, seq_length, special_sites, uniq_t, time_step, escape_group, escape_TF, trait_dis, IntTime)
 
 
 def main(args):
