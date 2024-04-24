@@ -17,6 +17,7 @@ cd ..
 	python inference_HIV.py -tag 704010042-5 --raw || echo "CH042-5 failed, continuing with next script..." 
 	python inference_HIV.py -tag 705010162-3 --raw || echo "CH162-3 failed, continuing with next script..." 
 	python inference_HIV.py -tag 705010162-5 --raw || echo "CH162-5 failed, continuing with next script..." 
+	python inference_HIV.py -tag 704010042-3 --raw || echo "CH042-3 failed, continuing with next script..." 
 	python inference_HIV.py -tag 705010185-5 --raw || echo "CH185-5 failed, continuing with next script..." 
 	python inference_HIV.py -tag 705010198-3 --raw || echo "CH198-3 failed, continuing with next script..." 
 	python inference_HIV.py -tag 706010164-3 --raw || echo "CH164-3 failed, continuing with next script..." 

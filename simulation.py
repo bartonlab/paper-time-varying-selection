@@ -250,12 +250,13 @@ def simulate_trait(**pdata):
     rec_rate      = pdata['rec_rate']       # 1e-3
     inital_state  = pdata['inital_state']   # 4
 
-    nB            = pdata['n_ben']          # 4
-    nD            = pdata['n_del']          # 0.02
+    bene          = pdata['bene']           # [0,1]
+    dele          = pdata['dele'] 
+    escape_group  = pdata['escape_group']   # random choose 3 sites to consist of a binary trait
+    p_sites       = pdata['p_sites']        # [9,10] , special sites
+    
     fB            = pdata['s_ben']          # 4
     fD            = pdata['s_del']          # 0.02
-    escape_group  = pdata['escape_group']   # [[2,5,8]], escape group
-    p_sites       = pdata['p_sites']        # [13,18] , special sites
     fi            = pdata['fi']             # time-varying selection coefficient
     fn            = pdata['fn']             # time-varying escape coefficient
 
@@ -267,18 +268,16 @@ def simulate_trait(**pdata):
     # get fitness of new genotype
     def get_fitness_alpha(genotype,time):
         fitness = 1
-        #alphabet format
-        
+    
         # individual locus
         for i in range(seq_length):
             if genotype[i] != "A": # mutant type
                 if i in p_sites: # special site
                     fitness += fi[time]
-                else:
-                    if i < nB: # beneficial mutation
-                        fitness += fB
-                    elif i >= seq_length-nD: # deleterious mutation
-                        fitness += fD
+                elif i in bene: # beneficial mutation
+                    fitness += fB
+                elif i in dele: # deleterious mutation
+                    fitness += fD
         
         # binary trait
         for n in range(ne):
@@ -721,14 +720,9 @@ def infer_simple(**pdata):
     delta_x      = cal_delta_x(single_freq,times,x_length)
 
     # extend the time range
-    TLeft   = int(round(times[-1]*2/10)*10) # time range added before the beginning time
-    # TRight  = int(round(times[-1]*2/10)*10) # time range added after the ending time
-    etleft  = np.linspace(-TLeft,-40,int(TLeft/40)) # time added before the beginning time (dt=10)
-    # etright = np.linspace(times[-1]+40,times[-1]+TRight,int(TRight/40))
-    # ExTimes = np.concatenate((etleft, times, etright))
-    # TLeft   = int(round(times[-1]*0.5/10)*10) # time range added before the beginning time
+    TLeft   = int(round(times[-1]*0.5/10)*10) # time range added before the beginning time
     TRight  = int(round(times[-1]*0.5/10)*10) # time range added after the ending time
-    # etleft  = np.linspace(-TLeft,-10,int(TLeft/10)) # time added before the beginning time (dt=10)
+    etleft  = np.linspace(-TLeft,-10,int(TLeft/10)) # time added before the beginning time (dt=10)
     etright = np.linspace(times[-1]+10,times[-1]+TRight,int(TRight/10))
     ExTimes = np.concatenate((etleft, times, etright))
 
@@ -739,24 +733,18 @@ def infer_simple(**pdata):
     # individual site: gamma_2c, escape group and special site: gamma_2tv
     # gamma 2 is also time varying, it is smaller at the boundary
     gamma_t = np.zeros(len(ExTimes))
-    beta_1 = 4
-    beta_2 = 4
-    ratio_1 = 0.1
-    ratio_2 = 0.1
-    alpha1  = np.log(beta_1) / (ratio_1*1000)
-    alpha2  = np.log(beta_2) / (ratio_2*1000)
-
+    beta = 4
+    tv_range = int(round(times[-1]*0.1/10)*10)
+    alpha  = np.log(beta) / tv_range
     for t in range(len(ExTimes)):
-        if t <= len(etleft):
-            gamma_t[t] = beta_1
-        elif t >= len(etleft)+len(times):
-            gamma_t[t] = beta_2
-        elif len(etleft) < t and t < len(etleft)+(len(times)-1)*ratio_1:
-            tt = (t - len(etleft)) * 1
-            gamma_t[t] = beta_1 * np.exp(-alpha1 * tt)
-        elif len(etleft)+(len(times)-1)*(1 - ratio_2) < t and t < len(etleft)+len(times):
-            tt = (t - len(etleft)) * 1 - (1 - ratio_2) * totalT
-            gamma_t[t] = 1 * np.exp(alpha2 * tt)
+        if ExTimes[t] <= 0:
+            gamma_t[t] = beta
+        elif ExTimes[t] >= times[-1]:
+            gamma_t[t] = beta
+        elif 0 < ExTimes[t] and ExTimes[t] <= tv_range:
+            gamma_t[t] = beta * np.exp(-alpha * ExTimes[t])
+        elif times[-1]-tv_range <= ExTimes[t] and ExTimes[t] < times[-1]:
+            gamma_t[t] = 1 * np.exp(alpha * (ExTimes[t]-times[-1]+tv_range))
         else:
             gamma_t[t] = 1
 
@@ -842,7 +830,7 @@ def infer_simple(**pdata):
     desired_coefficients   = selection_coefficients[:x_length,len(etleft):len(etleft)+len(times)]
 
     # save the solution with constant_time-varying selection coefficient
-    g = open('%s/%s/output_ls_%d%d/c_%s.npz'%(SIM_DIR,dir,int(ratio_1*10),int(ratio_2*10),xfile), mode='w+b')
+    g = open('%s/%s/output/c_%s.npz'%(SIM_DIR,dir,xfile), mode='w+b')
     np.savez_compressed(g, selection=desired_coefficients, all = selection_coefficients, time=times)
     g.close()
 
@@ -859,7 +847,6 @@ def infer_trait(**pdata):
     totalT        = pdata['totalT']         # 1000
     mut_rate      = pdata['mut_rate']       # 1e-3
     rec_rate      = pdata['rec_rate']
-
     p_sites       = pdata['p_sites']        # [13,18] , special sites
 
     gamma_1s      = pdata['gamma_s']/totalT # gamma_s/time points
@@ -989,9 +976,8 @@ def infer_trait(**pdata):
     data         = np.loadtxt("%s/%s/sequences/example-%s.dat"%(SIM_DIR,dir,xfile))
     escape_group = read_file('%s/traitsite/traitsite-%s.dat'%(dir,xfile))
     trait_dis    = read_file('%s/traitdis/traitdis-%s.dat'%(dir,xfile))
-        
-    escape_TF = [[0,0,0]]
-    ne        = len(escape_group)
+    escape_TF    = read_file('%s/traitseq.dat'%(dir))
+    ne           = len(escape_group)
 
     # obtain sequence data and frequencies
     sVec,nVec,eVec = getSequence(data,escape_group)
@@ -1022,13 +1008,8 @@ def infer_trait(**pdata):
     delta_x      = cal_delta_x(single_freq,times,x_length)
 
     # extend the time range
-    TLeft   = int(round(times[-1]*2/10)*10) # time range added before the beginning time
-    etleft  = np.linspace(-TLeft,-40,int(TLeft/40)) # time added before the beginning time (dt=10)
-    # TRight  = int(round(times[-1]*2/10)*10) # time range added after the ending time
-    # etright = np.linspace(times[-1]+40,times[-1]+TRight,int(TRight/40))
-
-    # TLeft   = int(round(times[-1]*0.5/10)*10) # time range added before the beginning time
-    # etleft  = np.linspace(-TLeft,-10,int(TLeft/10)) # time added before the beginning time (dt=10)
+    TLeft   = int(round(times[-1]*0.5/10)*10) # time range added before the beginning time
+    etleft  = np.linspace(-TLeft,-10,int(TLeft/10)) # time added before the beginning time (dt=10)
     TRight  = int(round(times[-1]*0.5/10)*10) # time range added after the ending time
     etright = np.linspace(times[-1]+10,times[-1]+TRight,int(TRight/10))
 
@@ -1042,23 +1023,18 @@ def infer_trait(**pdata):
 
     # gamma 2 is also time varying, it is larger at the boundary
     gamma_t = np.zeros(len(ExTimes))
-    beta_1 = 4
-    beta_2 = 4
-    ratio_1 = 0.1
-    ratio_2 = 0.1
-    alpha1  = np.log(beta_1) / (ratio_1*1000)
-    alpha2  = np.log(beta_2) / (ratio_2*1000)
+    beta = 4
+    tv_range = int(round(times[-1]*0.1/10)*10)
+    alpha  = np.log(beta) / tv_range
     for t in range(len(ExTimes)):
-        if t <= len(etleft):
-            gamma_t[t] = beta_1
-        elif t >= len(etleft)+len(times):
-            gamma_t[t] = beta_2
-        elif len(etleft) < t and t < len(etleft)+(len(times)-1)*ratio_1:
-            tt = (t - len(etleft)) * 1
-            gamma_t[t] = beta_1 * np.exp(-alpha1 * tt)
-        elif len(etleft)+(len(times)-1)*(1 - ratio_2) < t and t < len(etleft)+len(times):
-            tt = (t - len(etleft)) * 1 - (1 - ratio_2) * totalT
-            gamma_t[t] = 1 * np.exp(alpha2 * tt)
+        if ExTimes[t] <= 0:
+            gamma_t[t] = beta
+        elif ExTimes[t] >= times[-1]:
+            gamma_t[t] = beta
+        elif 0 < ExTimes[t] and ExTimes[t] <= tv_range:
+            gamma_t[t] = beta * np.exp(-alpha * ExTimes[t])
+        elif times[-1]-tv_range <= ExTimes[t] and ExTimes[t] < times[-1]:
+            gamma_t[t] = 1 * np.exp(alpha * (ExTimes[t]-times[-1]+tv_range))
         else:
             gamma_t[t] = 1
 
@@ -1150,7 +1126,7 @@ def infer_trait(**pdata):
 
     # save the solution with constant_time-varying selection coefficient
     if bc_n: # Neumann boundary condition
-        g = open('%s/%s/output_ls_11/c_%s.npz'%(SIM_DIR,dir,xfile), mode='w+b')
+        g = open('%s/%s/output/c_%s.npz'%(SIM_DIR,dir,xfile), mode='w+b')
     else: # Dirichlet boundary condition
         g = open('%s/%s/output_d/c_%s.npz'%(SIM_DIR,dir,xfile), mode='w+b')
     np.savez_compressed(g, selection=desired_coefficients, all = selection_coefficients, time=times)

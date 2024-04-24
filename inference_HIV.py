@@ -32,8 +32,12 @@ class Result:
     IntTime:[]
 
 def AnalyzeData(tag,HIV_DIR):
-    df_info = pd.read_csv('%s/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
-    seq     = np.loadtxt('%s/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
+    if tag == '704010042-3' or '703010131-3':
+        df_info = pd.read_csv('%s/constant/analysis/%s-analyze-cut.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+        seq     = np.loadtxt('%s/sequence/%s-cut.dat'%(HIV_DIR,tag))
+    else:
+        df_info = pd.read_csv('%s/constant/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+        seq     = np.loadtxt('%s/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
 
     """get raw time points"""
     times = []
@@ -78,12 +82,11 @@ def AnalyzeData(tag,HIV_DIR):
     """trait distance"""
     trait_dis = []
     if len(escape_group) > 0:
-        df_sequence = pd.read_csv('%s/processed/%s-index.csv' %(HIV_DIR,tag), comment='#', memory_map=True,usecols=['alignment','polymorphic'])
         for i in range(len(escape_group)):
             i_dis = []
             for j in range(len(escape_group[i])-1):
-                index0 = df_sequence[df_sequence['polymorphic']==escape_group[i][j]].iloc[0].alignment
-                index1 = df_sequence[df_sequence['polymorphic']==escape_group[i][j+1]].iloc[0].alignment
+                index0 = df_info[df_info['polymorphic_index']==escape_group[i][j]].iloc[0].alignment
+                index1 = df_info[df_info['polymorphic_index']==escape_group[i][j+1]].iloc[0].alignment
                 i_dis.append(int(index1-index0))
             trait_dis.append(i_dis)
 
@@ -547,24 +550,6 @@ def main(args):
             ne           = len(escape_group)
             x_length     = len(x[0])
 
-            # regularization value gamma_1 and gamma_2
-            # individual site: gamma_1s, escape group: gamma_1p
-            # regularize value gamma1, restricting the magnitude of the selection coefficients
-            gamma_1s = round(gamma_1/sample_times[-1],3) # constant MPL gamma value / max time
-            gamma_1p = gamma_1s/10
-            gamma1   = np.ones(x_length)*gamma_1s
-            for n in range(ne):
-                gamma1[x_length-ne+n] = gamma_1p
-
-            # individual site: gamma_2c, escape group and special site: gamma_2tv
-            gamma2 = np.ones(x_length)*gamma_2c
-            for n in range(ne):
-                gamma2[x_length-ne+n] = gamma_2tv
-            for p_site in p_sites: # special site - time varying
-                for qq in range(len(NUC)):
-                    index = int (muVec[p_site][qq]) 
-                    if index != -1:
-                        gamma2[index] = gamma_2tv
         except FileNotFoundError:
             print("error, rawdata file does not exist, please process the data first")
             sys.exit(1)
@@ -589,6 +574,41 @@ def main(args):
         etright = np.linspace(times[-1]+ex_gap,times[-1]+TRight,int(TRight/ex_gap))
         ExTimes = np.concatenate((etleft, times, etright))
 
+        # regularization value gamma_1 and gamma_2
+        # individual site: gamma_1s, escape group: gamma_1p
+        gamma_1s = round(gamma_1/sample_times[-1],3) # constant MPL gamma value / max time
+        gamma_1p = gamma_1s/10
+        gamma1   = np.ones(x_length)*gamma_1s
+        for n in range(ne):
+            gamma1[x_length-ne+n] = gamma_1p
+
+        # gamma 2 is also time varying, it is larger at the boundary
+        gamma_t = np.zeros(len(ExTimes))
+        tv_range = max(int(round(times[-1]*0.1/10)*10),1)
+        alpha1  = np.log(4) / tv_range
+        alpha2  = np.log(4) / tv_range
+        for t in range(len(ExTimes)):
+            if ExTimes[t] <= 0:
+                gamma_t[t] = 4
+            elif ExTimes[t] >= times[-1]:
+                gamma_t[t] = 4
+            elif 0 < ExTimes[t] and ExTimes[t] <= tv_range:
+                gamma_t[t] = 4 * np.exp(-alpha1 * ExTimes[t])
+            elif times[-1]-tv_range <= ExTimes[t] and ExTimes[t] < times[-1]:
+                gamma_t[t] = 1 * np.exp(alpha2 * (ExTimes[t]-times[-1]+tv_range))
+            else:
+                gamma_t[t] = 1
+
+        # individual site: gamma_2c, escape group and special site: gamma_2tv
+        gamma2 = np.ones((x_length,len(ExTimes)))*gamma_2c
+        for n in range(ne):
+            gamma2[x_length-ne+n] = gamma_t * gamma_2tv
+        for p_site in p_sites: # special site - time varying
+            for qq in range(len(NUC)):
+                index = int (muVec[p_site][qq]) 
+                if index != -1:
+                    gamma2[index] = gamma_t * gamma_2tv
+
         start_time = time_module.time()
 
         # solve the bounadry condition ODE to infer selections
@@ -605,12 +625,12 @@ def main(args):
                 if len(etleft) <= t < len(etleft)+len(times):
                     tt = t - len(etleft)
                     for i in range(x_length):
-                        result[x_length+i,t] = (mat_prod[i,tt] + gamma1[i] * b_1[i,t] + flux_mu[tt,i] + flux_rec[tt,i] - delta_x[tt,i]) / gamma2[i]
+                        result[x_length+i,t] = (mat_prod[i,tt] + gamma1[i] * b_1[i,t] + flux_mu[tt,i] + flux_rec[tt,i] - delta_x[tt,i]) / gamma2[i,t]
                 
                 # outside the time range, no selection strength
                 else:
                     for i in range(x_length):
-                        result[x_length+i,t] = gamma1[i] * b_1[i,t] / gamma2[i]
+                        result[x_length+i,t] = gamma1[i] * b_1[i,t] / gamma2[i,t]
 
             return result
         
@@ -643,12 +663,12 @@ def main(args):
                 if len(etleft) <= t < len(etleft)+len(times):
                     tt = t - len(etleft)
                     for i in range(x_length):
-                        result[x_length+i,t] = (mat_prod_int[i,tt] + gamma1[i] * b_1[i,t] + flux_mu_int[tt,i] + flux_rec_int[tt,i] - delta_x_int[tt,i]) / gamma2[i]
+                        result[x_length+i,t] = (mat_prod_int[i,tt] + gamma1[i] * b_1[i,t] + flux_mu_int[tt,i] + flux_rec_int[tt,i] - delta_x_int[tt,i]) / gamma2[i,t]
                 
                 # outside the time range, no selection strength
                 else:
                     for i in range(x_length):
-                        result[x_length+i,t] = gamma1[i] * b_1[i,t] / gamma2[i]
+                        result[x_length+i,t] = gamma1[i] * b_1[i,t] / gamma2[i,t]
 
             return result
 

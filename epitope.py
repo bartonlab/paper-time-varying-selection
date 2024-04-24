@@ -167,10 +167,10 @@ def find_trait_site(tag,min_n,HIV_DIR):
     '''
 
     """Load the set of epitopes targeted by patients"""
-    df_poly  = pd.read_csv('%s/interim/%s-poly.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
-    df_epi   = pd.read_csv('%s/epitopes.csv'%HIV_DIR, comment='#', memory_map=True)
+    df_poly  = pd.read_csv('%s/constant/interim/%s-poly.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+    df_epi   = pd.read_csv('%s/constant/epitopes.csv'%HIV_DIR, comment='#', memory_map=True)
 
-    df_index = pd.read_csv('%s/processed/%s-index.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+    df_index = pd.read_csv('%s/constant/processed/%s-index.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
     # TF sequence
     TF_sequence = []
     for i in range(len(df_index)):
@@ -231,10 +231,10 @@ def find_trait_site(tag,min_n,HIV_DIR):
     df_poly = df_poly.drop(columns=columns_to_remove)
 
     df_poly.insert(4, 'escape', escape_values)
-    df_poly.to_csv('%s/interim/%s-escape.csv' %(HIV_DIR,tag), index=False,na_rep='nan')
+    df_poly.to_csv('%s/constant/interim/%s-escape.csv' %(HIV_DIR,tag), index=False,na_rep='nan')
     
     """get all epitopes for one tag"""
-    df_poly = pd.read_csv('%s/interim/%s-escape.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+    df_poly = pd.read_csv('%s/constant/interim/%s-escape.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
     df_rows = df_poly[df_poly['epitope'].notna()]
     unique_epitopes = df_rows['epitope'].unique()
 
@@ -266,7 +266,7 @@ def find_trait_site(tag,min_n,HIV_DIR):
     g.close()
 
 
-def analyze_result(tag,HIV_DIR):
+def analyze_result_short(tag,HIV_DIR):
     '''
     collect data and then write into csv file
     '''
@@ -337,14 +337,14 @@ def analyze_result(tag,HIV_DIR):
         for j in range(len(traitsite[i])):
             trait_sites.append(traitsite[i][j])
 
-    df_poly = pd.read_csv('%s/interim/%s-escape.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+    df_poly = pd.read_csv('%s/constant/interim/%s-escape.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
 
     index_cols  = ['polymorphic_index', 'alignment_index', 'HXB2_index','nonsynonymous','escape','nucleotide',]
     index_cols += ['TF','consensus','epitope','exposed','edge_gap','flanking','s_MPL','s_SL']
     cols = [i for i in list(df_poly) if i not in index_cols]
     times = [int(cols[i].split('_')[-1]) for i in range(len(cols))]
 
-    f = open(HIV_DIR+'/analysis/'+tag+'-analyze.csv','w')
+    f = open(HIV_DIR+'/constant/analysis/'+tag+'-analyze.csv','w')
     # f.write('polymorphic_index,alignment,HXB2_index,nucleotide,TF,consensus,epitope,escape,sc_old,sc_MPL,tc_MPL')
     f.write('polymorphic_index,alignment,HXB2_index,nucleotide,TF,consensus,epitope,escape')
     f.write(',%s' % (','.join(cols)))
@@ -379,7 +379,7 @@ def analyze_result(tag,HIV_DIR):
     f.close()
 
     if len(traitsite) != 0:
-        df = pd.read_csv('%s/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+        df = pd.read_csv('%s/constant/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
         
         index_cols = ['polymorphic_index', 'alignment']
         cols = [i for i in list(df) if i not in index_cols]
@@ -391,7 +391,7 @@ def analyze_result(tag,HIV_DIR):
             polyseq  = read_file_s(HIV_DIR,'traitseq/traitallele-'+tag+'.dat')
             xp = get_xp_s(seq,traitsite,polyseq)
 
-        g = open('%s/epitopes/escape_group-%s.csv'%(HIV_DIR,tag),'w')
+        g = open('%s/constant/epitopes/escape_group-%s.csv'%(HIV_DIR,tag),'w')
         g.write('polymorphic_index')
         g.write(',%s' % (','.join(cols)))
         for t in range(len(times)):
@@ -409,9 +409,9 @@ def analyze_result(tag,HIV_DIR):
                     g.write('\n')
 
 def analyze_result(HIV_DIR,output,tag):
-    df_poly = pd.read_csv('%s/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+    df_poly = pd.read_csv('%s/constant/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
     cols = [i for i in df_poly.columns if 'f_at_' in i]
-
+    
     # get selection coefficient
     data_pro     = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle="True")
     muVec        = data_pro['muVec']
@@ -460,7 +460,7 @@ def analyze_result(HIV_DIR,output,tag):
     f.close()
 
 def analyze_epitope(HIV_DIR,output,tag):
-    df_epi = pd.read_csv('%s/epitopes/escape_group-%s.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+    df_epi = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
     cols = [i for i in list(df_epi)]
     cols_time = [i for i in cols if 'sc_at_' in i]
     times = [int(cols[i].split('_')[-1]) for i in range(len(cols_time))]
@@ -487,3 +487,159 @@ def analyze_epitope(HIV_DIR,output,tag):
             for t in range(len(times)):
                 g.write(',%f'%sc_tv_n[t])
             g.write('\n')
+
+def get_cut_sequences(HIV_DIR,tag,cut_s,cut_p):
+    '''modify the sequence by removing the sites that has a weak linakge with the epitopes'''
+    
+    # get special sites and escape sites
+    df_info = pd.read_csv('%s/constant/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+    df_rows = df_info[df_info['epitope'].notna()]
+    unique_epitopes = df_rows['epitope'].unique()
+    min_n = 2 # the least escape sites a trait group should have (more than min_n)
+
+    special_sites = [] # special site considered as time-varying site but not escape site
+    escape_group  = [] # escape group (each group should have more than 2 escape sites)
+    for epi in unique_epitopes:
+        df_e = df_rows[(df_rows['epitope'] == epi) & (df_rows['escape'] == True)] # find all escape mutation for one epitope
+        unique_sites = df_e['polymorphic_index'].unique()
+
+        if len(unique_sites) <= min_n:
+            special_sites.append(unique_sites)
+        else:
+            escape_group.append(list(unique_sites))
+
+    escape_sites = [item for sublist in escape_group for item in sublist]
+    special_sites = [item for sublist in special_sites for item in sublist]
+    
+    # get the raw sequence
+    sequence = np.loadtxt("%s/sequence/%s-poly-seq2state.dat" %(HIV_DIR,tag))
+    seq_length = len(sequence[0])-2
+    ne          = len(escape_group)
+   
+    # load the sij data to get the likage between sites
+    df_sij   = pd.read_csv('%s/constant/sij/%s-sij.csv' %(HIV_DIR,tag), comment='#', memory_map=True,low_memory=False)
+    df_sij[['effect']] = df_sij[['effect']].astype(float)
+
+    # get the sites that are not escape sites and special sites as the initial cut sites
+    cut_sites = {i for i in range(seq_length) if i not in escape_sites and i not in special_sites}
+
+    # weak linkage with trait mutations
+    for n in range(ne):
+        for nn in escape_group[n]:
+            # get all possible mutant nucleotides
+            q_nn = []
+            df_nn = df_info[(df_info['polymorphic_index'] == nn) & (df_info['escape'] == 'True')]
+            for ii in range(len(df_nn)):
+                q_nn.append(NUC.index(df_nn.iloc[ii].nucleotide))
+
+            for j in range(len(q_nn)):
+                # get the selection coefficient for the variant
+                s_nq = df_sij[(df_sij['mask_polymorphic_index'] == str(nn)) &(df_sij['mask_nucleotide'] == NUC[q_nn[j]])]
+                df_nq = df_info[(df_info['polymorphic_index'] == nn) & (df_info['nucleotide'] == NUC[q_nn[j]])]
+                sc_nq = df_nq.iloc[0].sc_MPL
+                
+                # get the sites that have weak linkage with the variant
+                site_nq = []
+                for i in cut_sites:
+                    s_nq_i = s_nq[s_nq['target_polymorphic_index'] == str(i)]
+                    effect_i = []
+                    for ii in range(len(s_nq_i)):
+                        effect_i.append(abs(s_nq_i.iloc[ii].effect))
+
+                    if len(effect_i)!= 0 and max(effect_i) < abs(sc_nq*cut_s):
+                        site_nq.append(i)
+
+                cut_sites = cut_sites & set(site_nq)
+
+    # weak linkage with traits
+    for n in range(ne):
+        # get the selection coefficient for the binary trait
+        s_nq = df_sij[df_sij['mask_polymorphic_index'] == 'epi'+str(n)]
+        df_nq = df_info[(df_info['polymorphic_index'] == escape_group[n][0]) & (df_info['nucleotide'] != df_info['TF'])]
+        pc_nq = df_nq.iloc[0].tc_MPL
+
+        # get the sites that have weak linkage with the binary trait        
+        site_nq = []
+        for i in cut_sites:
+            s_nq_i = s_nq[s_nq['target_polymorphic_index'] == str(i)]
+            effect_i = []
+            for ii in range(len(s_nq_i)):
+                if s_nq_i.iloc[ii].effect != 0:
+                    effect_i.append(abs(float(s_nq_i.iloc[ii].effect)))
+
+            if len(effect_i)!= 0 and max(effect_i)  < abs(pc_nq*cut_p):
+                site_nq.append(i)
+        cut_sites = cut_sites & set(site_nq)
+
+    # weak linkage with special sites
+    for ss in special_sites:
+        # get all possible mutant nucleotides
+        q_ss = []
+        df_ss = df_info[(df_info['polymorphic_index'] == ss) & (df_info['escape'] == 'True')]
+        for ii in range(len(df_ss)):
+            q_ss.append(NUC.index(df_ss.iloc[ii].nucleotide))
+
+        for qq in q_ss:
+            # get the selection coefficient for the variant
+            s_nq = df_sij[(df_sij['mask_polymorphic_index'] == str(ss)) &(df_sij['mask_nucleotide'] == NUC[qq])]
+            df_nq = df_info[(df_info['polymorphic_index'] == ss) & (df_info['nucleotide'] == NUC[qq])]
+            sc_nq = df_nq.iloc[0].sc_MPL
+
+            # get the sites that have weak linkage with the variant
+            site_sq = []
+            for i in cut_sites:
+                s_nq_i = s_nq[s_nq['target_polymorphic_index'] == str(i)]
+                effect_i = []
+                for ii in range(len(s_nq_i)):
+                    effect_i.append(abs(s_nq_i.iloc[ii].effect))
+
+                if len(effect_i)!= 0 and max(effect_i) < abs(sc_nq*cut_s):
+                    site_sq.append(i)
+
+            cut_sites = cut_sites & set(site_sq)
+
+    print('raw sequence length is %d, remove %d sites'%(seq_length,len(cut_sites)),end='')
+    
+    cut_sites = list(cut_sites)
+
+    # write the cut sequence into a new file
+    f = open('%s/sequence/%s-cut.dat'%(HIV_DIR,tag), 'w')
+    for i in range(len(sequence)):
+        sequence_i = [sequence[i][j+2] for j in range(len(sequence[i])-2) if j not in cut_sites]
+        f.write('%d\t%d\t' % (sequence[i][0],sequence[i][1]))
+        f.write(' %s' % (' '.join(str(int(num)) for num in sequence_i)))
+        f.write('\n')
+    f.close()
+
+    # write the information for remainning sites into a new analysis file
+    remove_cols = ['polymorphic_index','sc_old','sc_MPL','tc_MPL']
+    cols = [i for i in list(df_info) if i not in remove_cols]
+    g = open('%s/constant/analysis/%s-analyze-cut.csv'%(HIV_DIR,tag),'w')
+    g.write('polymorphic_index,')
+    g.write('%s\n' % (','.join(cols)))
+    index = 0
+    for ii in range(seq_length):
+        if ii not in cut_sites:
+            df_ii = df_info[df_info['polymorphic_index'] == ii]
+            for jj in range(len(df_ii)):
+                g.write('%d,'%index)
+                g.write('%s\n' % (','.join([str(df_ii.iloc[jj][c]) for c in cols])))
+            index += 1
+    g.close()
+
+    # write the information for remainning sites into a new epitope file
+    df_info_cut = pd.read_csv('%s/constant/analysis/%s-analyze-cut.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+    df_epitope = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+    cols = [i for i in list(df_epitope) if i not in remove_cols]
+    g = open('%s/constant/epitopes/escape_group-%s-cut.csv'%(HIV_DIR,tag),'w')
+    g.write('polymorphic_index,')
+    g.write('%s\n' % (','.join(cols)))
+    for ii in range((len(df_epitope))):
+        HXB2_index = str(df_epitope.iloc[ii].HXB2_index)
+        df_i_cut   = df_info_cut[df_info_cut['HXB2_index'] == HXB2_index]
+        index      = df_i_cut.iloc[0].polymorphic_index
+        g.write('%d,'%index)
+        g.write('%s\n' % (','.join([str(df_epitope.iloc[ii][c]) for c in cols])))
+    g.close()
+
+    print(f', %d variants'%len(df_info_cut))

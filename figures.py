@@ -103,6 +103,7 @@ def plot_simple(**pdata):
     # unpack passed data
     dir           = pdata['dir']            # 'simple'
     name          = pdata['name']           # '0'
+    output        = pdata['output']         # 'output'
 
     seq_length    = pdata['seq_length']     # 20
     generations   = pdata['generations']    # 500
@@ -120,17 +121,13 @@ def plot_simple(**pdata):
     fi_2          = pdata['fi_2']           # time-varying selection coefficient for special sites 2
 
     savepdf       = pdata['savepdf']         # True
-    bc_n          = pdata['bc_n']          # neutral site color
 
     # get data
     data        = np.loadtxt("%s/%s/sequences/example-%s.dat"%(SIM_DIR,dir,name.split('_')[0]))
     timepoints  = int(generations) + 1
     times       = np.linspace(0,generations,timepoints)
-
-    if bc_n: # Neumann boundary condition
-        data_full   = np.load('%s/%s/output/c_%s.npz'%(SIM_DIR,dir,name), allow_pickle="True")
-    else: # Dirichlet boundary condition
-        data_full   = np.load('%s/%s/output_d/c_%s.npz'%(SIM_DIR,dir,name), allow_pickle="True")
+    
+    data_full   = np.load('%s/%s/output%s/c_%s.npz'%(SIM_DIR,dir,output,name), allow_pickle="True")
     sc_full     = data_full['selection']
     TimeVaryingSC = [np.average(sc_full[i]) for i in range(seq_length)]
 
@@ -144,29 +141,30 @@ def plot_simple(**pdata):
         x.append(t_freq)
     x = np.array(x).T # get allele frequency (binary case)
 
-    def find_in_nested_list(a, i):
-        for index, sublist in enumerate(a):
-            if i in sublist:
-                return True, index
-        return False, None
-
     # set up figure grid
-    fig   = plt.figure(figsize=(SINGLE_COLUMN, SINGLE_COLUMN*1.2),dpi=500)
+    fig   = plt.figure(figsize=(SINGLE_COLUMN, SINGLE_COLUMN*1.1),dpi=500)
 
     box_tra = dict(left=0.15, right=0.92, bottom=0.72, top=0.95)
-    box_sc  = dict(left=0.15, right=0.92, bottom=0.41, top=0.64)
-    box_tc  = dict(left=0.15, right=0.92, bottom=0.10, top=0.33)
+    box_tc  = dict(left=0.15, right=0.92, bottom=0.38, top=0.61)
+    box_le  = dict(left=0.10, right=0.42, bottom=0.05, top=0.25)
+    box_sc  = dict(left=0.55, right=0.92, bottom=0.05, top=0.25)
 
     gs_tra  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tra)
-    gs_sc   = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_sc)
     gs_tc   = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tc)
+    gs_le   = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_le)
+    gs_sc   = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_sc)
 
     ax_tra  = plt.subplot(gs_tra[0, 0])
-    ax_sc   = plt.subplot(gs_sc[0, 0])
     ax_tc   = plt.subplot(gs_tc[0, 0])
+    ax_le   = plt.subplot(gs_le[0, 0])
+    ax_sc   = plt.subplot(gs_sc[0, 0])
 
-    dx = -0.04
-    dy =  0.03
+    dx = -0.08
+    dy =  0.02
+
+    # color for time-varying mutations
+    c_sin = -2 # index for sin mutation
+    c_cos = -5 # index for cos mutation
 
     ## a -- allele frequencies
     pprops = { 'xticks':      [0, 200, 400, 600, 800, 1000],
@@ -180,9 +178,6 @@ def plot_simple(**pdata):
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
                'axoffset':    0.1,
                'theme':       'open'}
-
-    c_sin = -2 # index for sin mutation
-    c_cos = -5 # index for cos mutation
 
     # all individual sites
     for i in range(seq_length):
@@ -204,33 +199,72 @@ def plot_simple(**pdata):
 
     ax_tra.text( box_tra['left']+dx,  box_tra['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
-    # ##  add legend
-    # sprops = { 'lw' : 0, 's' : 9., 'marker' : 'o' }
+    ## b -- time-varying selection coefficients (sin/cos)
+    pprops = { 'xticks':      [0, 200, 400, 600, 800, 1000],
+               'ylim':        [ytick_t[0], ytick_t[-1]],
+               'yticks':      ytick_t,
+               'yminorticks': yminorticks_t,
+               'yticklabels': [int(i*100) for i in ytick_t],
+               'nudgey':      1,
+               'xlabel':      'Generation',
+               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
+               'axoffset':    0.1,
+               'theme':       'open'}
 
-    # pprops = { 'xlim':        [ -1 ,    6],
-    #            'ylim':        [-0.03, 0.03],
-    #            'yticks':      [],
-    #            'xticks':      [],
-    #            'theme':       'open',
-    #            'hide':        ['left','bottom'] }
+    for ii in p_1:
+        sc_p = sc_full[ii]
+        mp.line(ax=ax_tc, x=[times], y=[sc_p], colors=[C_group[c_sin]], **pprops)
+    for ii in p_2:
+        sc_p = sc_full[ii]
+        mp.line(ax=ax_tc, x=[times], y=[sc_p], colors=[C_group[c_cos]], **pprops)
 
-    # coef_legend_x  =  0
-    # coef_legend_d  = -0.6
-    # coef_legend_dy = -0.011
-    # c_coe1         = [C_BEN, C_NEU, C_DEL, C_group[0]]
-    # coef_legend_t  = ['Beneficial', 'Neutral', 'Deleterious','Escape sites']
-    # for k in range(len(coef_legend_t)):
-    #     mp.scatter(ax=ax_lab, x=[[coef_legend_x+coef_legend_d]], y=[[0.021 + (k *coef_legend_dy)]],colors=[c_coe1[k]],plotprops=sprops,**pprops)
-    #     ax_lab.text(coef_legend_x, 0.021 + (k*coef_legend_dy), coef_legend_t[k], ha='left', va='center', **DEF_LABELPROPS)
+    pprops['plotprops']['ls'] = ':'
+    mp.line(            ax=ax_tc, x=[times], y=[fi_1], colors=[C_group[c_sin]], **pprops)
+    mp.plot(type='line',ax=ax_tc, x=[times], y=[fi_2], colors=[C_group[c_cos]], **pprops)
 
-    # yy =  0.021 + 4.2 * coef_legend_dy
-    # mp.plot(type='line',ax=ax_lab, x=[[coef_legend_x-0.9, coef_legend_x-0.3]], y=[[yy, yy]], \
-    # colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
-    # ax_lab.text(coef_legend_x, yy, 'True \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
+    ax_tc.text(box_tc['left']+dx, box_tc['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
-    # ax_sc.text(box_tra1['left']+dx, box_lab['top']+dy, 'd'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ##  add legend
+    sprops = { 'lw' : 0, 's' : 9., 'marker' : 'o' }
+    lprops = { 'lw' : SIZELINE, 'ls' : '-', 'alpha': 1 }
+    pprops = { 'xlim':        [ -1 ,    6],
+               'ylim':        [-0.04, 0.04],
+               'yticks':      [],
+               'xticks':      [],
+               'theme':       'open',
+               'hide':        ['left','bottom'] }
 
-    ## b -- constant selection coefficients (beneficial/neutral/deleterious)
+    legend_x  = 1.5
+    legend_dx = 0.8
+    x_dot     = legend_x - legend_dx
+    x_line    = [legend_x - 1.4*legend_dx, legend_x - 0.6*legend_dx]
+    legend_y  = 0.035
+    legend_dy = -0.015
+
+    # constant labels
+    c_coe1         = [C_BEN, C_NEU, C_DEL]
+    legend_t  = ['Beneficial', 'Neutral', 'Deleterious']
+    for k in range(len(legend_t)):
+        mp.scatter(ax=ax_le, x=[[x_dot]], y=[[legend_y + (k *legend_dy)]],colors=[c_coe1[k]],plotprops=sprops,**pprops)
+        ax_le.text(legend_x, legend_y + (k*legend_dy), legend_t[k], ha='left', va='center', **DEF_LABELPROPS)
+
+    # time-varying labels
+    yy_sin = legend_y + 2.9 * legend_dy
+    yy_cos = legend_y + 3.1 * legend_dy
+    mp.line(ax=ax_le, x=[x_line], y=[[yy_sin, yy_sin]], colors=[C_group[c_sin]], plotprops=lprops, **pprops)
+    mp.line(ax=ax_le, x=[x_line], y=[[yy_cos, yy_cos]], colors=[C_group[c_cos]], plotprops=lprops, **pprops)
+    ax_le.text(legend_x, legend_y + (3*legend_dy), 'Time varying', ha='left', va='center', **DEF_LABELPROPS)
+
+    # true coefficient labels
+    lprops['ls'] = ':'
+    yy =  [legend_y + 4.0 * legend_dy, legend_y + 4.2 * legend_dy, legend_y + 4.4 * legend_dy]
+    mp.line(ax=ax_le, x=[x_line], y=[[yy[0], yy[0]]], colors=[C_group[c_sin]], plotprops=lprops, **pprops)
+    mp.line(ax=ax_le, x=[x_line], y=[[yy[1], yy[1]]], colors=[C_group[c_cos]], plotprops=lprops, **pprops)
+    mp.plot(type='line',ax=ax_le, x=[x_line], y=[[yy[2], yy[2]]], colors=[BKCOLOR], plotprops=lprops, **pprops)
+    ax_le.text(legend_x, yy[1], 'True \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
+
+    ## c -- constant selection coefficients (beneficial/neutral/deleterious)
     sprops = { 'lw' : 0, 's' : 9., 'marker' : 'o' }
     pprops = { 'xlim':        [ -0.3,    6],
                'ylim':        [-0.04, 0.04],
@@ -265,42 +299,12 @@ def plot_simple(**pdata):
     mp.line(ax=ax_sc, x=[[0.5, 1.5]], y=[[fB,fB]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
     mp.line(ax=ax_sc, x=[[2, 4]], y=[[0,0]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
     mp.plot(type ='line',ax=ax_sc,x=[[4.5, 5.5]], y=[[fD,fD]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
-    ax_sc.text(box_sc['left']+dx, box_sc['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax_sc.text(box_sc['left']+dx, box_sc['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
     
-    ## c -- time-varying selection coefficients (sin/cos)
-    pprops = { 'xticks':      [0, 200, 400, 600, 800, 1000],
-               'ylim':        [ytick_t[0], ytick_t[-1]],
-               'yticks':      ytick_t,
-               'yminorticks': yminorticks_t,
-               'yticklabels': [int(i*100) for i in ytick_t],
-               'nudgey':      1,
-               'xlabel':      'Generation',
-               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
-               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
-               'axoffset':    0.1,
-               'theme':       'open'}
-
-    for ii in p_1:
-        sc_p = sc_full[ii]
-        mp.line(ax=ax_tc, x=[times], y=[sc_p], colors=[C_group[c_sin]], **pprops)
-    for ii in p_2:
-        sc_p = sc_full[ii]
-        mp.line(ax=ax_tc, x=[times], y=[sc_p], colors=[C_group[c_cos]], **pprops)
-
-    pprops['plotprops']['ls'] = ':'
-    mp.line(            ax=ax_tc, x=[times], y=[fi_1], colors=[C_group[c_sin]], **pprops)
-    mp.line(            ax=ax_tc, x=[times], y=[fi_2], colors=[C_group[c_cos]], **pprops)
-    mp.plot(type='line',ax=ax_tc, x=[[0,times[-1]]], y=[[0,0]], colors=[BKCOLOR], **pprops)
-
-    ax_tc.text(box_tc['left']+dx, box_tc['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-
     if savepdf==True:
         plt.savefig('%s/fig-%s.pdf' % (FIG_DIR,dir), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
     else:
-        if bc_n: # Neumann boundary condition
-            plt.savefig('%s/%s/%s.jpg' % (FIG_DIR,dir,name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
-        else: # Dirichlet boundary condition
-            plt.savefig('%s/%s/%s_d.jpg' % (FIG_DIR,dir,name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+        plt.savefig('%s/%s/%s.jpg' % (FIG_DIR,dir,name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
 def plot_trait(**pdata):
     """
@@ -322,10 +326,10 @@ def plot_trait(**pdata):
     escape_group  = pdata['escape_group']   # escape group, random generated
     p_sites       = pdata['p_sites']        # special sites, random generated
 
-    nB            = pdata['n_ben']          # 4
-    nD            = pdata['n_del']          # 0.02
-    fB            = pdata['s_ben']          # 4
-    fD            = pdata['s_del']          # 0.02
+    bene          = pdata['bene']           # [0,1,2,3]
+    dele          = pdata['dele']           # [16,17,18,19]
+    fB            = pdata['s_ben']          # 0.02
+    fD            = pdata['s_del']          # -0.02
     fn            = pdata['fn']             # time-varying escape coefficient
     fi            = pdata['fi']             # time-varying selection coefficient
 
@@ -341,6 +345,10 @@ def plot_trait(**pdata):
     sc_full     = data_full['selection']
     TimeVaryingSC = [np.average(sc_full[i]) for i in range(seq_length)]
     TimeVaryingTC = sc_full[-ne:]
+
+    nB        = len(bene)
+    nD        = len(dele)
+    nN        = seq_length-nB-nD
 
     # Allele frequency x
     x     = []
@@ -379,37 +387,36 @@ def plot_trait(**pdata):
     # set up figure grid
     fig   = plt.figure(figsize=(6, 3),dpi=500)
 
-    box_tra1 = dict(left=0.10, right=0.32, bottom=0.60, top=0.95)
-    box_tra2 = dict(left=0.40, right=0.62, bottom=0.60, top=0.95)
-    box_tra3 = dict(left=0.70, right=0.92, bottom=0.60, top=0.95)
+    box_tra1 = dict(left=0.10, right=0.34, bottom=0.60, top=0.95)
+    box_tra2 = dict(left=0.42, right=0.66, bottom=0.60, top=0.95)
+    box_tra3 = dict(left=0.71, right=0.95, bottom=0.60, top=0.95)
     box_lab  = dict(left=0.05, right=0.15, bottom=0.10, top=0.45)
     box_sc   = dict(left=0.24, right=0.40, bottom=0.10, top=0.45)
-    box_tc   = dict(left=0.46, right=0.64, bottom=0.10, top=0.45)
-    box_sp   = dict(left=0.74, right=0.92, bottom=0.10, top=0.45)
-    # box_sc   = dict(left=0.22, right=0.32, bottom=0.10, top=0.45)
-    # box_tc   = dict(left=0.40, right=0.62, bottom=0.10, top=0.45)
-    # box_sp   = dict(left=0.70, right=0.92, bottom=0.10, top=0.45)
+    box_sp   = dict(left=0.48, right=0.67, bottom=0.10, top=0.45)
+    box_tc   = dict(left=0.76, right=0.95, bottom=0.10, top=0.45)
 
     gs_tra1 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tra1)
     gs_tra2 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tra2)
     gs_tra3 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tra3)
     gs_lab  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_lab)
     gs_sc   = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_sc)
-    gs_tc   = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tc)
     gs_sp   = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_sp)
+    gs_tc   = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tc)
 
     ax_tra1 = plt.subplot(gs_tra1[0, 0])
     ax_tra2 = plt.subplot(gs_tra2[0, 0])
     ax_tra3 = plt.subplot(gs_tra3[0, 0])
     ax_lab  = plt.subplot(gs_lab[0, 0])
     ax_sc   = plt.subplot(gs_sc[0, 0])
-    ax_tc   = plt.subplot(gs_tc[0, 0])
     ax_sp   = plt.subplot(gs_sp[0, 0])
+    ax_tc   = plt.subplot(gs_tc[0, 0])
 
     dx = -0.04
-    dy =  0.03
+    dy =  0.02
 
-    ## a,b,c -- allele frequencies - individual sites,  escape groups, special sites
+    C_tv = C_group[-5]
+
+    ## a,b -- allele frequencies
     pprops = { 'xticks':      [0, 200, 400, 600, 800, 1000],
                'ylim':        [0, 1.10],
                'yticks':      [0, 1.00],
@@ -424,48 +431,56 @@ def plot_trait(**pdata):
 
     # all individual sites
     for i in range(seq_length):
-        pprops['plotprops']['alpha'] = 1
         if i not in p_sites:
-            if i < nB:
+            if i < len(bene):
                 mp.line(ax=ax_tra1, x=[times], y=[x[i]], colors=[C_BEN], **pprops)
-            elif i >= seq_length-nD:
+            elif i >= seq_length-len(dele):
                 mp.line(ax=ax_tra1, x=[times], y=[x[i]], colors=[C_DEL], **pprops)
             else:
                 mp.line(ax=ax_tra1, x=[times], y=[x[i]], colors = [C_NEU], **pprops)
-
         else:
-            # all special sites
-            # if i < nB:
-            #     mp.line(ax=ax_tra3, x=[times], y=[x[i]], colors=[C_BEN], **pprops)
-            # elif i >= seq_length-nD:
-            #     mp.plot(type='line',ax=ax_tra3, x=[times], y=[x[i]], colors=[C_DEL], **pprops)
-            # else:
-            #     mp.line(ax=ax_tra3, x=[times], y=[x[i]], colors = [C_NEU], **pprops)
-            mp.line(ax=ax_tra3, x=[times], y=[x[i]], colors = [C_group[-2]], **pprops)
-
-        # if the site is escape site, plot it in figure b
-        found, group = find_in_nested_list(escape_group, i)
-        if found:
-            pprops['plotprops']['alpha'] = 0.4
-            mp.line(ax=ax_tra2, x=[times], y=[x[i]], colors=[C_group[group]], **pprops)
-
-    # escape group
-    pprops['plotprops']['alpha'] = 1
-    for n in range(ne):
-        mp.line(ax=ax_tra2, x=[times], y=[y[n]], colors=[C_group[n]], **pprops)
-
+            mp.line(ax=ax_tra2, x=[times], y=[x[i]], colors = [C_tv], **pprops)
+    
     pprops['plotprops'] = {'lw': SIZELINE, 'ls': '-', 'alpha': 0 }
+    pprops['ylabel'] = 'Constant allele\nfrequency, ' + r'$x$'
     mp.plot(type='line',ax=ax_tra1, x=[[0,1000]], y=[[1,1]], colors=[C_NEU], **pprops)
+    pprops['ylabel'] = 'Time-varying allele\nfrequency, ' + r'$x$'
     mp.plot(type='line',ax=ax_tra2, x=[[0,1000]], y=[[1,1]], colors=[C_NEU], **pprops)
-    mp.plot(type='line',ax=ax_tra3, x=[[0,1000]], y=[[1,1]], colors=[C_NEU], **pprops)
 
     ax_tra1.text( box_tra1['left']+dx,  box_tra1['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
     ax_tra2.text( box_tra2['left']+dx,  box_tra2['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+    ## c -- allele frequencies - binary trait and its alleles
+    pprops = { 'xticks':      [0, 200, 400, 600, 800, 1000],
+               'ylim':        [0, 1.10],
+               'yticks':      [0, 1.00],
+               'yticklabels' :[0, 1],
+               'yminorticks': [0.25, 0.5, 0.75,1],
+               'nudgey':      1,
+               'xlabel':      'Generation',
+               'ylabel':      'Allele\nfrequency, ' + r'$x$',
+               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
+               'axoffset':    0.1,
+               'theme':       'open'}
+
+    pprops['plotprops']['alpha'] = 0.4
+    for i in range(seq_length):
+        # if the site is escape site, plot it in figure b
+        found, group = find_in_nested_list(escape_group, i)
+        if found:
+            mp.line(ax=ax_tra3, x=[times], y=[x[i]], colors=[C_group[group]], **pprops)
+
+    # escape group
+    pprops['plotprops']['alpha'] = 1.0
+    for n in range(ne):
+        # mp.line(ax=ax_tra3, x=[times], y=[y[n]], colors=[C_group[n]], **pprops_c)
+        mp.plot(type='line',ax=ax_tra3, x=[times], y=[y[n]], colors=[C_group[n]], **pprops)
+
     ax_tra3.text( box_tra3['left']+dx,  box_tra3['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
     ##  add legend
     sprops = { 'lw' : 0, 's' : 9., 'marker' : 'o' }
-
+    lprops = { 'lw' : SIZELINE, 'ls' : ':', 'alpha': 1 }
     pprops = { 'xlim':        [ -1 ,    6],
                'ylim':        [-0.03, 0.03],
                'yticks':      [],
@@ -473,21 +488,29 @@ def plot_trait(**pdata):
                'theme':       'open',
                'hide':        ['left','bottom'] }
 
-    coef_legend_x  =  0
-    coef_legend_d  = -0.6
-    coef_legend_dy = -0.011
-    c_coe1         = [C_BEN, C_NEU, C_DEL, C_group[0]]
-    coef_legend_t  = ['Beneficial', 'Neutral', 'Deleterious','Escape sites']
-    for k in range(len(coef_legend_t)):
-        mp.scatter(ax=ax_lab, x=[[coef_legend_x+coef_legend_d]], y=[[0.021 + (k *coef_legend_dy)]],colors=[c_coe1[k]],plotprops=sprops,**pprops)
-        ax_lab.text(coef_legend_x, 0.021 + (k*coef_legend_dy), coef_legend_t[k], ha='left', va='center', **DEF_LABELPROPS)
+    # individual loci label
+    legend_x  =  0
+    legend_dx = -0.8
+    legend_y  = 0.028 
+    legend_dy = -0.008
+    c_coe1    = [C_BEN, C_NEU, C_DEL, C_tv]
+    legend_t  = ['Beneficial', 'Neutral', 'Deleterious','Time-varying']
+    for k in range(len(legend_t)):
+        mp.scatter(ax=ax_lab, x=[[legend_x+legend_dx]], y=[[legend_y + (k *legend_dy)]],colors=[c_coe1[k]],plotprops=sprops,**pprops)
+        ax_lab.text(legend_x, legend_y + (k*legend_dy), legend_t[k], ha='left', va='center', **DEF_LABELPROPS)
 
-    yy =  0.021 + 4.2 * coef_legend_dy
-    mp.plot(type='line',ax=ax_lab, x=[[coef_legend_x-0.9, coef_legend_x-0.3]], y=[[yy, yy]], \
-    colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
-    ax_lab.text(coef_legend_x, yy, 'True \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
+    # binary traits-related label
+    mp.scatter(ax=ax_lab, x=[[legend_x+legend_dx]], y=[[legend_y + (4 *legend_dy)]],colors=[C_group[0]],plotprops=sprops,**pprops)
+    sprops['alpha'] = 0.6
+    mp.scatter(ax=ax_lab, x=[[legend_x+legend_dx]], y=[[legend_y + (5 *legend_dy)]],colors=[C_group[0]],plotprops=sprops,**pprops)
+    ax_lab.text(legend_x, legend_y + (4*legend_dy), 'Binary trait', ha='left', va='center', **DEF_LABELPROPS)
+    ax_lab.text(legend_x, legend_y + (5*legend_dy), 'Escape locus', ha='left', va='center', **DEF_LABELPROPS)
 
-    ax_sc.text(box_tra1['left']+dx, box_lab['top']+dy, 'd'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    # true coefficient labels
+    xx = [legend_x+1.5*legend_dx, legend_x+0.5*legend_dx]
+    yy = legend_y + 6.2 * legend_dy
+    mp.plot(type='line',ax=ax_lab, x=[xx], y=[[yy,yy]], colors=[BKCOLOR], plotprops=lprops, **pprops)
+    ax_lab.text(legend_x, yy, 'True \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
     ## d -- individual beneficial/neutral/deleterious selection coefficients
 
@@ -497,24 +520,25 @@ def plot_trait(**pdata):
                'yminorticks': [-0.02, -0.01, 0.01, 0.02],
                'yticklabels': [-3, 0, 3],
                'xticks':      [],
-               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'ylabel':      'Inferred constant\nselection coefficient, ' + r'$\hat{s}$' + ' (%)',
                'theme':       'open',
                'hide':        ['bottom'] }
-
-    nN        = seq_length-nB-nD
-
+    
     x_ben = np.random.normal(1, 0.08, nB)
     x_neu = np.random.normal(3, 0.16, nN)
     x_del = np.random.normal(5, 0.08, nD)
     x_bar = np.hstack([x_ben,x_neu,x_del])
-
+    
+    sprops['alpha'] = 1.0
     for i in range(seq_length):
         found, group = find_in_nested_list(escape_group, i)
         if i not in p_sites:
             xdat = [x_bar[i]]
             ydat = [TimeVaryingSC[i]]
             if found:
+                sprops['alpha'] = 0.6
                 mp.scatter(ax=ax_sc, x=[xdat], y=[ydat],colors=[C_group[group]],plotprops=sprops,**pprops)
+                sprops['alpha'] = 1.0
             else:
                 if i < nB:
                     mp.scatter(ax=ax_sc, x=[xdat], y=[ydat],colors=[C_BEN],plotprops=sprops,**pprops)
@@ -526,8 +550,33 @@ def plot_trait(**pdata):
     mp.line(ax=ax_sc, x=[[0.5, 1.5]], y=[[fB,fB]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
     mp.line(ax=ax_sc, x=[[2, 4]], y=[[0,0]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
     mp.plot(type ='line',ax=ax_sc,x=[[4.5, 5.5]], y=[[fD,fD]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
+    
+    ax_sc.text(box_sc['left']+dx, box_sc['top']+dy, 'd'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
-    ## e -- trait coefficients
+    ## e -- special sites selection coefficients
+    pprops = {  'xticks':      [0, 200, 400, 600, 800, 1000],
+                'ylim':        [ytick_f[0], ytick_f[-1]],
+                'yticks':      ytick_f,
+                'yminorticks': yminorticks_f,
+                'yticklabels': [int(i*100) for i in ytick_f],
+                'nudgey':      1,
+                'xlabel':      'Generation',
+                'ylabel':      'Inferred time-varying\nselection coefficient, ' + r'$\hat{s}$' + ' (%)',
+                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
+                'axoffset':    0.1,
+                'theme':       'open'}
+
+    for ii in range(len(p_sites)):
+        p_index = p_sites[ii]
+        sc_p = sc_full[p_index]
+        mp.line(ax=ax_sp, x=[times], y=[sc_p], colors=[C_tv], **pprops)
+
+    pprops['plotprops']['ls'] = ':'
+    mp.plot(type='line',ax=ax_sp, x=[times], y=[fi], colors=[C_tv], **pprops)
+
+    ax_sp.text(box_sp['left']+dx, box_sp['top']+dy, 'e'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+    ## f -- trait coefficients
     pprops = { 'xticks':      [0, 200, 400, 600, 800, 1000],
                'ylim':        [ytick_e[0], ytick_e[-1]],
                'yticks':      ytick_e,
@@ -535,7 +584,7 @@ def plot_trait(**pdata):
                'yticklabels': [int(i*100) for i in ytick_e],
                'nudgey':      1,
                'xlabel':      'Generation',
-               'ylabel':      'Inferred trait\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'ylabel':      'Inferred time-varying\ntrait coefficient, ' + r'$\hat{s}$' + ' (%)',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
                'axoffset':    0.1,
                'theme':       'open'}
@@ -544,41 +593,11 @@ def plot_trait(**pdata):
     for n in range(ne):
         pprops['plotprops']['ls'] = ':'
         mp.line(ax=ax_tc, x=[times], y=[fn], colors=[C_group[n]], **pprops)
-        # mp.line(ax=ax_tc, x=[[150, 250]], y=[[yy+0.01*n, yy+0.01*n]], colors=[C_group[n]], **pprops)
+
         pprops['plotprops']['ls'] = '-'
         mp.plot(type='line',ax=ax_tc, x=[times], y=[TimeVaryingTC[n]], colors=[C_group[n]], **pprops)
-        # ax_tc.text(300, yy+0.01*n, 'True \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
-    ax_tc.text(box_tc['left']+dx, box_tc['top']+dy, 'e'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-
-    ## f -- special sites selection coefficients
-    pprops = {  'xticks':      [0, 200, 400, 600, 800, 1000],
-                'ylim':        [ytick_f[0], ytick_f[-1]],
-                'yticks':      ytick_f,
-                'yminorticks': yminorticks_f,
-                'yticklabels': [int(i*100) for i in ytick_f],
-                'nudgey':      1,
-                'xlabel':      'Generation',
-                'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
-                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
-                'axoffset':    0.1,
-                'theme':       'open'}
-
-    for ii in range(len(p_sites)):
-        p_index = p_sites[ii]
-        sc_p = sc_full[p_index]
-        # if p_index < nB:
-        #     mp.line(ax=ax_sp, x=[times], y=[sc_p], colors=[C_BEN], **pprops)
-        # elif p_index >= seq_length-nD:
-        #     mp.line(ax=ax_sp, x=[times], y=[sc_p], colors=[C_DEL], **pprops)
-        # else:
-        #     mp.line(ax=ax_sp, x=[times], y=[sc_p], colors=[C_NEU], **pprops)
-        mp.line(ax=ax_sp, x=[times], y=[sc_p], colors=[C_group[-2]], **pprops)
-
-    pprops['plotprops']['ls'] = ':'
-    mp.plot(type='line',ax=ax_sp, x=[times], y=[fi], colors=[C_group[-2]], **pprops)
-
-    ax_sp.text(box_sp['left']+dx, box_sp['top']+dy, 'f'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax_tc.text(box_tc['left']+dx, box_tc['top']+dy, 'f'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
     if savepdf:
         plt.savefig('%s/fig-%s.pdf' % (FIG_DIR,dir), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
@@ -586,209 +605,197 @@ def plot_trait(**pdata):
     else:
         plt.savefig('%s/%s/%s.jpg' % (FIG_DIR,dir,name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
     
-# def plot_simple_his_try(**pdata):
+def plot_simple_his_try(**pdata):
 
-#     """
-#     histogram of selection coefficients and trait coefficients
-#     """
+    """
+    histogram of selection coefficients and trait coefficients
+    """
+    # unpack passed data
+    dir           = pdata['dir']            # 'simple'
+    output        = pdata['output']         # 'output'
+    generations   = pdata['generations']    # 1000
+    xtick_h       = pdata['xtick_h']
+    ytick_h       = pdata['ytick_h']
+    ytick_t       = pdata['ytick_t']
+    yminorticks_t = pdata['yminorticks_t']
 
-#     # unpack passed data
-#     dir           = pdata['dir']            # 'simple'
-#     generations   = pdata['generations']    # 500
-#     xtick_h       = pdata['xtick_h']
-#     ytick_h       = pdata['ytick_h']
-#     ytick_t       = pdata['ytick_t']
-#     yminorticks_t = pdata['yminorticks_t']
+    p_1           = pdata['p_1']            # [6,7] , special sites 1
+    p_2           = pdata['p_2']            # [8,9] , special sites 2
+    fB            = pdata['s_ben']          # 0.02
+    fD            = pdata['s_del']          # -0.02
+    fi_1          = pdata['fi_1']           # time-varying selection coefficient for special sites 1
+    fi_2          = pdata['fi_2']           # time-varying selection coefficient for special sites 2
 
-#     p_1           = pdata['p_1']            # [6,7] , special sites 1
-#     p_2           = pdata['p_2']            # [8,9] , special sites 2
-#     fB            = pdata['s_ben']          # 0.02
-#     fD            = pdata['s_del']          # -0.02
-#     fi_1          = pdata['fi_1']           # time-varying selection coefficient for special sites 1
-#     fi_2          = pdata['fi_2']           # time-varying selection coefficient for special sites 2
+    timepoints  = int(generations) + 1
+    times       = np.linspace(0,generations,timepoints)
+    TLeft   = int(round(times[-1]*0.5/10)*10) # time range added before the beginning time
+    TRight  = int(round(times[-1]*0.5/10)*10) # time range added after the ending time
+    etleft  = np.linspace(-TLeft,-10,int(TLeft/10)) # time added before the beginning time (dt=10)
+    etright = np.linspace(times[-1]+10,times[-1]+TRight,int(TRight/10))
+    ExTimes = np.concatenate((etleft, times, etright))
 
-#     bc_n          = pdata['bc_n']           # True
+    # data for selection coefficients for different simulations
+    df       = pd.read_csv('%s/%s/mpl_collected%s.csv' % (SIM_DIR,dir,output), memory_map=True)
+    ben_cols = ['sc_%d' % i for i in [0,1]]
+    neu_cols = ['sc_%d' % i for i in [2,3]]
+    del_cols = ['sc_%d' % i for i in [4,5]]
 
-#     timepoints  = int(generations) + 1
-#     times       = np.linspace(0,generations,timepoints)
-#     TLeft   = int(round(times[-1]*2/10)*10) # time range added before the beginning time
-#     TRight  = int(round(times[-1]*2/10)*10) # time range added after the ending time
-#     etleft  = np.linspace(-TLeft,-40,int(TLeft/40)) # time added before the beginning time (dt=10)
-#     etright = np.linspace(times[-1]+40,times[-1]+TRight,int(TRight/40))
-#     ExTimes = np.concatenate((etleft, times, etright))
+    # get data for inference results for different simulations
+    tc_all_1   = np.zeros((100,len(p_1),len(ExTimes)))
+    tc_all_2   = np.zeros((100,len(p_2),len(ExTimes)))
 
-#     # data for selection coefficients for different simulations
-#     if bc_n: # Neumann boundary condition
-#         df       = pd.read_csv('%s/%s/mpl_collected.csv' % (SIM_DIR,dir), memory_map=True)
-#     else: # Dirichlet boundary condition
-#         df       = pd.read_csv('%s/%s/mpl_collected_d.csv' % (SIM_DIR,dir), memory_map=True)
-#     ben_cols = ['sc_%d' % i for i in [0,1]]
-#     neu_cols = ['sc_%d' % i for i in [2,3]]
-#     del_cols = ['sc_%d' % i for i in [4,5]]
-
-#     # get data for inference results for different simulations
-#     tc_all_1   = np.zeros((100,len(p_1),len(ExTimes)))
-#     tc_all_2   = np.zeros((100,len(p_2),len(ExTimes)))
-
-#     for k in range(100):
-#         name = str(k)
-#         if bc_n: # Neumann boundary condition
-#             # data_full     = np.load('%s/%s/output/c_%s.npz'%(SIM_DIR,dir,name), allow_pickle="True")
-#             data_full     = np.load('%s/%s/output-1-2/c_%s.npz'%(SIM_DIR,dir,name), allow_pickle="True")
-#         else: # Dirichlet boundary condition
-#             data_full     = np.load('%s/%s/output_d/c_%s.npz'%(SIM_DIR,dir,name), allow_pickle="True")
-#         sc_full       = data_full['all']
-#         for ii in p_1:
-#             tc_all_1[k][p_1.index(ii)] = sc_full[ii]
-#         for ii in p_2:
-#             tc_all_2[k][p_2.index(ii)] = sc_full[ii]
+    for k in range(100):
+        name = str(k)
+        data_full     = np.load('%s/%s/output%s/c_%s.npz'%(SIM_DIR,dir,output,name), allow_pickle="True")
+        sc_full       = data_full['all']
+        for ii in p_1:
+            tc_all_1[k][p_1.index(ii)] = sc_full[ii]
+        for ii in p_2:
+            tc_all_2[k][p_2.index(ii)] = sc_full[ii]
         
-#     tc_ave_1 = np.zeros((len(p_1),len(ExTimes)))
-#     tc_1     = np.swapaxes(tc_all_1, 0, 2)
-#     for n in range(len(p_1)):
-#         for t in range(len(tc_all_1[0][0])):
-#             tc_ave_1[n][t] = np.average(tc_1[t][n])
+    tc_ave_1 = np.zeros((len(p_1),len(ExTimes)))
+    tc_1     = np.swapaxes(tc_all_1, 0, 2)
+    for n in range(len(p_1)):
+        for t in range(len(tc_all_1[0][0])):
+            tc_ave_1[n][t] = np.average(tc_1[t][n])
 
-#     tc_ave_2 = np.zeros((len(p_2),len(ExTimes)))
-#     tc_2     = np.swapaxes(tc_all_2, 0, 2)
-#     for n in range(len(p_2)):
-#         for t in range(len(tc_all_2[0][0])):
-#             tc_ave_2[n][t] = np.average(tc_2[t][n])
+    tc_ave_2 = np.zeros((len(p_2),len(ExTimes)))
+    tc_2     = np.swapaxes(tc_all_2, 0, 2)
+    for n in range(len(p_2)):
+        for t in range(len(tc_all_2[0][0])):
+            tc_ave_2[n][t] = np.average(tc_2[t][n])
 
-#     # PLOT FIGURE
-#     ## set up figure grid
+    # PLOT FIGURE
+    ## set up figure grid
+    w     = DOUBLE_COLUMN #SLIDE_WIDTH
+    goldh = w / 1.8
+    fig   = plt.figure(figsize=(w, goldh),dpi=1000)
 
-#     w     = DOUBLE_COLUMN #SLIDE_WIDTH
-#     goldh = w / 1.8
-#     fig   = plt.figure(figsize=(w, goldh),dpi=1000)
+    box_se  = dict(left=0.10, right=0.92, bottom=0.65, top=0.95)
+    box_lab = dict(left=0.05, right=0.15, bottom=0.10, top=0.45)
+    box_tc1 = dict(left=0.24, right=0.52, bottom=0.07, top=0.50)
+    box_tc2 = dict(left=0.60, right=0.92, bottom=0.07, top=0.50)
 
-#     box_se  = dict(left=0.10, right=0.92, bottom=0.65, top=0.95)
-#     box_lab = dict(left=0.05, right=0.15, bottom=0.10, top=0.45)
-#     box_tc1 = dict(left=0.24, right=0.52, bottom=0.07, top=0.50)
-#     box_tc2 = dict(left=0.60, right=0.92, bottom=0.07, top=0.50)
+    gs_se  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_se)
+    gs_lab = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_lab)
+    gs_tc1 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tc1)
+    gs_tc2 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tc2)
 
-#     gs_se  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_se)
-#     gs_lab = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_lab)
-#     gs_tc1 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tc1)
-#     gs_tc2 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tc2)
+    ax_se  = plt.subplot(gs_se[0, 0])
+    ax_lab = plt.subplot(gs_lab[0, 0])
+    ax_tc1 = plt.subplot(gs_tc1[0, 0])
+    ax_tc2 = plt.subplot(gs_tc2[0, 0])
 
-#     ax_se  = plt.subplot(gs_se[0, 0])
-#     ax_lab = plt.subplot(gs_lab[0, 0])
-#     ax_tc1 = plt.subplot(gs_tc1[0, 0])
-#     ax_tc2 = plt.subplot(gs_tc2[0, 0])
+    dx = -0.04
+    dy =  0.03
 
-#     dx = -0.04
-#     dy =  0.03
+    c_sin = -2
+    c_cos = -5
+    
+    ## a -- histogram for selection coefficients
+    dashlineprops = { 'lw' : SIZELINE * 1.5, 'ls' : ':', 'alpha' : 0.5, 'color' : BKCOLOR }
+    histprops = dict(histtype='bar', lw=SIZELINE/2, rwidth=0.8, ls='solid', alpha=0.6, edgecolor='none')
+    pprops = { 'xlim':        [xtick_h[0], xtick_h[-1]],
+               'xticks':      xtick_h,
+               'xticklabels': [int(i*100) for i in xtick_h],
+               'ylim':        [ytick_h[0], ytick_h[-1]],
+               'yticks':      ytick_h,
+               'xlabel'      : 'Inferred selection coefficient, ' + r'$\hat{s}$' + ' (%)',
+               'ylabel'      : 'Frequency',
+               'bins'        : np.arange(-0.04, 0.04, 0.001),
+               'combine'     : True,
+               'plotprops'   : histprops,
+               'axoffset'    : 0.1,
+               'theme'       : 'boxed' }
 
-#     ## a -- histogram for selection coefficients
+    colors     = [C_BEN, C_NEU, C_DEL]
+    tags       = ['beneficial', 'neutral', 'deleterious']
+    cols       = [ben_cols, neu_cols, del_cols]
+    s_true_loc = [fB, 0, fD]
 
-#     dashlineprops = { 'lw' : SIZELINE * 1.5, 'ls' : ':', 'alpha' : 0.5, 'color' : BKCOLOR }
-#     histprops = dict(histtype='bar', lw=SIZELINE/2, rwidth=0.8, ls='solid', alpha=0.6, edgecolor='none')
-#     pprops = { 'xlim':        [xtick_h[0], xtick_h[-1]],
-#                'xticks':      xtick_h,
-#                'xticklabels': [int(i*100) for i in xtick_h],
-#                'ylim':        [ytick_h[0], ytick_h[-1]],
-#                'yticks':      ytick_h,
-#                'xlabel'      : 'Inferred selection coefficient, ' + r'$\hat{s}$' + ' (%)',
-#                'ylabel'      : 'Frequency',
-#                'bins'        : np.arange(-0.04, 0.04, 0.001),
-#                'combine'     : True,
-#                'plotprops'   : histprops,
-#                'axoffset'    : 0.1,
-#                'theme'       : 'boxed' }
+    for i in range(len(tags)):
+        x = [np.array(df[cols[i]]).flatten()]
+        tprops = dict(ha='center', va='center', family=FONTFAMILY, size=SIZELABEL, clip_on=False)
+        ax_se.text(s_true_loc[i], ytick_h[-1]*1.04, r'$s_{%s}$' % (tags[i]), color=colors[i], **tprops)
+        dashlineprops['color'] = colors[i]
+        ax_se.axvline(x=s_true_loc[i], **dashlineprops)
+        if i<len(tags)-2: mp.hist(             ax=ax_se, x=x, colors=[colors[i]], **pprops)
+        else:             mp.plot(type='hist', ax=ax_se, x=x, colors=[colors[i]], **pprops)
 
-#     colors     = [C_BEN, C_NEU, C_DEL]
-#     tags       = ['beneficial', 'neutral', 'deleterious']
-#     cols       = [ben_cols, neu_cols, del_cols]
-#     s_true_loc = [fB, 0, fD]
+    ax_se.text(  box_se['left']+dx,  box_se['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
-#     for i in range(len(tags)):
-#         x = [np.array(df[cols[i]]).flatten()]
-#         tprops = dict(ha='center', va='center', family=FONTFAMILY, size=SIZELABEL, clip_on=False)
-#         ax_se.text(s_true_loc[i], ytick_h[-1]*1.04, r'$s_{%s}$' % (tags[i]), color=colors[i], **tprops)
-#         dashlineprops['color'] = colors[i]
-#         ax_se.axvline(x=s_true_loc[i], **dashlineprops)
-#         if i<len(tags)-2: mp.hist(             ax=ax_se, x=x, colors=[colors[i]], **pprops)
-#         else:             mp.plot(type='hist', ax=ax_se, x=x, colors=[colors[i]], **pprops)
+    ##  add legend
+    pprops = { 'xlim':        [ -1 ,    6],
+               'ylim':        [-0.05, 0.05],
+               'yticks':      [],
+               'xticks':      [],
+               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.5 },
+               'theme':       'open',
+               'hide':        ['left','bottom'] }
 
-#     ax_se.text(  box_se['left']+dx,  box_se['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    yy =  -0.021
+    coef_legend_dy = 0.021
+    xx_line = [-0.9, 1.3]
+    yy_line = np.zeros((3,2))
+    for i in range(3):
+        for j in range(2):
+            yy_line[i][j] = yy + coef_legend_dy*((2 - i)+ 0.2 * j - 0.1)
+    c_cols = [C_group[c_sin], C_group[c_cos]]
 
-#     ##  add legend
-#     sprops = { 'lw' : 0, 's' : 9., 'marker' : 'o' }
+    mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[0][0], yy_line[0][0]]], colors=[c_cols[0]], **pprops)
+    mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[0][1], yy_line[0][1]]], colors=[c_cols[1]], **pprops)
+    ax_lab.text(2, yy+coef_legend_dy*2, 'Inferred \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
-#     pprops = { 'xlim':        [ -1 ,    6],
-#                'ylim':        [-0.05, 0.05],
-#                'yticks':      [],
-#                'xticks':      [],
-#                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.15 },
-#                'theme':       'open',
-#                'hide':        ['left','bottom'] }
+    pprops['plotprops']['alpha'] = 1.0
+    pprops['plotprops']['lw'] = SIZELINE*3
+    mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[1][0], yy_line[1][0]]], colors=[c_cols[0]], **pprops)
+    mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[1][1], yy_line[1][1]]], colors=[c_cols[1]], **pprops)
+    ax_lab.text(2, yy+coef_legend_dy, 'Average \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
-#     yy =  -0.021
-#     coef_legend_dy = 0.021
-#     c_epitope = C_group[0]
+    pprops['plotprops']['ls'] = ':'
+    mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[2][0], yy_line[2][0]]], colors=[c_cols[0]], **pprops)
+    mp.plot(type='line',ax=ax_lab, x=[xx_line], y=[[yy_line[2][1], yy_line[2][1]]], colors=[c_cols[1]], **pprops)
+    ax_lab.text(2, yy, 'True \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
-#     pprops['plotprops']['alpha'] = 0.15
-#     mp.line(ax=ax_lab, x=[[-0.9, 1.3]], y=[[yy+coef_legend_dy*2, yy+coef_legend_dy*2]], colors=[c_epitope], **pprops)
-#     ax_lab.text(2, yy+coef_legend_dy*2, 'Inferred \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
+    ## b  -- escape coefficients
+    pprops = { 'xticks':      [-500, 0, 500, 1000, 1500],
+               'ylim':        [ytick_t[0], ytick_t[-1]],
+               'yticks':      ytick_t,
+               'yminorticks': yminorticks_t,
+               'yticklabels': [int(i*100) for i in ytick_t],
+               'nudgey':      1,
+               'xlabel':      'Generation',
+               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.15 },
+               'axoffset':    0.1,
+               'theme':       'open'}
 
-#     pprops['plotprops']['alpha'] = 1
-#     pprops['plotprops']['lw'] = SIZELINE*3
-#     mp.line(ax=ax_lab, x=[[-0.9, 1.3]], y=[[yy+coef_legend_dy, yy+coef_legend_dy]], colors=[c_epitope], **pprops)
-#     ax_lab.text(2, yy+coef_legend_dy, 'Average \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
+    for n in range(len(p_1)):
+        pprops['plotprops']['alpha'] = 0.15
+        pprops['plotprops']['lw'] = SIZELINE
+        for k in range(100):
+            mp.line(ax=ax_tc1, x=[ExTimes], y=[tc_all_1[k][n]], colors=[C_group[c_sin]], **pprops)
 
-#     pprops['plotprops']['ls'] = ':'
-#     mp.plot(type='line',ax=ax_lab, x=[[-0.9, 1.3]], y=[[yy, yy]], colors=[c_epitope], **pprops)
-#     ax_lab.text(2, yy, 'True \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
+        pprops['plotprops']['alpha'] = 1
+        pprops['plotprops']['lw'] = SIZELINE*3
+        mp.line(ax=ax_tc1, x=[ExTimes], y=[tc_ave_1[n]], colors=[C_group[c_sin]], **pprops)
 
-#     ## b  -- escape coefficients
-#     pprops = { 'xticks':      [-2000, -1000, 0, 1000, 2000, 3000],
-#                'ylim':        [ytick_t[0], ytick_t[-1]],
-#                'yticks':      ytick_t,
-#                'yminorticks': yminorticks_t,
-#                'yticklabels': [int(i*100) for i in ytick_t],
-#                'nudgey':      1,
-#                'xlabel':      'Generation',
-#                'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
-#                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.15 },
-#                'axoffset':    0.1,
-#                'theme':       'open'}
+    for n in range(len(p_2)):
+        pprops['plotprops']['alpha'] = 0.15
+        pprops['plotprops']['lw'] = SIZELINE
+        for k in range(100):
+            mp.line(ax=ax_tc2, x=[ExTimes], y=[tc_all_2[k][n]], colors=[C_group[c_cos]], **pprops)
 
-#     c_sin = -2
-#     c_cos = -5
+        pprops['plotprops']['alpha'] = 1
+        pprops['plotprops']['lw'] = SIZELINE*3
+        mp.line(ax=ax_tc2, x=[ExTimes], y=[tc_ave_2[n]], colors=[C_group[c_cos]], **pprops)
 
-#     for n in range(len(p_1)):
-#         pprops['plotprops']['alpha'] = 0.15
-#         pprops['plotprops']['lw'] = SIZELINE
-#         for k in range(100):
-#             mp.line(ax=ax_tc1, x=[ExTimes], y=[tc_all_1[k][n]], colors=[C_group[c_sin]], **pprops)
+    pprops['plotprops']['ls'] = ':'
+    mp.plot(type='line',ax=ax_tc1, x=[times], y=[fi_1], colors=[C_group[c_sin]], **pprops)
+    mp.plot(type='line',ax=ax_tc2, x=[times], y=[fi_2], colors=[C_group[c_cos]], **pprops)
 
-#         pprops['plotprops']['alpha'] = 1
-#         pprops['plotprops']['lw'] = SIZELINE*3
-#         mp.line(ax=ax_tc1, x=[ExTimes], y=[tc_ave_1[n]], colors=[C_group[c_sin]], **pprops)
-
-#     for n in range(len(p_2)):
-#         pprops['plotprops']['alpha'] = 0.15
-#         pprops['plotprops']['lw'] = SIZELINE
-#         for k in range(100):
-#             mp.line(ax=ax_tc2, x=[ExTimes], y=[tc_all_2[k][n]], colors=[C_group[c_cos]], **pprops)
-
-#         pprops['plotprops']['alpha'] = 1
-#         pprops['plotprops']['lw'] = SIZELINE*3
-#         mp.line(ax=ax_tc2, x=[ExTimes], y=[tc_ave_2[n]], colors=[C_group[c_cos]], **pprops)
-
-#     pprops['plotprops']['ls'] = ':'
-#     mp.plot(type='line',ax=ax_tc1, x=[times], y=[fi_1], colors=[C_group[c_sin]], **pprops)
-#     mp.plot(type='line',ax=ax_tc2, x=[times], y=[fi_2], colors=[C_group[c_cos]], **pprops)
-
-#     ax_tc1.text(box_tc1['left']+dx, box_tc1['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-#     ax_tc2.text(box_tc2['left']+dx, box_tc2['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-
-#     # # SAVE FIGURE
-#     # if bc_n:
-#     #     plt.savefig('%s/simple_his_1-2.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
-#     # else:
-#     #     plt.savefig('%s/simple_his_d.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+    ax_tc1.text(box_tc1['left']+dx, box_tc1['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax_tc2.text(box_tc2['left']+dx, box_tc2['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
 def plot_simple_his(**pdata):
 
@@ -873,8 +880,10 @@ def plot_simple_his(**pdata):
     dx = -0.04
     dy =  0.03
 
-    ## a -- histogram for selection coefficients
+    c_sin = -2
+    c_cos = -5
 
+    ## a -- histogram for selection coefficients
     dashlineprops = { 'lw' : SIZELINE * 1.5, 'ls' : ':', 'alpha' : 0.5, 'color' : BKCOLOR }
     histprops = dict(histtype='bar', lw=SIZELINE/2, rwidth=0.8, ls='solid', alpha=0.6, edgecolor='none')
     pprops = { 'xlim':        [xtick_h[0], xtick_h[-1]],
@@ -911,25 +920,32 @@ def plot_simple_his(**pdata):
                'ylim':        [-0.05, 0.05],
                'yticks':      [],
                'xticks':      [],
-               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.15 },
+               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.5 },
                'theme':       'open',
                'hide':        ['left','bottom'] }
 
     yy =  -0.021
     coef_legend_dy = 0.021
-    c_epitope = C_group[0]
+    xx_line = [-0.9, 1.3]
+    yy_line = np.zeros((3,2))
+    for i in range(3):
+        for j in range(2):
+            yy_line[i][j] = yy + coef_legend_dy*((2 - i)+ 0.2 * j - 0.1)
+    c_cols = [C_group[c_sin], C_group[c_cos]]
 
-    pprops['plotprops']['alpha'] = 0.15
-    mp.line(ax=ax_lab, x=[[-0.9, 1.3]], y=[[yy+coef_legend_dy*2, yy+coef_legend_dy*2]], colors=[c_epitope], **pprops)
+    mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[0][0], yy_line[0][0]]], colors=[c_cols[0]], **pprops)
+    mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[0][1], yy_line[0][1]]], colors=[c_cols[1]], **pprops)
     ax_lab.text(2, yy+coef_legend_dy*2, 'Inferred \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
-    pprops['plotprops']['alpha'] = 1
+    pprops['plotprops']['alpha'] = 1.0
     pprops['plotprops']['lw'] = SIZELINE*3
-    mp.line(ax=ax_lab, x=[[-0.9, 1.3]], y=[[yy+coef_legend_dy, yy+coef_legend_dy]], colors=[c_epitope], **pprops)
+    mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[1][0], yy_line[1][0]]], colors=[c_cols[0]], **pprops)
+    mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[1][1], yy_line[1][1]]], colors=[c_cols[1]], **pprops)
     ax_lab.text(2, yy+coef_legend_dy, 'Average \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
     pprops['plotprops']['ls'] = ':'
-    mp.plot(type='line',ax=ax_lab, x=[[-0.9, 1.3]], y=[[yy, yy]], colors=[c_epitope], **pprops)
+    mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[2][0], yy_line[2][0]]], colors=[c_cols[0]], **pprops)
+    mp.plot(type='line',ax=ax_lab, x=[xx_line], y=[[yy_line[2][1], yy_line[2][1]]], colors=[c_cols[1]], **pprops)
     ax_lab.text(2, yy, 'True \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
     ## b  -- escape coefficients
@@ -944,9 +960,6 @@ def plot_simple_his(**pdata):
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.15 },
                'axoffset':    0.1,
                'theme':       'open'}
-
-    c_sin = -2
-    c_cos = -5
 
     for n in range(len(p_1)):
         pprops['plotprops']['alpha'] = 0.15
@@ -998,6 +1011,7 @@ def plot_trait_his(**pdata):
     yminorticks_f = pdata['yminorticks_f']
 
     seq_length    = pdata['seq_length']     # 20
+    p_sites       = pdata['p_sites']        # [9,10]
     fB            = pdata['s_ben']          # 0.02
     fD            = pdata['s_del']          # -0.02
     fn            = pdata['fn']             # time-varying selection coefficient
@@ -1007,9 +1021,6 @@ def plot_trait_his(**pdata):
     with open("%s/%s/escape_groups.dat"%(SIM_DIR,dir), 'r') as file:
         escape_groups = json.load(file)
 
-    with open("%s/%s/special_groups.dat"%(SIM_DIR,dir), 'r') as file:
-        special_groups = json.load(file)
-
     ne          = len(escape_groups[0])
     timepoints  = int(generations) + 1
     times       = np.linspace(0,generations,timepoints)
@@ -1017,17 +1028,15 @@ def plot_trait_his(**pdata):
     # data for selection coefficients for different simulations
     df       = pd.read_csv('%s/%s/mpl_collected%s.csv' % (SIM_DIR,dir,output), memory_map=True)
     ben_cols = ['sc_%d' % i for i in [0,1,2,3]]
-    neu_cols = ['sc_%d' % i for i in [4,5,6,7,8,9,10,11,12,13,14,15]]
+    neu_cols = ['sc_%d' % i for i in [4,5,6,7,8,11,12,13,14,15]]
     del_cols = ['sc_%d' % i for i in [16,17,18,19]]
 
     # get data for inference results for different simulations
     tc_all   = np.zeros((100,ne,generations+1))
-    sc_p_all = np.zeros((100,len(special_groups[0]),generations+1))
+    sc_p_all = np.zeros((100,len(p_sites),generations+1))
 
     for k in range(100):
         name = str(k)
-        p_sites       = special_groups[k]
-
         data_full     = np.load('%s/%s/output%s/c_%s.npz'%(SIM_DIR,dir,output,name), allow_pickle="True")
         sc_full       = data_full['selection']
         TimeVaryingTC = sc_full[seq_length:]
@@ -1061,18 +1070,18 @@ def plot_trait_his(**pdata):
 
     box_se  = dict(left=0.10, right=0.92, bottom=0.65, top=0.95)
     box_lab = dict(left=0.05, right=0.15, bottom=0.10, top=0.45)
-    box_tc  = dict(left=0.24, right=0.52, bottom=0.10, top=0.50)
-    box_sc2 = dict(left=0.60, right=0.92, bottom=0.10, top=0.50)
+    box_sc  = dict(left=0.24, right=0.52, bottom=0.10, top=0.50)
+    box_tc  = dict(left=0.60, right=0.92, bottom=0.10, top=0.50)
 
     gs_se  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_se)
     gs_lab = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_lab)
     gs_tc  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tc)
-    gs_sc2 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_sc2)
+    gs_sc  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_sc)
 
     ax_se  = plt.subplot(gs_se[0, 0])
     ax_lab = plt.subplot(gs_lab[0, 0])
     ax_tc  = plt.subplot(gs_tc[0, 0])
-    ax_sc2 = plt.subplot(gs_sc2[0, 0])
+    ax_sc  = plt.subplot(gs_sc[0, 0])
 
     dx = -0.04
     dy =  0.03
@@ -1114,28 +1123,73 @@ def plot_trait_his(**pdata):
                'ylim':        [-0.05, 0.05],
                'yticks':      [],
                'xticks':      [],
-               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.15 },
+               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.3 },
                'theme':       'open',
                'hide':        ['left','bottom'] }
 
     yy =  -0.021
     coef_legend_dy = 0.021
     c_epitope = C_group[0]
+    c_tv      = C_group[-5]
 
-    pprops['plotprops']['alpha'] = 0.15
-    mp.line(ax=ax_lab, x=[[-0.9, 1.3]], y=[[yy+coef_legend_dy*2, yy+coef_legend_dy*2]], colors=[c_epitope], **pprops)
+    xx_line = [-0.9, 1.3]
+    yy_line = np.zeros((3,2))
+    for i in range(3):
+        for j in range(2):
+            yy_line[i][j] = yy + coef_legend_dy*((2 - i)+ 0.2 * j - 0.1)
+
+    mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[0][0],yy_line[0][0]]], colors=[c_epitope], **pprops)
+    mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[0][1],yy_line[0][1]]], colors=[c_tv], **pprops)
     ax_lab.text(2, yy+coef_legend_dy*2, 'Inferred \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
     pprops['plotprops']['alpha'] = 1
     pprops['plotprops']['lw'] = SIZELINE*3
-    mp.line(ax=ax_lab, x=[[-0.9, 1.3]], y=[[yy+coef_legend_dy, yy+coef_legend_dy]], colors=[c_epitope], **pprops)
+    mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[1][0],yy_line[1][0]]], colors=[c_epitope], **pprops)
+    mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[1][1],yy_line[1][1]]], colors=[c_tv], **pprops)
     ax_lab.text(2, yy+coef_legend_dy, 'Average \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
     pprops['plotprops']['ls'] = ':'
-    mp.plot(type='line',ax=ax_lab, x=[[-0.9, 1.3]], y=[[yy, yy]], colors=[c_epitope], **pprops)
+    mp.line(            ax=ax_lab, x=[xx_line], y=[[yy_line[2][0],yy_line[2][0]]], colors=[c_epitope], **pprops)
+    mp.plot(type='line',ax=ax_lab, x=[xx_line], y=[[yy_line[2][1],yy_line[2][1]]], colors=[c_tv], **pprops)
     ax_lab.text(2, yy, 'True \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
-    ## b  -- escape coefficients
+    ## b  -- selection coefficients for special sites
+    ax_tc.text(box_tc['left']+dx, box_tc['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+    pprops = {  'xticks':      [0, 200, 400, 600, 800, 1000],
+                'ylim':        [ytick_f[0], ytick_f[-1]],
+                'yticks':      ytick_f,
+                'yminorticks': yminorticks_f,
+                'yticklabels': [int(i*100) for i in ytick_f],
+                'nudgey':      1,
+                'xlabel':      'Generation',
+                'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.1 },
+                'axoffset':    0.15,
+                'theme':       'open'}
+
+    for n in range(len(p_sites)):
+        p_index = p_sites[n]
+
+        pprops['plotprops']['alpha'] = 0.15
+        pprops['plotprops']['lw'] = SIZELINE
+        for k in range(100):
+            mp.line(ax=ax_sc, x=[times], y=[sc_p_all[k][n]], colors=[c_tv], **pprops)
+
+        pprops['plotprops']['alpha'] = 0.4
+        pprops['plotprops']['lw'] = SIZELINE*1.2
+        mp.line(ax=ax_sc, x=[times], y=[sc_p_all[0][n]], colors=[c_tv], **pprops)
+
+        pprops['plotprops']['alpha'] = 1
+        pprops['plotprops']['lw'] = SIZELINE*3
+        mp.line(ax=ax_sc, x=[times], y=[sc_average[n]], colors=[c_tv], **pprops)
+
+    pprops['plotprops']['ls'] = ':'
+    mp.plot(type='line',ax=ax_sc, x=[times], y=[fi], colors=[c_tv], **pprops)
+
+    ax_sc.text(box_sc['left']+dx, box_sc['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+    ## c  -- escape coefficients 
     pprops = { 'xticks':      [0, 200, 400, 600, 800, 1000],
                'ylim':        [ytick_e[0], ytick_e[-1]],
                'yticks':      ytick_e,
@@ -1161,45 +1215,9 @@ def plot_trait_his(**pdata):
         pprops['plotprops']['ls'] = ':'
         mp.plot(type='line',ax=ax_tc, x=[times], y=[fn], colors=[C_group[n]], **pprops)
 
-
-    ax_tc.text(box_tc['left']+dx, box_tc['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-
-    ## c  -- selection coefficients for special sites
-    pprops = {  'xticks':      [0, 200, 400, 600, 800, 1000],
-                'ylim':        [ytick_f[0], ytick_f[-1]],
-                'yticks':      ytick_f,
-                'yminorticks': yminorticks_f,
-                'yticklabels': [int(i*100) for i in ytick_f],
-                'nudgey':      1,
-                'xlabel':      'Generation',
-                'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
-                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.1 },
-                'axoffset':    0.15,
-                'theme':       'open'}
-
-    for n in range(len(p_sites)):
-        p_index = p_sites[n]
-
-        pprops['plotprops']['alpha'] = 0.15
-        pprops['plotprops']['lw'] = SIZELINE
-        for k in range(100):
-            mp.line(ax=ax_sc2, x=[times], y=[sc_p_all[k][n]], colors=[C_group[-2]], **pprops)
-
-        pprops['plotprops']['alpha'] = 0.4
-        pprops['plotprops']['lw'] = SIZELINE*1.2
-        mp.line(ax=ax_sc2, x=[times], y=[sc_p_all[0][n]], colors=[C_group[-2]], **pprops)
-
-        pprops['plotprops']['alpha'] = 1
-        pprops['plotprops']['lw'] = SIZELINE*3
-        mp.line(ax=ax_sc2, x=[times], y=[sc_average[n]], colors=[C_group[-2]], **pprops)
-
-    pprops['plotprops']['ls'] = ':'
-    mp.plot(type='line',ax=ax_sc2, x=[times], y=[fi], colors=[C_group[-2]], **pprops)
-
-    ax_sc2.text(box_sc2['left']+dx, box_sc2['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-
     # SAVE FIGURE
-    plt.savefig('%s/trait_his%s.pdf' % (FIG_DIR,output), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+    if savepdf:
+        plt.savefig('%s/%s_his%s.pdf' % (FIG_DIR,dir,output), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
 def plot_epitope_theta(**pdata):
 
@@ -1343,17 +1361,17 @@ def plot_epitope(**pdata):
         index          = time_index[i]
         sc_sample_ex[:,i] = sc_all_ex[:,index]
 
-    df_escape   = pd.read_csv('%s/epitopes/escape_group-%s.csv'%(HIV_DIR,tag), memory_map=True)
+    df_escape   = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv'%(HIV_DIR,tag), memory_map=True)
     epitopes = df_escape['epitope'].unique()
 
-    # var_ec     = [] # escape coefficients for constant case
+    var_ec     = [] # escape coefficients for constant case
     traj_var   = [] # frequencies for individual escape sites
     traj_group = [] # frequencies for escape groups
     var_tag    = [] # name for epitope
     for n in range(len(epitopes)):
         df_esc  = df_escape[(df_escape.epitope==epitopes[n])]
         df_row  = df_esc.iloc[0]
-        # var_ec.append(df_esc.iloc[0].tc_MPL)
+        var_ec.append(df_esc.iloc[0].tc_MPL)
 
         # get the name for epitopes
         epi_nuc = ''.join(epitopes[n])
@@ -1442,7 +1460,7 @@ def plot_epitope(**pdata):
         sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':1}
         mp.plot(type='scatter', ax=ax[n][1], x=[sample_times], y=[sc_sample_ex[-(ne-n),:]], colors=[C_group[n]],plotprops=sprops, **pprops)
 
-        # ax[n][1].axhline(y=var_ec[n], ls=':', lw=SIZELINE, color=C_group[n])
+        ax[n][1].axhline(y=var_ec[n], ls=':', lw=SIZELINE, color=C_group[n])
         ax[n][1].axhline(y=0, ls='--', lw=SIZELINE/2, color=BKCOLOR)
     
     if savepdf:
@@ -1488,7 +1506,7 @@ def plot_special_site(**pdata):
     etright = np.linspace(times[-1]+10,times[-1]+TRight,int(TRight/10))
     ExTimes = np.concatenate((etleft, times, etright))
 
-    df_sc   = pd.read_csv('%s/analysis/%s-analyze.csv'%(HIV_DIR,tag), comment='#', memory_map=True)
+    df_sc   = pd.read_csv('%s/constant/analysis/%s-analyze.csv'%(HIV_DIR,tag), comment='#', memory_map=True)
     index_s =  [] # variants name
     for i in special_sites:
         df_i  = df_sc[(df_sc.polymorphic_index==i) & (df_sc.nucleotide!=df_sc.TF ) & (df_sc.nucleotide!= '-')]
@@ -1632,7 +1650,7 @@ def plot_special_site(**pdata):
         plt.savefig('%s/fig-sp-CH%s.pdf' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
         plt.show()
     else:
-        plt.savefig('%s/HIV/sp-CH%s.jpg' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+        plt.savefig('%s/sp-CH%s.jpg' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
 
 @dataclass
@@ -1661,7 +1679,7 @@ def GetFigureData(tag,HIV_DIR,name):
     data_tc     = np.load('%s/output/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), allow_pickle="True")
     sc_all_ex   = data_tc['selection']# time range:times
 
-    df_escape   = pd.read_csv('%s/epitopes/escape_group-%s.csv'%(HIV_DIR,tag), memory_map=True)
+    df_escape   = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv'%(HIV_DIR,tag), memory_map=True)
     epitopes    = df_escape['epitope'].unique()
 
     # get ExTimes (extended time after interpolation)
