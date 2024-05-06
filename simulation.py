@@ -589,8 +589,10 @@ def infer_simple(**pdata):
 
     # unpack passed data
     NUC           = pdata['NUC']            # ['A','T']
-    dir           = pdata['dir']            # 'trait'
-    xfile         = pdata['xfile']          
+    dir           = pdata['dir']            # 'simple'
+    xfile         = pdata['xfile']          # index of the simulation
+    output_dir    = pdata['output_dir']     # 'output'
+
     seq_length    = pdata['seq_length']     # 20
     totalT        = pdata['totalT']         # 500
     mut_rate      = pdata['mut_rate']       # 1e-3
@@ -601,10 +603,9 @@ def infer_simple(**pdata):
     gamma_1s      = pdata['gamma_s']/totalT # gamma_s/time points
     gamma_2c      = pdata['gamma_2c']       # 1000000
     gamma_2tv     = pdata['gamma_2tv']      # 200
+    beta          = pdata['beta']           # 4
 
-    bc_n          = pdata['bc_n']         # True
-
-    p_sites       = p_1+p_2        # [6,7,8,9] , special sites
+    p_sites       = p_1+p_2                 # [6,7,8,9] , special sites
     ############################################################################
     ############################## Function ####################################
 
@@ -733,7 +734,6 @@ def infer_simple(**pdata):
     # individual site: gamma_2c, escape group and special site: gamma_2tv
     # gamma 2 is also time varying, it is smaller at the boundary
     gamma_t = np.zeros(len(ExTimes))
-    beta = 4
     tv_range = int(round(times[-1]*0.1/10)*10)
     alpha  = np.log(beta) / tv_range
     for t in range(len(ExTimes)):
@@ -813,10 +813,10 @@ def infer_simple(**pdata):
         return result
 
     def bc(b1,b2):
-        if bc_n: # if using Neumann boundary condition
-            return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
-        else: # using Dirichlet boundary condition
-            return np.ravel(np.array([b1[:x_length],b2[:x_length]])) # s = 0 at the extended endpoints
+        # if using Neumann boundary condition
+        return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
+        # using Dirichlet boundary condition
+        # return np.ravel(np.array([b1[:x_length],b2[:x_length]])) # s = 0 at the extended endpoints
 
     ss_extend = np.zeros((2*x_length,len(ExTimes)))
     try:
@@ -830,7 +830,7 @@ def infer_simple(**pdata):
     desired_coefficients   = selection_coefficients[:x_length,len(etleft):len(etleft)+len(times)]
 
     # save the solution with constant_time-varying selection coefficient
-    g = open('%s/%s/output/c_%s.npz'%(SIM_DIR,dir,xfile), mode='w+b')
+    g = open('%s/%s/%s/c_%s.npz'%(SIM_DIR,dir,output_dir,xfile), mode='w+b')
     np.savez_compressed(g, selection=desired_coefficients, all = selection_coefficients, time=times)
     g.close()
 

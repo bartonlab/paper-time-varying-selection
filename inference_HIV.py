@@ -14,7 +14,7 @@ from dataclasses import dataclass
 import time as time_module
 from itertools import product
 
-## simulation parameter
+## nucleotide parameter
 NUC = ['-', 'A', 'C', 'G', 'T']
 q = len(NUC)
 
@@ -138,7 +138,6 @@ def main(args):
     parser.add_argument('--raw',         action='store_true',  default=False,       help='whether or not to save the raw data')
     parser.add_argument('--TV',          action='store_false', default=True,        help='whether or not to infer')
     parser.add_argument('--pt',          action='store_false', default=True,        help='whether or not to print the execution time')
-    parser.add_argument('--bc',          action='store_false', default=True,        help='whether or not to use Neumann boundary condition x')
 
     arg_list  = parser.parse_args(args)
 
@@ -153,7 +152,6 @@ def main(args):
     raw_save   = arg_list.raw
     infer      = arg_list.TV
     print_time = arg_list.pt
-    bc_n       = arg_list.bc
     
     ############################################################################
     ################################# function #################################
@@ -401,7 +399,15 @@ def main(args):
     #     calculate manually
         for t in range(len(single_freq)-1):
             delta_x[t] = (single_freq[t+1] - single_freq[t])/(times[t+1]-times[t])
-        delta_x[-1] = delta_x[-2]
+
+        # dt for the last time point, make sure the expected x[t+1] is less than 1
+        dt_last = times[-1] - times[-2]
+        for ii in range(x_length):
+            if single_freq[-1,ii] + delta_x[-1,ii]*dt_last> 1:
+                delta_x[-1,ii] = (1 - single_freq[-1,ii])/dt_last
+            else:
+                delta_x[-1,ii] = delta_x[-2,ii]
+
         return delta_x
 
     # Interpolation function definition
@@ -477,7 +483,10 @@ def main(args):
 
     if raw_save:
         # obtain raw sequence data
-        data     = np.loadtxt("%s/sequence/%s-poly-seq2state.dat" %(HIV_DIR,tag))
+        if tag == '704010042-3' or '703010131-3':
+            data     = np.loadtxt('%s/sequence/%s-cut.dat'%(HIV_DIR,tag))
+        else:
+            data     = np.loadtxt('%s/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
 
         # information for escape group
         result       = AnalyzeData(tag,HIV_DIR)
@@ -583,21 +592,21 @@ def main(args):
             gamma1[x_length-ne+n] = gamma_1p
 
         # gamma 2 is also time varying, it is larger at the boundary
-        gamma_t = np.zeros(len(ExTimes))
-        tv_range = max(int(round(times[-1]*0.1/10)*10),1)
-        alpha1  = np.log(4) / tv_range
-        alpha2  = np.log(4) / tv_range
-        for t in range(len(ExTimes)):
-            if ExTimes[t] <= 0:
-                gamma_t[t] = 4
-            elif ExTimes[t] >= times[-1]:
-                gamma_t[t] = 4
-            elif 0 < ExTimes[t] and ExTimes[t] <= tv_range:
-                gamma_t[t] = 4 * np.exp(-alpha1 * ExTimes[t])
-            elif times[-1]-tv_range <= ExTimes[t] and ExTimes[t] < times[-1]:
-                gamma_t[t] = 1 * np.exp(alpha2 * (ExTimes[t]-times[-1]+tv_range))
-            else:
-                gamma_t[t] = 1
+        gamma_t = np.ones(len(ExTimes))
+        # tv_range = max(int(round(times[-1]*0.1/10)*10),1)
+        # alpha1  = np.log(4) / tv_range
+        # alpha2  = np.log(4) / tv_range
+        # for t in range(len(ExTimes)):
+        #     if ExTimes[t] <= 0:
+        #         gamma_t[t] = 4
+        #     elif ExTimes[t] >= times[-1]:
+        #         gamma_t[t] = 4
+        #     elif 0 < ExTimes[t] and ExTimes[t] <= tv_range:
+        #         gamma_t[t] = 4 * np.exp(-alpha1 * ExTimes[t])
+        #     elif times[-1]-tv_range <= ExTimes[t] and ExTimes[t] < times[-1]:
+        #         gamma_t[t] = 1 * np.exp(alpha2 * (ExTimes[t]-times[-1]+tv_range))
+        #     else:
+        #         gamma_t[t] = 1
 
         # individual site: gamma_2c, escape group and special site: gamma_2tv
         gamma2 = np.ones((x_length,len(ExTimes)))*gamma_2c
@@ -675,10 +684,10 @@ def main(args):
         # Boundary conditions
         # solution to the system of differential equation with the derivative of the selection coefficients zero at the endpoints
         def bc(b1,b2):
-            if bc_n:
-                return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
-            else:
-                return np.ravel(np.array([b1[:x_length],b2[:x_length]])) # s = 0 at the extended endpoints
+            # Neumann boundary condition
+            return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
+            # Dirichlet boundary condition
+            # return np.ravel(np.array([b1[:x_length],b2[:x_length]])) # s = 0 at the extended endpoints
 
         ss_extend = np.zeros((2*x_length,len(ExTimes)))
         
@@ -701,10 +710,7 @@ def main(args):
         max_var_auto  = max_min(autoconvolution(desired_coefficients))
 
         # save the solution with constant_time-varying selection coefficient
-        if bc_n:
-            g = open('%s/output/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), mode='w+b')
-        else:
-            g = open('%s/output_s0/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), mode='w+b')
+        g = open('%s/output-1/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), mode='w+b')
         np.savez_compressed(g, selection=desired_coefficients, all = selection_coefficients, time=times, \
                             mean_dev=mean_dev, std_dev=std_dev, max_var=max_var, mean_dev_auto=mean_dev_auto, \
                             std_dev_auto=std_dev_auto, max_var_auto=max_var_auto)
