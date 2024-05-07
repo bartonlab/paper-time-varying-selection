@@ -1143,7 +1143,7 @@ def plot_epitope(**pdata):
     times        = data_pro['times']
     time_step    = data_pro['time_step']
     ne           = len(escape_group)
-
+    
     if ne == 0:
         print(f'CH{tag[6:]} does not contain any trait group')
         return

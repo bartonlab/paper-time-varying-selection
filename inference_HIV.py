@@ -32,7 +32,7 @@ class Result:
     IntTime:[]
 
 def AnalyzeData(tag,HIV_DIR):
-    if tag == '704010042-3' or '703010131-3':
+    if tag == '704010042-3' or tag == '703010131-3':
         df_info = pd.read_csv('%s/constant/analysis/%s-analyze-cut.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
         seq     = np.loadtxt('%s/sequence/%s-cut.dat'%(HIV_DIR,tag))
     else:
@@ -48,7 +48,7 @@ def AnalyzeData(tag,HIV_DIR):
     """get variants number and sequence length"""
     df_poly  = df_info[df_info['nucleotide']!=df_info['TF']]
     variants = len(df_poly)
-    seq_length = df_info.iloc[-1].polymorphic_index + 1
+    seq_length = int(df_info.iloc[-1].polymorphic_index + 1)
 
     """get special sites and escape sites"""
     # get all epitopes for one tag
@@ -62,6 +62,7 @@ def AnalyzeData(tag,HIV_DIR):
     for epi in unique_epitopes:
         df_e = df_rows[(df_rows['epitope'] == epi) & (df_rows['escape'] == True)] # find all escape mutation for one epitope
         unique_sites = df_e['polymorphic_index'].unique()
+        unique_sites = [int(site) for site in unique_sites]
 
         if len(unique_sites) <= min_n:
             special_sites.append(unique_sites)
@@ -483,7 +484,7 @@ def main(args):
 
     if raw_save:
         # obtain raw sequence data
-        if tag == '704010042-3' or '703010131-3':
+        if tag == '704010042-3' or tag == '703010131-3':
             data     = np.loadtxt('%s/sequence/%s-cut.dat'%(HIV_DIR,tag))
         else:
             data     = np.loadtxt('%s/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
@@ -593,20 +594,20 @@ def main(args):
 
         # gamma 2 is also time varying, it is larger at the boundary
         gamma_t = np.ones(len(ExTimes))
-        # tv_range = max(int(round(times[-1]*0.1/10)*10),1)
-        # alpha1  = np.log(4) / tv_range
-        # alpha2  = np.log(4) / tv_range
-        # for t in range(len(ExTimes)):
-        #     if ExTimes[t] <= 0:
-        #         gamma_t[t] = 4
-        #     elif ExTimes[t] >= times[-1]:
-        #         gamma_t[t] = 4
-        #     elif 0 < ExTimes[t] and ExTimes[t] <= tv_range:
-        #         gamma_t[t] = 4 * np.exp(-alpha1 * ExTimes[t])
-        #     elif times[-1]-tv_range <= ExTimes[t] and ExTimes[t] < times[-1]:
-        #         gamma_t[t] = 1 * np.exp(alpha2 * (ExTimes[t]-times[-1]+tv_range))
-        #     else:
-        #         gamma_t[t] = 1
+        tv_range = max(int(round(times[-1]*0.1/10)*10),1)
+        alpha1  = np.log(4) / tv_range
+        alpha2  = np.log(4) / tv_range
+        for t in range(len(ExTimes)):
+            if ExTimes[t] <= 0:
+                gamma_t[t] = 4
+            elif ExTimes[t] >= times[-1]:
+                gamma_t[t] = 4
+            elif 0 < ExTimes[t] and ExTimes[t] <= tv_range:
+                gamma_t[t] = 4 * np.exp(-alpha1 * ExTimes[t])
+            elif times[-1]-tv_range <= ExTimes[t] and ExTimes[t] < times[-1]:
+                gamma_t[t] = 1 * np.exp(alpha2 * (ExTimes[t]-times[-1]+tv_range))
+            else:
+                gamma_t[t] = 1
 
         # individual site: gamma_2c, escape group and special site: gamma_2tv
         gamma2 = np.ones((x_length,len(ExTimes)))*gamma_2c
@@ -710,7 +711,7 @@ def main(args):
         max_var_auto  = max_min(autoconvolution(desired_coefficients))
 
         # save the solution with constant_time-varying selection coefficient
-        g = open('%s/output-1/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), mode='w+b')
+        g = open('%s/output-50/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), mode='w+b')
         np.savez_compressed(g, selection=desired_coefficients, all = selection_coefficients, time=times, \
                             mean_dev=mean_dev, std_dev=std_dev, max_var=max_var, mean_dev_auto=mean_dev_auto, \
                             std_dev_auto=std_dev_auto, max_var_auto=max_var_auto)
