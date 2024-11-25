@@ -10,4 +10,14 @@ __pycache__
 
 # Old data
 /data/simulation/old_trait*/
+/data/simulation/simple/old_*/
+/data/simulation/trait/old_*/
 /data/HIV2*/
+/data/HIV/cr/
+/data/HIV/output-*/
+/figures/trait/
+/figures/simple/
+/figures/HIV-*/
+
+try.ipynb
+/src/*.m

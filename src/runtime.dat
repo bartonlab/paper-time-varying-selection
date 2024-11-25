@@ -1,3 +1,53 @@
+New
+CH040-3 solver_time :       [-280    0   16   45    111   181     283     412   552  832]
+CH040-5 solver_time :       [-280    0   16   45    111   181     283     412  (482) 552  832]
+CH058-3 solver_time :       [-40     0    8   45     85   125]
+CH058-5 solver_time :       [-180    0    8   45     85   154     239     252   350  530]
+CH077-3 solver_time :       [-80     0   14   32    102   159     239]
+CH077-5 solver_time :       [-80     0   14   32  (95.5)  159     239]
+CH470-3 solver_time :       [-210    0   13   41     69   174     420     630]
+CH470-5 solver_time :       [-230    0   13   41    (55)   69     174     420   454  684]
+CH607-3 solver_time :       [-10     0    9   14     21    31]
+CH131-3 solver_time :       [-170    0   21   28     34    63      91     175   273  333  503]
+CH131-5 solver_time :       [-170    0   21   28     34    63      91     175   273  333  503]
+CH159-3 solver_time :       [-150    0    8   12     22    29      56      85   302  452]
+CH256-3 solver_time : [-340 (-170)   0   28   63 (117.5)  172     426     684  1024]
+CH256-5 solver_time :       [-340    0   28   63    172   426     684    1024]
+CH042-3 solver_time :       [-340    0   21   60    172   424     676    1016]
+CH042-5 solver_time : [-340 (-170)   0   21   60    172   424     676    1016]
+CH162-3 solver_time :       [-220    0   21   77   (128)  179     438     658]
+CH162-5 solver_time :       [-220    0   21   77   (128)  179 (243.75) (308.5)  438  658]
+CH185-5 solver_time :       [-30     0   25   67     97]
+CH198-3 solver_time :       [-30     0   11   60     90]
+CH164-3 solver_time : [-220 (-110)   0   14   28     70   183     434     654]
+CH164-5 solver_time :       [-220    0   14   28     70   183     434     654]
+
+Execution time for CH040-3 : 2007.4010009765625 seconds
+Execution time for CH040-5 : 452.0289559364319 seconds
+Execution time for CH058-3 : 25.404375076293945 seconds
+Execution time for CH058-5 : 62.28182411193848 seconds
+Execution time for CH077-3 : 399.6490681171417 seconds
+Execution time for CH077-5 : 9.480281114578247 seconds
+Execution time for CH470-3 : 2832.6809451580048 seconds
+Execution time for CH470-5 : 952.8526799678802 seconds
+Execution time for CH607-3 : 464.9757618904114 seconds
+Execution time for CH131-3 : 1833.407876253128 seconds
+Execution time for CH131-5 : 1373.5644059181213 seconds
+Execution time for CH159-3 : 8136.715213060379 seconds
+Execution time for CH256-3 : 12619.935435056686 seconds
+Execution time for CH256-5 : 3259.3775401115417 seconds
+Execution time for CH042-3 : 5275.397779941559 seconds
+Execution time for CH042-5 : 1909.7951309680939 seconds
+Execution time for CH162-3 : 13466.294382810593 seconds
+Execution time for CH162-5 : 2796.0903837680817 seconds
+Execution time for CH185-5 : 15.810043811798096 seconds
+Execution time for CH198-3 : 218.37111568450928 seconds
+Execution time for CH164-3 : 12863.502804994583 seconds
+Execution time for CH164-5 : 417.59458208084106 seconds
+
+
+
+
 Execution time for CH040-3 : 608.6433730125427 seconds
 Execution time for CH040-5 : 150.19738602638245 seconds
 Execution time for CH058-3 : 27.468687057495117 seconds

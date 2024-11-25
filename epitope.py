@@ -491,32 +491,36 @@ def analyze_epitope(HIV_DIR,output,tag):
 def get_cut_sequences(HIV_DIR,tag,cut_s,cut_p):
     '''modify the sequence by removing the sites that has a weak linakge with the epitopes'''
     
-    # get special sites and escape sites
-    df_info = pd.read_csv('%s/constant/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
-    df_rows = df_info[df_info['epitope'].notna()]
-    unique_epitopes = df_rows['epitope'].unique()
-    min_n = 2 # the least escape sites a trait group should have (more than min_n)
-
-    special_sites = [] # special site considered as time-varying site but not escape site
-    escape_group  = [] # escape group (each group should have more than 2 escape sites)
-    for epi in unique_epitopes:
-        df_e = df_rows[(df_rows['epitope'] == epi) & (df_rows['escape'] == True)] # find all escape mutation for one epitope
-        unique_sites = df_e['polymorphic_index'].unique()
-
-        if len(unique_sites) <= min_n:
-            special_sites.append(unique_sites)
-        else:
-            escape_group.append(list(unique_sites))
-
-    escape_sites = [item for sublist in escape_group for item in sublist]
-    special_sites = [item for sublist in special_sites for item in sublist]
+    '''get special sites and escape sites'''
+    df_info  = pd.read_csv('%s/constant/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+    df_epi = df_info[(df_info['epitope'].notna()) & (df_info['escape'] == True)] # epitopes containing sysnonymous mutation sites
+    nonsy_sites = df_epi['polymorphic_index'].unique() # all sites can contribute to epitope
     
-    # get the raw sequence
+    df_trait = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+    df_rows = df_trait[df_trait['epitope'].notna()] # independent epitopes
+    indep_epitopes = df_rows['epitope'].unique()
+
+    escape_group  = [] # escape group (each group should have more than 2 escape sites)
+    for epi in indep_epitopes:
+        df_e = df_rows[df_rows['epitope'] == epi] # find all escape mutation for one epitope
+        unique_sites = df_e['polymorphic_index'].unique()
+        unique_sites = [int(site) for site in unique_sites]
+        escape_group.append(list(unique_sites))
+        for site in unique_sites:
+            # remove escape sites to find special sites
+            index = np.where(nonsy_sites == site)
+            nonsy_sites = np.delete(nonsy_sites, index)
+    
+    # After removing all escape sites, the rest nonsynonymous sites are special sites
+    special_sites = nonsy_sites 
+    escape_sites = [item for sublist in escape_group for item in sublist]
+    
+    '''get the raw sequence'''
     sequence = np.loadtxt("%s/sequence/%s-poly-seq2state.dat" %(HIV_DIR,tag))
     seq_length = len(sequence[0])-2
     ne          = len(escape_group)
    
-    # load the sij data to get the likage between sites
+    '''load the sij data to get the likage between sites'''
     df_sij   = pd.read_csv('%s/constant/sij/%s-sij.csv' %(HIV_DIR,tag), comment='#', memory_map=True,low_memory=False)
     df_sij[['effect']] = df_sij[['effect']].astype(float)
 

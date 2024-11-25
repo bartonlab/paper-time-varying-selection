@@ -3,10 +3,12 @@
 
 import sys,os
 import argparse
+from typing import List
 import numpy as np
-import scipy as sp
 import pandas as pd
+import scipy as sp
 from scipy import integrate
+import scipy.io as sc_io
 import scipy.interpolate as sp_interpolate
 import statistics
 import pickle
@@ -21,15 +23,15 @@ q = len(NUC)
 # get information about special sites, escape group and regularization value
 @dataclass
 class Result:
-    variants: 0
-    seq_length: 0
-    special_sites: []
-    uniq_t:[]
-    time_step:0
-    escape_group:[]
-    escape_TF:[]
-    trait_dis:[]
-    IntTime:[]
+    seq_length: int
+    special_sites: List[int]
+    uniq_t: List[int]
+    r_rates: List[float]
+    time_step: int
+    escape_group: List[List[int]]
+    escape_TF: List[List[int]]
+    trait_dis: List[List[int]]
+    IntTime: List[int]
 
 def AnalyzeData(tag,HIV_DIR):
     if tag == '704010042-3' or tag == '703010131-3':
@@ -39,46 +41,68 @@ def AnalyzeData(tag,HIV_DIR):
         df_info = pd.read_csv('%s/constant/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
         seq     = np.loadtxt('%s/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
 
+    """get sequence length"""
+    seq_length = len(seq[0])-2
+
     """get raw time points"""
     times = []
     for i in range(len(seq)):
         times.append(seq[i][0])
     uniq_t = np.unique(times)
 
-    """get variants number and sequence length"""
-    df_poly  = df_info[df_info['nucleotide']!=df_info['TF']]
-    variants = len(df_poly)
-    seq_length = int(df_info.iloc[-1].polymorphic_index + 1)
+    '''get recombinant rate'''
+    r_rates = np.loadtxt('%s/input/r_rates/r-%s.dat'%(HIV_DIR, tag))
+    if len(r_rates) != len(uniq_t):
+        print('Error: the length of r_rates is not equal to the length of time')
+        sys.exit
 
-    """get special sites and escape sites"""
-    # get all epitopes for one tag
-    df_rows = df_info[df_info['epitope'].notna()]
-    unique_epitopes = df_rows['epitope'].unique()
-
-    min_n = 2 # the least escape sites a trait group should have (more than min_n)
-    special_sites = [] # special site considered as time-varying site but not escape site
+    """Get binary sites"""
     escape_group  = [] # escape group (each group should have more than 2 escape sites)
-    escape_TF     = [] # corresponding wild type nucleotide
-    for epi in unique_epitopes:
-        df_e = df_rows[(df_rows['epitope'] == epi) & (df_rows['escape'] == True)] # find all escape mutation for one epitope
-        unique_sites = df_e['polymorphic_index'].unique()
-        unique_sites = [int(site) for site in unique_sites]
 
-        if len(unique_sites) <= min_n:
-            special_sites.append(unique_sites)
+    try:
+        if tag == '704010042-3' or tag == '703010131-3':
+            df_trait = pd.read_csv('%s/constant/epitopes/escape_group-%s-cut.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
         else:
-            escape_group.append(list(unique_sites))
-            escape_TF_epi = []
-            for site in unique_sites:
-                tf_values = []
-                df_site = df_info[df_info['polymorphic_index'] == site]
-                for i in range(len(df_site)):
-                    if df_site.iloc[i].escape != True:
-                        tf_values.append(int(NUC.index(df_site.iloc[i].nucleotide)))
-                escape_TF_epi.append(tf_values)
-            escape_TF.append(escape_TF_epi)
+            df_trait = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+        
+        # get all binary traits for one tag
+        df_rows = df_trait[df_trait['epitope'].notna()]
+        unique_traits = df_rows['epitope'].unique()
 
-    special_sites = [item for sublist in special_sites for item in sublist]
+        for epi in unique_traits:
+            # collect all escape sites for one binary trait
+            df_e = df_rows[(df_rows['epitope'] == epi)] # find all escape mutation for this epitope
+            unique_sites = df_e['polymorphic_index'].unique()
+            unique_sites = [int(site) for site in unique_sites]
+            escape_group.append(list(unique_sites))
+
+    except FileNotFoundError:
+        print(f"CH{tag[-5:]} has no binary trait")
+
+        
+    """Get special sites and TF sequence"""
+    escape_TF     = [] # corresponding wild type nucleotide
+    df_epi = df_info[(df_info['epitope'].notna()) & (df_info['escape'] == True)]
+    nonsy_sites = df_epi['polymorphic_index'].unique() # all sites can contribute to epitope
+
+    for n in range(len(escape_group)):
+        escape_TF_n = []
+        for site in escape_group[n]:
+            # remove escape sites to find special sites
+            index = np.where(nonsy_sites == site)
+            nonsy_sites = np.delete(nonsy_sites, index)
+
+            # find the corresponding TF
+            escape_TF_site = []
+            df_TF = df_info[(df_info['polymorphic_index'] == site) & (df_info['escape'] == False)]
+            for i in range(len(df_TF)):
+                TF = df_TF.iloc[i].nucleotide
+                escape_TF_site.append(int(NUC.index(TF)))
+            escape_TF_n.append(escape_TF_site)
+        escape_TF.append(escape_TF_n)
+    
+    # After removing all escape sites, the rest nonsynonymous sites are special sites
+    special_sites = nonsy_sites 
 
     """trait distance"""
     trait_dis = []
@@ -121,22 +145,24 @@ def AnalyzeData(tag,HIV_DIR):
             times.append(uniq_t[t])
     IntTime = list(times)
 
-    return Result(variants, seq_length, special_sites, uniq_t, time_step, escape_group, escape_TF, trait_dis, IntTime)
+    return Result(seq_length, special_sites, uniq_t, r_rates, time_step, escape_group, escape_TF, trait_dis, IntTime)
 
 def main(args):
     """Infer time-varying selection coefficients from HIV data"""
 
     # Read in parameters from command line
     parser = argparse.ArgumentParser(description='Time Varying Selection coefficients inference')
-    parser.add_argument('-tag',          type=str,    default='700010077-5',        help='input HIV data tag')
+    parser.add_argument('-tag',          type=str,    default='700010058-3',        help='input HIV data tag')
     parser.add_argument('-name',         type=str,    default='',                   help='suffix for output data')
     parser.add_argument('-dir',          type=str,    default='data/HIV',           help='directory for HIV data')
-    parser.add_argument('-r',            type=float,  default=1.4e-5,               help='recombination rate')
+    parser.add_argument('-output',       type=str,    default='output',             help='directory for HIV data')
     parser.add_argument('-theta',        type=float,  default=0.5,                  help='the extension of time range')
-    parser.add_argument('-g1',           type=float,  default=10,                   help='regularization restricting the magnitude of the selection coefficients for constant MPL')
+    parser.add_argument('-g1',           type=float,  default=10,                   help='regularization restricting the magnitude of the selection coefficients')
     parser.add_argument('-g2c',          type=float,  default=100000,               help='regularization restricting the time derivative of the selection coefficients,constant')
-    parser.add_argument('-g2tv',         type=float,  default=200,                  help='regularization restricting the time derivative of the selection coefficients,time varying')
+    parser.add_argument('-g2tv',         type=float,  default=50,                   help='regularization restricting the time derivative of the selection coefficients,time varying')
     parser.add_argument('--raw',         action='store_true',  default=False,       help='whether or not to save the raw data')
+    parser.add_argument('--tvgamma',     action='store_false',  default=True,       help='whether or not to use a time-varying gamma_2tv')
+    parser.add_argument('--cr',          action='store_true', default=False,        help='whether or not to use a constant recombination rate')
     parser.add_argument('--TV',          action='store_false', default=True,        help='whether or not to infer')
     parser.add_argument('--pt',          action='store_false', default=True,        help='whether or not to print the execution time')
 
@@ -145,12 +171,14 @@ def main(args):
     tag        = arg_list.tag
     name       = arg_list.name
     HIV_DIR    = arg_list.dir
-    r_rate     = arg_list.r
+    output_dir = arg_list.output
     theta      = arg_list.theta
     gamma_1    = arg_list.g1  # regularization parameter, which will be change according to the time points
     gamma_2c   = arg_list.g2c
     gamma_2tv  = arg_list.g2tv
     raw_save   = arg_list.raw
+    tvgamma    = arg_list.tvgamma
+    cr         = arg_list.cr
     infer      = arg_list.TV
     print_time = arg_list.pt
     
@@ -278,22 +306,22 @@ def main(args):
         return ex
 
     def compareElements(k_bp, sVec_n, sWT_n_all, compare_end=False):
-        different = False
+        same = False
         for k in range(len(sWT_n_all)):
             sWT_n = sWT_n_all[k]
             if not compare_end: # compare the sequence before k point
-                if sVec_n[:k_bp] != sWT_n[:k_bp]:
-                    different = True
+                if sVec_n[:k_bp] == sWT_n[:k_bp]:
+                    same = True
                     break
             else: # compare the sequence after k point
-                if sVec_n[k_bp:] != sWT_n[k_bp:]:
-                    different = True
+                if sVec_n[k_bp:] == sWT_n[k_bp:]:
+                    same = True
                     break
-        return different
+        return same
     
     # calculate frequencies for recombination part (binary case)  
     def get_p_k(sVec,nVec,seq_length,escape_group,escape_TF):
-        p_mut_k   = np.zeros((len(nVec),seq_length,3)) # 0: time, 1: all k point, 2: p_k, p_k-, p_k+
+        p_mut_k   = np.zeros((len(nVec),seq_length, 3)) # 0: time, 1: all k point, 2: p_k, p_k-, p_k+
         p_wt      = np.zeros((len(nVec),len(escape_group))) # 0: time, 1: escape group
 
         for t in range(len(nVec)):
@@ -321,15 +349,15 @@ def main(args):
                         tail = compareElements(k_bp, sVec_n, sWT_n_all, compare_end=True)
                         
                         # containing mutation before and after break point k,p_k
-                        if head and tail:
+                        if not head and not tail:
                             p_mut_k[t][escape_group_n[0]+nn][0] += nVec[t][k]
                         
                         # MT before break point k and WT after break point k,p_k-
-                        if head and not tail:
+                        if not head and tail:
                             p_mut_k[t][escape_group_n[0]+nn][1] += nVec[t][k]
                         
                         # WT before break point k and MT after break point k,p_k+
-                        if not head and tail:
+                        if head and not tail:
                             p_mut_k[t][escape_group_n[0]+nn][2] += nVec[t][k]
 
             p_wt[t]    = p_wt[t] / pop_size_t
@@ -363,7 +391,7 @@ def main(args):
         return flux
 
     # calculate recombination flux term
-    def get_recombination_flux(x,p_wt,p_mut_k,trait_dis):
+    def get_recombination_flux(x, r_rates, p_wt, p_mut_k, trait_dis):
         flux = np.zeros((len(x),x_length))
         for n in range(ne):
             for t in range(len(x)):
@@ -375,7 +403,7 @@ def main(args):
                     fluxIn  += trait_dis[n][nn] * p_wt[t][n]*p_mut_k[t][k_index][0]
                     fluxOut += trait_dis[n][nn] * p_mut_k[t][k_index][1]*p_mut_k[t][k_index][2]
                 
-                flux[t,x_length-ne+n] = r_rate * (fluxIn - fluxOut)
+                flux[t,x_length-ne+n] = r_rates[t] * (fluxIn - fluxOut)
 
         return flux
 
@@ -496,6 +524,7 @@ def main(args):
         trait_dis    = result.trait_dis
         seq_length   = result.seq_length
         sample_times = result.uniq_t
+        r_rates      = result.r_rates
         times        = result.IntTime
         ne           = len(escape_group)
 
@@ -526,73 +555,91 @@ def main(args):
         escape_group = np.array(escape_group, dtype=object)
         escape_TF    = np.array(escape_TF , dtype=object)
         trait_dis    = np.array(trait_dis , dtype=object)
-        np.savez_compressed(f, muVec=muVec, single_freq=x, double_freq=xx, escape_freq=ex, p_wt_freq=p_wt, p_mut_k_freq=p_mut_k,\
-                            special_sites=p_sites, escape_group=escape_group, escape_TF=escape_TF,trait_dis=trait_dis,\
-                            seq_length=seq_length, time_step=time_step, sample_times=sample_times, times=times)
+        np.savez_compressed(f, muVec=muVec, single_freq=x, double_freq=xx, escape_freq=ex,\
+                            r_rates=r_rates, p_wt_freq=p_wt, p_mut_k_freq=p_mut_k,\
+                            special_sites=p_sites, escape_group=escape_group, escape_TF=escape_TF,\
+                            trait_dis=trait_dis,seq_length=seq_length, time_step=time_step, \
+                            sample_times=sample_times, times=times)
         f.close()
+
+        # rawdata_tag = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+        # sc_io.savemat('%s/rawdata/rawdata_%s.mat'%(HIV_DIR,tag), rawdata_tag)
 
     ################################################################################
     ######################### time varying inference ###############################
-    if infer:
-        muMatrix = np.loadtxt("%s/Zanini-extended.dat"%HIV_DIR)
-        
-        # load processed data from rawdata file
-        try:
-            rawdata  = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
-            # information for individual sites
-            x            = rawdata['single_freq']
-            xx           = rawdata['double_freq']
-            ex           = rawdata['escape_freq']
-            muVec        = rawdata['muVec']
-            sample_times = rawdata['sample_times']
-            times        = rawdata['times']
-            time_step    = rawdata['time_step']
-            seq_length   = rawdata['seq_length']
+    if not infer:
+        return
+    
+    muMatrix = np.loadtxt("%s/Zanini-extended.dat"%HIV_DIR)
+    
+    # load processed data from rawdata file
+    try:
+        rawdata  = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+        # information for individual sites
+        x            = rawdata['single_freq']
+        xx           = rawdata['double_freq']
+        ex           = rawdata['escape_freq']
+        muVec        = rawdata['muVec']
+        sample_times = rawdata['sample_times']
+        times        = rawdata['times']
+        time_step    = rawdata['time_step']
+        seq_length   = rawdata['seq_length']
 
-            # information for escape group
-            p_wt         = rawdata['p_wt_freq']
-            p_mut_k      = rawdata['p_mut_k_freq']
-            p_sites      = rawdata['special_sites']
-            escape_group = rawdata['escape_group'].tolist()
-            escape_TF    = rawdata['escape_TF'].tolist()
-            trait_dis    = rawdata['trait_dis'].tolist()
+        if cr:
+            r_rates = np.ones(len(sample_times)) * 1.4e-5
+        else:
+            r_rates = rawdata['r_rates']
 
-            ne           = len(escape_group)
-            x_length     = len(x[0])
+        # information for escape group
+        p_wt         = rawdata['p_wt_freq']
+        p_mut_k      = rawdata['p_mut_k_freq']
+        p_sites      = rawdata['special_sites']
+        escape_group = rawdata['escape_group'].tolist()
+        escape_TF    = rawdata['escape_TF'].tolist()
+        trait_dis    = rawdata['trait_dis'].tolist()
 
-        except FileNotFoundError:
-            print("error, rawdata file does not exist, please process the data first")
-            sys.exit(1)
+        ne           = len(escape_group)
+        x_length     = len(x[0])
 
-        # after interpolation, calculate all the required data
-        single_freq, double_freq = interpolator_x(x, xx, sample_times, times)
-        escape_freq              = interpolator_ex(ex, sample_times, times)
-        p_wt_freq, p_mut_k_freq  = interpolator_p(p_wt, p_mut_k,sample_times, times)
+    except FileNotFoundError:
+        print("error, rawdata file does not exist, please process the data first")
+        sys.exit(1)
 
-        # covariance matrix, flux term and delta_x
-        covariance_n = diffusion_matrix_at_t(single_freq, double_freq)
-        covariance   = np.swapaxes(covariance_n, 0, 2)
-        flux_mu      = get_mutation_flux(single_freq,escape_freq,muVec)         # mutation part
-        flux_rec     = get_recombination_flux(single_freq,p_wt_freq,p_mut_k_freq,trait_dis) # recombination part
-        delta_x      = cal_delta_x(single_freq,times)
+    # after interpolation, calculate all the required data
+    single_freq, double_freq = interpolator_x(x, xx, sample_times, times)
+    escape_freq              = interpolator_ex(ex, sample_times, times)
+    p_wt_freq, p_mut_k_freq  = interpolator_p(p_wt, p_mut_k,sample_times, times)
+    r_rates_times            = interpolation(sample_times, r_rates)(times)
 
-        # extend the time range
-        TLeft   = int(round(times[-1]*theta/10)*10)
-        TRight  = int(round(times[-1]*theta/10)*10)
-        ex_gap  = int(theta*20)
-        etleft  = np.linspace(-TLeft,-ex_gap,int(TLeft/ex_gap))
-        etright = np.linspace(times[-1]+ex_gap,times[-1]+TRight,int(TRight/ex_gap))
-        ExTimes = np.concatenate((etleft, times, etright))
+    # covariance matrix, flux term and delta_x
+    covariance_n = diffusion_matrix_at_t(single_freq, double_freq)
+    covariance   = np.swapaxes(covariance_n, 0, 2)
+    flux_mu      = get_mutation_flux(single_freq,escape_freq,muVec)         # mutation part
+    flux_rec     = get_recombination_flux(single_freq,r_rates_times, p_wt_freq,p_mut_k_freq,trait_dis) # recombination part
+    delta_x      = cal_delta_x(single_freq,times)
 
-        # regularization value gamma_1 and gamma_2
-        # individual site: gamma_1s, escape group: gamma_1p
-        gamma_1s = round(gamma_1/sample_times[-1],3) # constant MPL gamma value / max time
-        gamma_1p = gamma_1s/10
-        gamma1   = np.ones(x_length)*gamma_1s
-        for n in range(ne):
-            gamma1[x_length-ne+n] = gamma_1p
+    # extend the time range
+    TLeft   = int(round(times[-1]*theta/10)*10)
+    TRight  = int(round(times[-1]*theta/10)*10)
+    ex_gap  = int(theta*20)
+    etleft  = np.linspace(-TLeft,-ex_gap,int(TLeft/ex_gap))
+    etright = np.linspace(times[-1]+ex_gap,times[-1]+TRight,int(TRight/ex_gap))
+    ExTimes = np.concatenate((etleft, times, etright))
 
-        # gamma 2 is also time varying, it is larger at the boundary
+    # regularization value gamma_1 and gamma_2
+    # individual site: gamma_1s, escape group: gamma_1p
+    gamma_1s = round(gamma_1/sample_times[-1],3) # constant MPL gamma value / max time
+    gamma_1p = gamma_1s/10
+    gamma1   = np.ones(x_length)*gamma_1s
+    for n in range(ne):
+        gamma1[x_length-ne+n] = gamma_1p
+    
+    gamma2 = np.ones((x_length,len(ExTimes)))*gamma_2c
+    
+    if tvgamma: 
+        # Use a time-varying gamma_prime, 
+        # gamma_2tv is the middle value, boundary value is 4 times larger,
+        # decrese/increase exponentially within 10% generation.
         gamma_t = np.ones(len(ExTimes))
         tv_range = max(int(round(times[-1]*0.1/10)*10),1)
         alpha1  = np.log(4) / tv_range
@@ -610,8 +657,7 @@ def main(args):
                 gamma_t[t] = 1
 
         # individual site: gamma_2c, escape group and special site: gamma_2tv
-        gamma2 = np.ones((x_length,len(ExTimes)))*gamma_2c
-        for n in range(ne):
+        for n in range(ne):# binary trait
             gamma2[x_length-ne+n] = gamma_t * gamma_2tv
         for p_site in p_sites: # special site - time varying
             for qq in range(len(NUC)):
@@ -619,107 +665,140 @@ def main(args):
                 if index != -1:
                     gamma2[index] = gamma_t * gamma_2tv
 
+    else:
+        # Use a constant gamma_2tv
+        for n in range(ne): # binary trait
+            gamma2[x_length-ne+n] = gamma_2tv
+        for p_site in p_sites: # special site
+            for qq in range(len(NUC)):
+                index = int (muVec[p_site][qq]) 
+                if index != -1:
+                    gamma2[index] = gamma_2tv
+
+    if print_time:
         start_time = time_module.time()
 
-        # solve the bounadry condition ODE to infer selections
-        def fun(a,b):
-            """ Function defining the right-hand side of the system of ODE's"""
-            b_1                 = b[:x_length,:]   # the actual selection coefficients
-            b_2                 = b[x_length:,:]   # the derivatives of the selection coefficients, s'
-            result              = np.zeros((2*x_length,len(a))) # The RHS of the system of ODE's
-            result[:x_length]   = b_2       # sets the derivatives of the selection coefficients 'b_1', equal to s'
-            mat_prod            = np.sum(covariance[:,:,:len(a)] * b_1[:,len(etleft):len(etleft)+len(times)], 1)
+    # #record all information used for calculation
+    # f = open('%s/rawdata/processed_%s.npz'%(HIV_DIR,tag), mode='w+b')
+    # np.savez_compressed(f, covariance=covariance, gamma1=gamma1, gamma2=gamma2,\
+    #                     x=x, xx=xx, ex=ex, sample_times=sample_times, r_rates=r_rates, \
+    #                     p_wt=p_wt, p_mut_k=p_mut_k, p_sites=p_sites, escape_group=escape_group,\
+    #                     escape_TF=escape_TF, trait_dis=trait_dis, x_length=x_length, \
+    #                     etleft=etleft, etright=etright, times= times, ExTimes=ExTimes)
+    # f.close()
+    
+    # rawdata_tag = np.load('%s/rawdata/processed_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+    # sc_io.savemat('%s/rawdata/processed_%s.mat'%(HIV_DIR,tag), rawdata_tag)
+    
+    # solve the bounadry condition ODE to infer selections
+    def fun(time,s):
+        """ Function defining the right-hand side of the system of ODE's"""
+        s_1                 = s[:x_length,:]   # the actual selection coefficients
+        s_2                 = s[x_length:,:]   # the derivatives of the selection coefficients, s'
+        dsdt                = np.zeros((2*x_length,len(time))) # The RHS of the system of ODE's
+        
+        # s' = s2
+        dsdt[:x_length]     = s_2       # sets the derivatives of the selection coefficients 's_1', equal to s'
+        
+        # s'' = (C(t)s(t) + gamma1 s(t) + b(t)) / gamma2(t)
+        # calculare the matrix product of the covariance matrix and the selection coefficients
+        mat_prod            = np.sum(covariance[:,:,:len(time)] * s_1[:,len(etleft):len(etleft)+len(times)], 1)
+        
+        for t in range(len(time)): # right hand side of second half of the ODE system
+            # within the time range
+            if len(etleft) <= t < len(etleft)+len(times):
+                tt = t - len(etleft)
+                for i in range(x_length):
+                    dsdt[x_length+i,t] = (mat_prod[i,tt] + gamma1[i] * s_1[i,t] + flux_mu[tt,i] + flux_rec[tt,i] - delta_x[tt,i]) / gamma2[i,t]
             
-            for t in range(len(a)): # right hand side of second half of the ODE system
-                # within the time range
-                if len(etleft) <= t < len(etleft)+len(times):
-                    tt = t - len(etleft)
-                    for i in range(x_length):
-                        result[x_length+i,t] = (mat_prod[i,tt] + gamma1[i] * b_1[i,t] + flux_mu[tt,i] + flux_rec[tt,i] - delta_x[tt,i]) / gamma2[i,t]
-                
-                # outside the time range, no selection strength
-                else:
-                    for i in range(x_length):
-                        result[x_length+i,t] = gamma1[i] * b_1[i,t] / gamma2[i,t]
+            # outside the time range, no selection strength
+            else:
+                for i in range(x_length):
+                    dsdt[x_length+i,t] = gamma1[i] * s_1[i,t] / gamma2[i,t]
 
-            return result
-        
-        def fun_advanced(a,b):
-            """ The function that will be used if it is necessary for the BVP solver to add more nodes.
-            Note that the inference may be much slower if this has to be used."""
+        return dsdt
+    
+    # def fun_advanced(a,b):
+    #     """ The function that will be used if it is necessary for the BVP solver to add more nodes.
+    #     Note that the inference may be much slower if this has to be used."""
 
-            b_1                 = b[:x_length,:]   # the actual selection coefficients
-            b_2                 = b[x_length:,:]   # the derivatives of the selection coefficients, s'
-            result              = np.zeros((2*x_length,len(a))) # The RHS of the system of ODE's
-            result[:x_length]   = b_2       # sets the derivatives of the selection coefficients 'b_1', equal to s'
+    #     b_1                 = b[:x_length,:]   # the actual selection coefficients
+    #     b_2                 = b[x_length:,:]   # the derivatives of the selection coefficients, s'
+    #     result              = np.zeros((2*x_length,len(a))) # The RHS of the system of ODE's
+    #     result[:x_length]   = b_2       # sets the derivatives of the selection coefficients 'b_1', equal to s'
 
-            # create new interpolated single and double site frequencies
-            single_freq_int, double_freq_int = interpolator_x(single_freq, double_freq, times, a)
-            escape_freq_int                  = interpolator_ex(escape_freq, times, a)
-            p_wt_int, p_mut_k_int            = interpolator_p(p_wt_freq,p_mut_k_freq,times,a,seq_length,ne)
+    #     # create new interpolated single and double site frequencies
+    #     single_freq_int, double_freq_int = interpolator_x(single_freq, double_freq, times, a)
+    #     escape_freq_int                  = interpolator_ex(escape_freq, times, a)
+    #     p_wt_int, p_mut_k_int            = interpolator_p(p_wt_freq,p_mut_k_freq,times,a,seq_length,ne)
 
-            # use the interpolations from above to get the values of delta_x and the covariance matrix at the nodes
-            flux_mu_int  = get_mutation_flux(single_freq_int, escape_freq_int, muVec) # mutation part
-            flux_rec_int = get_recombination_flux(single_freq_int,p_wt_int, p_mut_k_int, trait_dis)   # recombination part
-            delta_x_int  = cal_delta_x(single_freq_int,a)
-            covar_int    = diffusion_matrix_at_t(single_freq_int, double_freq_int)
-            covar_int    = np.swapaxes(covar_int,0,2)
+    #     # use the interpolations from above to get the values of delta_x and the covariance matrix at the nodes
+    #     flux_mu_int  = get_mutation_flux(single_freq_int, escape_freq_int, muVec) # mutation part
+    #     flux_rec_int = get_recombination_flux(single_freq_int,p_wt_int, p_mut_k_int, trait_dis)   # recombination part
+    #     delta_x_int  = cal_delta_x(single_freq_int,a)
+    #     covar_int    = diffusion_matrix_at_t(single_freq_int, double_freq_int)
+    #     covar_int    = np.swapaxes(covar_int,0,2)
 
-            # calculate the other half of the RHS of the ODE system
-            mat_prod_int  = np.sum(covar_int[:,:,:len(a)] * b_1[:,len(etleft):len(etleft)+len(times)], 1)
+    #     # calculate the other half of the RHS of the ODE system
+    #     mat_prod_int  = np.sum(covar_int[:,:,:len(a)] * b_1[:,len(etleft):len(etleft)+len(times)], 1)
 
-            for t in range(len(a)): # right hand side of second half of the ODE system
-                # within the time range
-                if len(etleft) <= t < len(etleft)+len(times):
-                    tt = t - len(etleft)
-                    for i in range(x_length):
-                        result[x_length+i,t] = (mat_prod_int[i,tt] + gamma1[i] * b_1[i,t] + flux_mu_int[tt,i] + flux_rec_int[tt,i] - delta_x_int[tt,i]) / gamma2[i,t]
-                
-                # outside the time range, no selection strength
-                else:
-                    for i in range(x_length):
-                        result[x_length+i,t] = gamma1[i] * b_1[i,t] / gamma2[i,t]
+    #     for t in range(len(a)): # right hand side of second half of the ODE system
+    #         # within the time range
+    #         if len(etleft) <= t < len(etleft)+len(times):
+    #             tt = t - len(etleft)
+    #             for i in range(x_length):
+    #                 result[x_length+i,t] = (mat_prod_int[i,tt] + gamma1[i] * b_1[i,t] + flux_mu_int[tt,i] + flux_rec_int[tt,i] - delta_x_int[tt,i]) / gamma2[i,t]
+            
+    #         # outside the time range, no selection strength
+    #         else:
+    #             for i in range(x_length):
+    #                 result[x_length+i,t] = gamma1[i] * b_1[i,t] / gamma2[i,t]
 
-            return result
+    #     return result
 
-        # Boundary conditions
-        # solution to the system of differential equation with the derivative of the selection coefficients zero at the endpoints
-        def bc(b1,b2):
-            # Neumann boundary condition
-            return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
-            # Dirichlet boundary condition
-            # return np.ravel(np.array([b1[:x_length],b2[:x_length]])) # s = 0 at the extended endpoints
+    # Boundary conditions
+    # solution to the system of differential equation with the derivative of the selection coefficients zero at the endpoints
+    def bc(b1,b2):
+        # Neumann boundary condition
+        return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
 
-        ss_extend = np.zeros((2*x_length,len(ExTimes)))
-        
-        try:
-            solution = sp.integrate.solve_bvp(fun, bc, ExTimes, ss_extend, max_nodes=10000, tol=1e-3)
-        except ValueError:
-            print("BVP solver has to add new nodes")
-            solution = sp.integrate.solve_bvp(fun_advanced, bc, ExTimes, ss_extend, max_nodes=10000, tol=1e-3)
+    # initial guess for the selection coefficients
+    ss_extend = np.zeros((2*x_length,len(ExTimes)))
+    
+    try:
+        solution = sp.integrate.solve_bvp(fun, bc, ExTimes, ss_extend, max_nodes=10000, tol=1e-3)
+    except ValueError:
+        print("BVP solver has to add new nodes")
+        sys.exit()
+        # solution = sp.integrate.solve_bvp(fun_advanced, bc, ExTimes, ss_extend, max_nodes=10000, tol=1e-3)
 
-        selection_coefficients = solution.sol(ExTimes)
-        # removes the superfluous part of the array and only save the real time points
-        desired_coefficients   = selection_coefficients[:x_length,len(etleft):len(etleft)+len(times)]
+    print(f"CH{tag[6:]} \nExTimes: {ExTimes}")
+    print(f'solver_time : {solution.x}')
+    selection_coefficients = solution.sol(ExTimes)
+    # removes the superfluous part of the array and only save the real time points
+    desired_coefficients   = selection_coefficients[:x_length,len(etleft):len(etleft)+len(times)]
 
-        # calculating statistics to be used in determining which coefficients are likely to be time-varying
-        mean_dev = mean_deviation(desired_coefficients)
-        std_dev  = standard_deviation(desired_coefficients)
-        max_var  = max_min(desired_coefficients)
-        mean_dev_auto = mean_deviation(autoconvolution(desired_coefficients))
-        std_dev_auto  = standard_deviation(autoconvolution(desired_coefficients))
-        max_var_auto  = max_min(autoconvolution(desired_coefficients))
+    # calculating statistics to be used in determining which coefficients are likely to be time-varying
+    mean_dev = mean_deviation(desired_coefficients)
+    std_dev  = standard_deviation(desired_coefficients)
+    max_var  = max_min(desired_coefficients)
+    mean_dev_auto = mean_deviation(autoconvolution(desired_coefficients))
+    std_dev_auto  = standard_deviation(autoconvolution(desired_coefficients))
+    max_var_auto  = max_min(autoconvolution(desired_coefficients))
 
-        # save the solution with constant_time-varying selection coefficient
-        g = open('%s/output-50/c_%s_%d%s.npz'%(HIV_DIR,tag,time_step,name), mode='w+b')
-        np.savez_compressed(g, selection=desired_coefficients, all = selection_coefficients, time=times, \
-                            mean_dev=mean_dev, std_dev=std_dev, max_var=max_var, mean_dev_auto=mean_dev_auto, \
-                            std_dev_auto=std_dev_auto, max_var_auto=max_var_auto)
-        g.close()
+    # save the solution with constant_time-varying selection coefficient
+    if cr:
+        g = open('%s/cr/%s/c_%s_%d%s.npz'%(HIV_DIR, output_dir, tag, time_step, name), mode='w+b')
+    else:
+        g = open('%s/%s/c_%s_%d%s.npz'%(HIV_DIR, output_dir, tag, time_step, name), mode='w+b')
+    np.savez_compressed(g, selection=desired_coefficients, all = selection_coefficients, time=times, \
+                        mean_dev=mean_dev, std_dev=std_dev, max_var=max_var, mean_dev_auto=mean_dev_auto, \
+                        std_dev_auto=std_dev_auto, max_var_auto=max_var_auto)
+    g.close()
 
+    if print_time:
         end_time = time_module.time()
-        if print_time:
-            print(f"Execution time for CH{tag[6:]} : {end_time - start_time} seconds")
+        print(f"Execution time for CH{tag[6:]} : {end_time - start_time} seconds")
 
 if __name__ == '__main__':
     main(sys.argv[1:])
