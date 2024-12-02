@@ -15,4 +15,5 @@ __pycache__
 /figures/simple/
 
 try.ipynb
+try.py
 /src/*.m
