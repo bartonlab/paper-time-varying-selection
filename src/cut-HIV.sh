@@ -1,0 +1,3 @@
+g++ main.cpp inf.cpp io.cpp -O3 -mcpu=apple-a14 -std=c++11 -lgsl -lgslcblas -o mpl
+./mpl -d ../data/HIV -i input/sequence/704010042-3-poly-seq2state.dat -o constant/output/sc-704010042-3-cut.dat -g 10 -m input/Zanini-extended.dat -r input/r_rates/r-704010042-3.dat -e input/traitsite/traitsite-704010042-3-cut.dat -es input/traitseq/traitseq-704010042-3.dat -ed input/traitdis/traitdis-704010042-3.dat
+./mpl -d ../data/HIV -i input/sequence/703010131-3-poly-seq2state.dat -o constant/output/sc-703010131-3-cut.dat -g 10 -m input/Zanini-extended.dat -r input/r_rates/r-703010131-3.dat -e input/traitsite/traitsite-703010131-3-cut.dat -es input/traitseq/traitseq-703010131-3.dat -ed input/traitdis/traitdis-703010131-3.dat

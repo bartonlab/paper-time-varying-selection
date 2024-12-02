@@ -33,12 +33,9 @@ class Result:
     IntTime: List[int]
 
 def AnalyzeData(tag,HIV_DIR):
-    if tag == '704010042-3' or tag == '703010131-3':
-        df_info = pd.read_csv('%s/constant/analysis/%s-analyze-cut.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
-        seq     = np.loadtxt('%s/sequence/%s-cut.dat'%(HIV_DIR,tag))
-    else:
-        df_info = pd.read_csv('%s/constant/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
-        seq     = np.loadtxt('%s/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
+
+    df_info = pd.read_csv('%s/constant/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+    seq     = np.loadtxt('%s/input/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
 
     """get sequence length"""
     seq_length = len(seq[0])-2
@@ -59,10 +56,7 @@ def AnalyzeData(tag,HIV_DIR):
     escape_group  = [] # escape group (each group should have more than 2 escape sites)
 
     try:
-        if tag == '704010042-3' or tag == '703010131-3':
-            df_trait = pd.read_csv('%s/constant/epitopes/escape_group-%s-cut.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
-        else:
-            df_trait = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
+        df_trait = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
         
         # get all binary traits for one tag
         df_rows = df_trait[df_trait['epitope'].notna()]
@@ -164,7 +158,7 @@ def main(args):
     parser.add_argument('--TV',          action='store_false', default=True,        help='whether or not to infer')
     parser.add_argument('--cr',          action='store_true', default=False,        help='whether or not to use a constant recombination rate')
     parser.add_argument('--pt',          action='store_false', default=True,        help='whether or not to print the execution time')
-
+    
     arg_list  = parser.parse_args(args)
 
     tag        = arg_list.tag
@@ -582,10 +576,8 @@ def main(args):
 
     if raw_save:
         # obtain raw sequence data
-        if tag == '704010042-3' or tag == '703010131-3':
-            data     = np.loadtxt('%s/sequence/%s-cut.dat'%(HIV_DIR,tag))
-        else:
-            data     = np.loadtxt('%s/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
+
+        data     = np.loadtxt('%s/input/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
 
         # information for escape group
         result       = AnalyzeData(tag,HIV_DIR)
@@ -642,7 +634,7 @@ def main(args):
     if not infer_tv:
         sys.exit(0)
 
-    muMatrix = np.loadtxt("%s/Zanini-extended.dat"%HIV_DIR)
+    muMatrix = np.loadtxt("%s/input/Zanini-extended.dat"%HIV_DIR)
     
     # load processed data from rawdata file
     try:
