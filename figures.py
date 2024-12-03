@@ -1172,10 +1172,10 @@ def plot_HIV(**pdata):
     goldh = w / 1.4
     fig   = plt.figure(figsize=(w, goldh),dpi=500)
 
-    box_tra1 = dict(left=0.12, right=0.48, bottom=0.62, top=0.92)
-    box_tra2 = dict(left=0.64, right=0.96, bottom=0.62, top=0.92)
-    box_tc1  = dict(left=0.12, right=0.48, bottom=0.16, top=0.44)
-    box_tc2  = dict(left=0.64, right=0.96, bottom=0.16, top=0.44)
+    box_tra1 = dict(left=0.15, right=0.48, bottom=0.62, top=0.92)
+    box_tra2 = dict(left=0.63, right=0.96, bottom=0.62, top=0.92)
+    box_tc1  = dict(left=0.15, right=0.48, bottom=0.16, top=0.44)
+    box_tc2  = dict(left=0.63, right=0.96, bottom=0.16, top=0.44)
 
     gs_tra1 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tra1)
     gs_tra2 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tra2)
@@ -1561,7 +1561,7 @@ def plot_special_site(**pdata):
         index_mu    = muVec[site_i,q_index]
         index_TF    = muVec[site_i,TF_index]
         if index_mu == -1 or index_TF == -1:
-            print('error, %d'%(site))
+            print('CH%s error, %d'%(tag[-5:],site))
         else:
             sc_a[i] = sc_all[int(index_mu)] - sc_all[int(index_TF)]
 
@@ -2485,7 +2485,7 @@ def plot_traits(**pdata):
 
     # unpack passed data
     tag      = pdata['tag']
-    # out_dir      = pdata['out_dir']
+    name     = pdata['name']
     HIV_DIR  = pdata['HIV_DIR']
     FIG_DIR  = pdata['FIG_DIR']
     xtick      = pdata['xtick']
@@ -2547,7 +2547,7 @@ def plot_traits(**pdata):
     
     # Import data for VL-dependent r
     try:
-        data_sc  = np.load('%s/output/sc_%s.npz'%(HIV_DIR,tag), allow_pickle="True")
+        data_sc  = np.load('%s/output/sc_%s%s.npz'%(HIV_DIR,tag,name), allow_pickle="True")
         # data_sc  = np.load('%s/output/c_%s_%d.npz'%(HIV_DIR,tag,time_step), allow_pickle="True")
 
     except FileNotFoundError:
@@ -2624,7 +2624,6 @@ def plot_traits(**pdata):
     w     = DOUBLE_COLUMN #SLIDE_WIDTH
     goldh = w / 4.3 * ne
     fig   = plt.figure(figsize=(w, goldh),dpi=1000)
-
 
     if ne > 1:
         box = dict(left=0.07, right=0.98, bottom=0.10, top=0.95)
@@ -2744,7 +2743,7 @@ def plot_traits(**pdata):
         plt.savefig('%s/fig-CH%s.pdf' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
         plt.show()
     else:
-        plt.savefig('%s/%s/CH%s.jpg' % (FIG_DIR,out_dir,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+        plt.savefig('%s/%s/CH%s%s.jpg' % (FIG_DIR,out_dir,tag[-5:],name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
 
 def plot_traits_compare(**pdata):
@@ -3328,6 +3327,7 @@ def plot_traits_dt(**pdata):
             sprops = {'lw' : 0, 's' : 6, 'marker' : '*','alpha':0.8}
             mp.line(   ax=ax[n][1], x=[time_2],     y=[sc_2[-(ne_2-n_2)]],        colors=[C_group[n]], plotprops=lprops, **pprops)
             mp.scatter(ax=ax[n][1], x=[sample_time2], y=[sc_sample_2[-(ne_2-n_2)]], colors=[C_group[n]], plotprops=sprops, **pprops)
+            ax[n][1].axhline(y=var_ec_2[n_2], ls='--', lw=SIZELINE, color=C_group[n])
 
         # long dt VL-dependent r
         lprops = {'lw': SIZELINE, 'ls': ':', 'alpha': 0.6 }
