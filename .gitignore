@@ -9,8 +9,7 @@ __pycache__
 */*/.DS_Store
 
 # Old data
-/data/HIV/cr/
-/data/HIV/output-*/
+/data/HIV/old
 /figures/trait/
 /figures/simple/
 

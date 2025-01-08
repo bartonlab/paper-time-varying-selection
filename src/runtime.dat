@@ -1,118 +1,214 @@
+
 New
-CH040-3 solver_time :       [-280    0   16   45    111   181     283     412   552  832]
-CH040-5 solver_time :       [-280    0   16   45    111   181     283     412  (482) 552  832]
-CH058-3 solver_time :       [-40     0    8   45     85   125]
-CH058-5 solver_time :       [-180    0    8   45     85   154     239     252   350  530]
-CH077-3 solver_time :       [-80     0   14   32    102   159     239]
-CH077-5 solver_time :       [-80     0   14   32  (95.5)  159     239]
-CH470-3 solver_time :       [-210    0   13   41     69   174     420     630]
-CH470-5 solver_time :       [-230    0   13   41    (55)   69     174     420   454  684]
-CH607-3 solver_time :       [-10     0    9   14     21    31]
-CH131-3 solver_time :       [-170    0   21   28     34    63      91     175   273  333  503]
-CH131-5 solver_time :       [-170    0   21   28     34    63      91     175   273  333  503]
-CH159-3 solver_time :       [-150    0    8   12     22    29      56      85   302  452]
-CH256-3 solver_time : [-340 (-170)   0   28   63 (117.5)  172     426     684  1024]
-CH256-5 solver_time :       [-340    0   28   63    172   426     684    1024]
-CH042-3 solver_time :       [-340    0   21   60    172   424     676    1016]
-CH042-5 solver_time : [-340 (-170)   0   21   60    172   424     676    1016]
-CH162-3 solver_time :       [-220    0   21   77   (128)  179     438     658]
-CH162-5 solver_time :       [-220    0   21   77   (128)  179 (243.75) (308.5)  438  658]
-CH185-5 solver_time :       [-30     0   25   67     97]
-CH198-3 solver_time :       [-30     0   11   60     90]
-CH164-3 solver_time : [-220 (-110)   0   14   28     70   183     434     654]
-CH164-5 solver_time :       [-220    0   14   28     70   183     434     654]
+CH040-3 : 14953.943405151367 seconds
+CH040-5 : 1573.250365972519 seconds
+CH058-3 : 63.405916929244995 seconds
+CH058-5 : 288.7452051639557 seconds
+CH077-3 : 1526.2647950649261 seconds
+CH077-5 : 18.372271060943604 seconds
+CH470-3 : 21965.243718147278 seconds
+CH470-5 : 3167.7585730552673 seconds
+CH607-3 : 466.50803399086 seconds
+CH131-3 : 556.2934319972992 seconds
+CH131-5 : 5796.534875869751 seconds
+CH159-3 : 34942.43898320198 seconds
+CH256-3 : 71694.99001908302 seconds
+CH256-5 : 41115.330345869064 seconds
+CH042-3 : 34422.40517091751 seconds
+CH042-5 : 12143.25450706482 seconds
+CH162-3 : 62220.40676307678 seconds
+CH162-5 : 6787.339622974396 seconds
+CH185-5 : 51.43200707435608 seconds
+CH198-3 : 574.0187561511993 seconds
+CH164-3 : 54575.817027807236 seconds
+CH164-5 : 3512.5104479789734 seconds
 
-Execution time for CH040-3 : 2007.4010009765625 seconds
-Execution time for CH040-5 : 452.0289559364319 seconds
-Execution time for CH058-3 : 25.404375076293945 seconds
-Execution time for CH058-5 : 62.28182411193848 seconds
-Execution time for CH077-3 : 399.6490681171417 seconds
-Execution time for CH077-5 : 9.480281114578247 seconds
-Execution time for CH470-3 : 2832.6809451580048 seconds
-Execution time for CH470-5 : 952.8526799678802 seconds
-Execution time for CH607-3 : 464.9757618904114 seconds
-Execution time for CH131-3 : 1833.407876253128 seconds
-Execution time for CH131-5 : 1373.5644059181213 seconds
-Execution time for CH159-3 : 8136.715213060379 seconds
-Execution time for CH256-3 : 12619.935435056686 seconds
-Execution time for CH256-5 : 3259.3775401115417 seconds
-Execution time for CH042-3 : 5275.397779941559 seconds
-Execution time for CH042-5 : 1909.7951309680939 seconds
-Execution time for CH162-3 : 13466.294382810593 seconds
-Execution time for CH162-5 : 2796.0903837680817 seconds
-Execution time for CH185-5 : 15.810043811798096 seconds
-Execution time for CH198-3 : 218.37111568450928 seconds
-Execution time for CH164-3 : 12863.502804994583 seconds
-Execution time for CH164-5 : 417.59458208084106 seconds
+old
+Execution time for CH058-3 : 3.657200813293457 seconds
+Execution time for CH058-5 : 13.911831140518188 seconds
+CH077-5 has no binary trait
+Execution time for CH077-5 : 1.3395326137542725 seconds
+Execution time for CH185-5 : 3.6068828105926514 seconds
+Execution time for CH040-5 : 75.9265649318695 seconds
+Execution time for CH077-3 : 75.57336020469666 seconds
+Execution time for CH198-3 : 33.337226152420044 seconds
+Execution time for CH164-3 : 2326.38081407547 seconds
+CH164-5 has no binary trait
+Execution time for CH164-5 : 152.66140985488892 seconds
+Execution time for CH470-5 : 138.10322999954224 seconds
+Execution time for CH607-3 : 29.812963008880615 seconds
+Execution time for CH131-3 : 27.645051956176758 seconds
+Execution time for CH131-5 : 254.77003502845764 seconds
+Execution time for CH159-3 : 1371.573653936386 seconds
+Execution time for CH256-3 : 2909.998850107193 seconds
+Execution time for CH256-5 : 1629.8957591056824 seconds
+Execution time for CH042-3 : 1388.6330387592316 seconds
+Execution time for CH042-5 : 498.7423129081726 seconds
+Execution time for CH162-3 : 2592.812455892563 seconds
+CH162-5 has no binary trait
+Execution time for CH162-5 : 309.3080208301544 seconds
+Execution time for CH040-3 : 646.4265332221985 seconds
+Execution time for CH470-3 : 913.5811159610748 seconds
 
 
+New
+CH077-5 Raw sample time: [  0.  14.  32. 159.]
+ExTimes: [-80. -60. -40. -20.   0.   7.  14.  23.  32.  42.  52.  62.  72.  82.
+  92. 102. 111. 121. 130. 140. 149. 159. 179. 199. 219. 239.]
+Execution time : 18.372271060943604 seconds
 
+CH058-3 Raw sample time: [ 0.  8. 45. 85.]
+ExTimes: [-40. -20.   0.   8.  17.  26.  35.  45.  55.  65.  75.  85. 105. 125.]
+Execution time : 63.405916929244995 seconds
 
-Execution time for CH040-3 : 608.6433730125427 seconds
-Execution time for CH040-5 : 150.19738602638245 seconds
-Execution time for CH058-3 : 27.468687057495117 seconds
-Execution time for CH058-5 : 122.71699595451355 seconds
-Execution time for CH077-3 : 162.82407808303833 seconds
-Execution time for CH077-5 : 9.481469869613647 seconds
-Execution time for CH470-3 : 1094.0657589435577 seconds
-Execution time for CH470-5 : 294.5366668701172 seconds
-Execution time for CH607-3 : 101.74046802520752 seconds
-Execution time for CH131-3 : 1116.4187800884247 seconds
-Execution time for CH131-5 : 535.1215410232544 seconds
-Execution time for CH159-3 : 1843.8840749263763 seconds
-Execution time for CH256-3 : 3016.2601289749146 seconds
-Execution time for CH256-5 : 2239.0056850910187 seconds
-Execution time for CH042-3 : 1016.526871919632 seconds
-Execution time for CH042-5 : 1153.9005439281464 seconds
-Execution time for CH162-3 : 2291.404299736023 seconds
-Execution time for CH162-5 : 643.6073641777039 seconds
-Execution time for CH185-5 : 18.017873287200928 seconds
-Execution time for CH198-3 : 193.822096824646 seconds
-Execution time for CH164-3 : 2413.3005378246307 seconds
-Execution time for CH164-5 : 314.0982449054718 seconds
+CH058-5 Raw sample time: [  0.   8.  45.  85. 154. 239. 252. 350.]
+ExTimes: [-180. -130.  -80.  -30.    0.    8.   17.   26.   35.   45.   55.   65.
+   75.   85.   95.  105.  115.  125.  135.  144.  154.  163.  172.  182.
+  191.  201.  210.  220.  229.  239.  252.  262.  272.  282.  292.  302.
+  312.  321.  331.  340.  350.  400.  450.  500.  530.]
+Execution time : 288.7452051639557 seconds
 
-Execution time for CH040-3 : 588.3038749694824 seconds
-Execution time for CH040-5 : 146.39667415618896 seconds
-Execution time for CH058-3 : 25.804544925689697 seconds
-Execution time for CH058-5 : 120.8175117969513 seconds
-Execution time for CH077-3 : 149.53564286231995 seconds
-Execution time for CH077-5 : 9.086951971054077 seconds
-Execution time for CH470-3 : 1510.1161289215088 seconds
-Execution time for CH470-5 : 283.39578008651733 seconds
-Execution time for CH607-3 : 97.47592687606812 seconds
-Execution time for CH131-3 : 952.431403875351 seconds
-Execution time for CH131-5 : 518.9384891986847 seconds
-Execution time for CH159-3 : 1597.3391029834747 seconds
-Execution time for CH256-3 : 2805.16197514534 seconds
-Execution time for CH256-5 : 1550.9234948158264 seconds
-Execution time for CH042-5 : 1067.08739900589 seconds
-Execution time for CH162-3 : 2219.0819919109344 seconds
-Execution time for CH162-5 : 619.0124139785767 seconds
-Execution time for CH185-5 : 17.30472707748413 seconds
-Execution time for CH198-3 : 191.91088604927063 seconds
-Execution time for CH164-3 : 1873.797955751419 seconds
-Execution time for CH164-5 : 314.89780020713806 seconds
-All scripts have been attempted.
+CH040-3 Raw sample time: [  0.  16.  45. 111. 181. 283. 412. 552.]
+ExTimes: [-280. -230. -180. -130.  -80.  -30.    0.    8.   16.   26.   35.   45.
+   54.   63.   73.   82.   92.  101.  111.  121.  131.  141.  151.  161.
+  171.  181.  190.  199.  208.  217.  226.  235.  245.  254.  264.  273.
+  283.  293.  303.  313.  323.  333.  343.  353.  363.  373.  383.  393.
+  402.  412.  422.  432.  442.  452.  462.  472.  482.  492.  502.  512.
+  522.  532.  542.  552.  602.  652.  702.  752.  802.  832.]
+Execution time : 14953.943405151367 seconds
 
-dt = 200
-Execution time for CH470-3 : 478.54170083999634 seconds
-Execution time for CH470-5 : 46.150733947753906 seconds
-Execution time for CH159-3 : 890.6365370750427 seconds
-Execution time for CH256-3 : 117.65193009376526 seconds
-Execution time for CH256-5 : 247.30066204071045 seconds
-Execution time for CH042-3 : 986.8455009460449 seconds
-Execution time for CH042-5 : 41.14184498786926 seconds
-Execution time for CH162-3 : 395.28038597106934 seconds
-Execution time for CH162-5 : 57.2886381149292 seconds
-Execution time for CH164-3 : 667.920835018158 seconds
-Execution time for CH164-5 : 32.31288814544678 seconds
+CH256-3 Raw sample time: [  0.  28.  63. 172. 426. 684.]
+ExTimes: [-340. -240. -140.  -40.    0.    9.   18.   28.   37.   46.   54.   63.
+   73.   83.   93.  103.  113.  123.  133.  143.  153.  162.  172.  182.
+  192.  202.  212.  222.  232.  242.  252.  262.  272.  282.  292.  302.
+  312.  321.  331.  340.  350.  359.  369.  378.  388.  397.  407.  416.
+  426.  436.  446.  456.  466.  476.  486.  496.  506.  516.  526.  536.
+  546.  556.  566.  576.  586.  596.  606.  616.  626.  636.  646.  655.
+  665.  674.  684.  784.  884. 1024.]
+Execution time : 71694.99001908302 seconds
 
-dt = 250
-Execution time for CH256-3 : 114.06621813774109 seconds
-Execution time for CH256-5 : 274.5103409290314 seconds
-Execution time for CH042-3 : 1991.7585587501526 seconds
-Execution time for CH042-5 : 82.09376382827759 seconds
-Execution time for CH162-3 : 1854.7729680538177 seconds
-Execution time for CH162-5 : 62.30660891532898 seconds
-Execution time for CH164-3 : 519.5212578773499 seconds
-Execution time for CH164-5 : 22.642827033996582 seconds
+CH040-5 Raw sample time: [  0.  16.  45. 111. 181. 283. 412. 552.]
+ExTimes: [-280. -230. -180. -130.  -80.  -30.    0.    8.   16.   26.   35.   45.
+   54.   63.   73.   82.   92.  101.  111.  121.  131.  141.  151.  161.
+  171.  181.  190.  199.  208.  217.  226.  235.  245.  254.  264.  273.
+  283.  293.  303.  313.  323.  333.  343.  353.  363.  373.  383.  393.
+  402.  412.  422.  432.  442.  452.  462.  472.  482.  492.  502.  512.
+  522.  532.  542.  552.  602.  652.  702.  752.  802.  832.]
+Execution time : 1573.250365972519 seconds
+
+CH470-3 Raw sample time: [  0.  13.  41.  69. 174. 420.]
+ExTimes: [-210. -160. -110.  -60.  -10.    0.   13.   22.   31.   41.   50.   59.
+   69.   79.   88.   98.  107.  117.  126.  136.  145.  155.  164.  174.
+  184.  194.  204.  214.  224.  234.  244.  254.  264.  274.  284.  294.
+  304.  314.  324.  334.  344.  353.  363.  372.  382.  391.  401.  410.
+  420.  470.  520.  570.  630.]
+Execution time : 21965.243718147278 seconds
+
+CH470-5 Raw sample time: [  0.  13.  41.  69. 174. 420. 454.]
+ExTimes: [-230. -180. -130.  -80.  -30.    0.   13.   22.   31.   41.   50.   59.
+   69.   79.   88.   98.  107.  117.  126.  136.  145.  155.  164.  174.
+  184.  194.  204.  214.  224.  234.  244.  254.  264.  274.  284.  294.
+  304.  314.  324.  334.  344.  353.  363.  372.  382.  391.  401.  410.
+  420.  428.  437.  445.  454.  504.  554.  604.  654.  684.]
+Execution time : 3167.7585730552673 seconds
+
+CH607-3 Raw sample time: [ 0.  9. 14. 21.]
+ExTimes: [-10.  -5.   0.   9.  14.  21.  26.  31.]
+Execution time : 466.50803399086 seconds
+
+CH131-3 Raw sample time: [  0.  21.  28.  34.  63.  91. 175. 273. 333.]
+ExTimes: [-170. -120.  -70.  -20.    0.    7.   14.   21.   28.   34.   44.   53.
+   63.   72.   81.   91.  100.  109.  118.  127.  137.  146.  156.  165.
+  175.  185.  195.  205.  215.  225.  235.  244.  254.  263.  273.  283.
+  293.  303.  313.  323.  333.  383.  433.  503.]
+Execution time : 556.2934319972992 seconds
+
+CH131-5 Raw sample time: [  0.  21.  28.  34.  63.  91. 175. 273. 333.]
+ExTimes: [-170. -120.  -70.  -20.    0.    7.   14.   21.   28.   34.   44.   53.
+   63.   72.   81.   91.  100.  109.  118.  127.  137.  146.  156.  165.
+  175.  185.  195.  205.  215.  225.  235.  244.  254.  263.  273.  283.
+  293.  303.  313.  323.  333.  383.  433.  503.]
+Execution time : 5796.534875869751 seconds
+
+CH159-3 Raw sample time: [  0.   8.  12.  22.  29.  56.  85. 302.]
+ExTimes: [-150. -100.  -50.    0.    8.   12.   22.   29.   38.   47.   56.   66.
+   75.   85.   95.  105.  115.  125.  135.  145.  155.  165.  175.  185.
+  195.  205.  215.  225.  235.  245.  254.  264.  273.  283.  292.  302.
+  352.  402.  452.]
+Execution time : 34942.43898320198 seconds
+
+CH256-5 Raw sample time: [  0.  28.  63. 172. 426. 684.]
+ExTimes: [-340. -240. -140.  -40.    0.    9.   18.   28.   37.   46.   54.   63.
+   73.   83.   93.  103.  113.  123.  133.  143.  153.  162.  172.  182.
+  192.  202.  212.  222.  232.  242.  252.  262.  272.  282.  292.  302.
+  312.  321.  331.  340.  350.  359.  369.  378.  388.  397.  407.  416.
+  426.  436.  446.  456.  466.  476.  486.  496.  506.  516.  526.  536.
+  546.  556.  566.  576.  586.  596.  606.  616.  626.  636.  646.  655.
+  665.  674.  684.  784.  884. 1024.]
+Execution time : 41115.330345869064 seconds
+
+CH042-3 Raw sample time: [  0.  21.  60. 172. 424. 676.]
+ExTimes: [-340. -240. -140.  -40.    0.    7.   14.   21.   31.   41.   50.   60.
+   69.   78.   87.   96.  105.  115.  124.  134.  143.  153.  162.  172.
+  182.  192.  202.  212.  222.  232.  242.  252.  262.  272.  281.  291.
+  300.  310.  319.  329.  338.  348.  357.  367.  376.  386.  395.  405.
+  414.  424.  434.  444.  454.  464.  474.  484.  494.  504.  514.  524.
+  533.  543.  552.  562.  571.  581.  590.  600.  609.  619.  628.  638.
+  647.  657.  666.  676.  776.  876. 1016.]
+Execution time : 34422.40517091751 seconds
+
+CH042-5 Raw sample time: [  0.  21.  60. 172. 424. 676.]
+ExTimes: [-340. -240. -140.  -40.    0.    7.   14.   21.   31.   41.   50.   60.
+   69.   78.   87.   96.  105.  115.  124.  134.  143.  153.  162.  172.
+  182.  192.  202.  212.  222.  232.  242.  252.  262.  272.  281.  291.
+  300.  310.  319.  329.  338.  348.  357.  367.  376.  386.  395.  405.
+  414.  424.  434.  444.  454.  464.  474.  484.  494.  504.  514.  524.
+  533.  543.  552.  562.  571.  581.  590.  600.  609.  619.  628.  638.
+  647.  657.  666.  676.  776.  876. 1016.]
+Execution time : 12143.25450706482 seconds
+
+CH162-3 Raw sample time: [  0.  21.  77. 179. 438.]
+ExTimes: [-220. -170. -120.  -70.  -20.    0.    7.   14.   21.   30.   39.   48.
+   58.   67.   77.   86.   95.  104.  113.  122.  131.  141.  150.  160.
+  169.  179.  189.  199.  209.  219.  229.  239.  249.  259.  269.  279.
+  289.  299.  309.  319.  329.  339.  349.  359.  369.  379.  389.  399.
+  409.  419.  428.  438.  488.  538.  588.  658.]
+Execution time : 62220.40676307678 seconds
+
+CH162-5 Raw sample time: [  0.  21.  77. 179. 438.]
+ExTimes: [-220. -170. -120.  -70.  -20.    0.    7.   14.   21.   30.   39.   48.
+   58.   67.   77.   86.   95.  104.  113.  122.  131.  141.  150.  160.
+  169.  179.  189.  199.  209.  219.  229.  239.  249.  259.  269.  279.
+  289.  299.  309.  319.  329.  339.  349.  359.  369.  379.  389.  399.
+  409.  419.  428.  438.  488.  538.  588.  658.]
+Execution time : 6787.339622974396 seconds
+
+CH077-3 Raw sample time: [  0.  14.  32. 102. 159.]
+ExTimes: [-80. -60. -40. -20.   0.   7.  14.  23.  32.  42.  52.  62.  72.  82.
+  92. 102. 111. 121. 130. 140. 149. 159. 179. 199. 219. 239.]
+Execution time : 1526.2647950649261 seconds
+
+CH185-5 Raw sample time: [ 0. 25. 67.]
+ExTimes: [-30. -20. -10.   0.   8.  16.  25.  33.  41.  50.  58.  67.  77.  87.
+  97.]
+Execution time : 51.43200707435608 seconds
+
+CH198-3 Raw sample time: [ 0. 11. 60.]
+ExTimes: [-30. -20. -10.   0.  11.  21.  31.  41.  50.  60.  70.  80.  90.]
+Execution time : 574.0187561511993 seconds
+
+CH164-3 Raw sample time: [  0.  14.  28.  70. 183. 434.]
+ExTimes: [-220. -170. -120.  -70.  -20.    0.    7.   14.   21.   28.   36.   44.
+   53.   61.   70.   79.   88.   97.  107.  116.  126.  135.  145.  154.
+  164.  173.  183.  193.  203.  213.  223.  233.  243.  253.  263.  272.
+  282.  291.  301.  310.  320.  329.  339.  348.  358.  367.  377.  386.
+  396.  405.  415.  424.  434.  484.  534.  584.  654.]
+Execution time : 54575.817027807236 seconds
+
+CH164-5 Raw sample time: [  0.  14.  28.  70. 183. 434.]
+ExTimes: [-220. -170. -120.  -70.  -20.    0.    7.   14.   21.   28.   36.   44.
+   53.   61.   70.   79.   88.   97.  107.  116.  126.  135.  145.  154.
+  164.  173.  183.  193.  203.  213.  223.  233.  243.  253.  263.  272.
+  282.  291.  301.  310.  320.  329.  339.  348.  358.  367.  377.  386.
+  396.  405.  415.  424.  434.  484.  534.  584.  654.]
+Execution time : 3512.5104479789734 seconds

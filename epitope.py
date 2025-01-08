@@ -323,7 +323,7 @@ def get_cut_analysis(HIV_DIR,tag):
     seq_length  = len(sequence[0])-2
 
     # Get constant MPL results after cutting sites
-    sc      = np.loadtxt('%s/constant/output/sc-%s-cut.dat'%(HIV_DIR,tag))
+    sc      = np.loadtxt('%s/constant/output/sc-%s.dat'%(HIV_DIR,tag))
     cut_sites = np.loadtxt('%s/input/sequence/cutsites-%s.dat'%(HIV_DIR,tag))
     
     # write the information for remainning sites into a new analysis file

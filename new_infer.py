@@ -26,11 +26,9 @@ class Result:
     special_sites: List[int]
     uniq_t: List[int]
     r_rates: List[float]
-    time_step: int
     escape_group: List[List[int]]
     escape_TF: List[List[int]]
     trait_dis: List[List[int]]
-    IntTime: List[int]
 
 def AnalyzeData(tag,HIV_DIR):
 
@@ -71,7 +69,6 @@ def AnalyzeData(tag,HIV_DIR):
 
     except FileNotFoundError:
         print(f"CH{tag[-5:]} has no binary trait")
-
         
     """Get special sites and TF sequence"""
     escape_TF     = [] # corresponding wild type nucleotide
@@ -108,37 +105,7 @@ def AnalyzeData(tag,HIV_DIR):
                 i_dis.append(int(index1-index0))
             trait_dis.append(i_dis)
 
-    """find proper time step"""
-    if uniq_t[-1] < 100:
-        time_step = 1
-    else:
-        if seq_length > 300:
-            time_step = 20
-        elif seq_length < 100:
-            time_step = 1
-        else:
-            time_step = 5
-
-    """find proper gamma value"""
-    # interpolation time according to the time step get above, all the inserted time points are integer
-    times = [0]
-    for t in range(1,len(uniq_t)):
-        tp_i   = round((uniq_t[t]-uniq_t[t-1])/time_step) # number of insertion points
-        if tp_i > 0:
-            ts_i   = round((uniq_t[t]-uniq_t[t-1])/tp_i) # modified time step
-            for i in range(tp_i):
-                time_i = uniq_t[t-1] + (i+1) * ts_i
-                time_s = uniq_t[t]
-                # if the inserted time is close to the bounadry time point, throw out the inserted point
-                if abs(time_i-time_s) <= ts_i/2:
-                    times.append(int(time_s))
-                else:
-                    times.append(int(time_i))
-        else:
-            times.append(uniq_t[t])
-    IntTime = list(times)
-
-    return Result(seq_length, special_sites, uniq_t, r_rates, time_step, escape_group, escape_TF, trait_dis, IntTime)
+    return Result(seq_length, special_sites, uniq_t, r_rates, escape_group, escape_TF, trait_dis)
 
 
 def main(args):
@@ -361,30 +328,6 @@ def main(args):
 
         return p_wt,p_mut_k
 
-    # calculate mutation flux term at time t
-    def get_mut_flux_at_t(x,ex,muVec):
-        flux = np.zeros(x_length)
-        for i in range(seq_length):
-            for a in range(q):
-                aa = int(muVec[i][a])
-                if aa != -1:
-                    for b in range(q):
-                        bb = int(muVec[i][b])
-                        if b != a:
-                            if bb != -1:
-                                flux[aa] +=  muMatrix[b][a] * x[bb] - muMatrix[a][b] * x[aa]
-                            else:
-                                flux[aa] += -muMatrix[a][b] * x[aa]
-        for n in range(ne):
-            for nn in range(len(escape_group[n])):
-                for a in range(q):
-                    WT = escape_TF[n][nn]
-                    index = escape_group[n][nn]
-                    if a not in WT:
-                        for b in WT:
-                            flux[x_length-ne+n] += muMatrix[b][a] * (1 - x[x_length-ne+n]) - muMatrix[a][b] * ex[index,a]
-        return flux
-
     # calculate recombination flux term at time t
     def get_rec_flux_at_t(r_rates, x_trait, p_mut_k, trait_dis):
         flux = np.zeros(ne)
@@ -587,12 +530,10 @@ def main(args):
         seq_length   = result.seq_length
         sample_times = result.uniq_t
         r_rates      = result.r_rates
-        times        = result.IntTime
         ne           = len(escape_group)
 
         ## regularization parameter
         p_sites      = result.special_sites
-        time_step    = result.time_step
 
         # obtain sequence data and frequencies
         sVec,nVec,eVec = getSequence(data,escape_TF,escape_group)
@@ -620,14 +561,12 @@ def main(args):
         np.savez_compressed(f, muVec=muVec, single_freq=x, double_freq=xx, escape_freq=ex,\
                             r_rates=r_rates, p_wt_freq=p_wt, p_mut_k_freq=p_mut_k,\
                             special_sites=p_sites, escape_group=escape_group, escape_TF=escape_TF,\
-                            trait_dis=trait_dis,seq_length=seq_length, time_step=time_step, \
-                            sample_times=sample_times, times=times)
+                            trait_dis=trait_dis,seq_length=seq_length, sample_times=sample_times)
         f.close()
 
         # rawdata_tag = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
         # sc_io.savemat('%s/rawdata/rawdata_%s.mat'%(HIV_DIR,tag), rawdata_tag)
 
-        
     ################################################################################
     ######################### time varying inference ###############################
     
@@ -670,7 +609,7 @@ def main(args):
     # extend the time range
     interp_times = insert_time(sample_times)
     ExTimes  = get_ExTimes(interp_times)
-    print(f"CH{tag[6:]} \nExTimes: {ExTimes}")
+    print(f"\nCH{tag[6:]} Raw sample time: {sample_times}\nExTimes: {ExTimes}")
 
     # get gamma_1 and gamma_2
     gamma_1 = get_gamma1(sample_times[-1])
@@ -757,8 +696,6 @@ def main(args):
     time_sample       = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
     sc_sample         = solution.sol(time_sample)
     desired_sc_sample = sc_sample[:x_length,:]
-
-    print(f'Solver_time : {solution.x}')
 
     if print_time:
         end_time = time_module.time()
