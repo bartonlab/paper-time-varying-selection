@@ -1,5 +1,12 @@
 #!/bin/bash
 cd ..
-python new_infer.py -tag 705010162-3 -dir data/HIV200 --raw --cut || echo "CH162-3 failed, continuing with next script..." 
-python new_infer.py -tag 706010164-3 -dir data/HIV200 --raw --cut || echo "CH164-3 failed, continuing with next script..." 
+python inference_HIV.py -tag 705010185-5 -output output-new || echo "CH185-5 failed, continuing with next script..." 
+python new_infer.py -tag 705010185-5 -name _50 -output output-new -g2tv 50 || echo "CH185-5 failed, continuing with next script..." 
+python new_infer.py -tag 705010185-5 -name _200 -output output-new -g2tv 200 || echo "CH185-5 failed, continuing with next script..." 
+python inference_HIV.py -tag 703010256-3 -output output-new || echo "CH256-3 failed, continuing with next script..." 
+python new_infer.py -tag 703010256-3 -name _50 -output output-new -g2tv 50 || echo "CH256-3 failed, continuing with next script..." 
+python new_infer.py -tag 703010256-3 -name _200 -output output-new -g2tv 200 || echo "CH256-3 failed, continuing with next script..." 
+python inference_HIV.py -tag 700010040-3 -output output-new || echo "CH040-3 failed, continuing with next script..." 
+python new_infer.py -tag 700010040-3 -name _50 -output output-new -g2tv 50 || echo "CH040-3 failed, continuing with next script..." 
+python new_infer.py -tag 700010040-3 -name _200 -output output-new -g2tv 200 || echo "CH040-3 failed, continuing with next script..." 
 echo "All scripts have been attempted."

@@ -383,19 +383,14 @@ def main(args):
     def cal_delta_x(single_freq,times):
 
         delta_x  = np.zeros((len(single_freq),x_length))   # difference between the frequency at time t and time t-1s
-        # calculate by np.gradient function
-        # for ii in range(x_length):
-        #     delta_x[:,ii] = np.gradient(single_freq.T[ii],times)
-
         # calculate manually
         for t in range(len(single_freq)-1):
             delta_x[t] = (single_freq[t+1] - single_freq[t])/(times[t+1]-times[t])
 
         # dt for the last time point, make sure the expected x[t+1] is less than 1
-        dt_last = times[-1] - times[-2]
         for ii in range(x_length):
-            if single_freq[-1,ii] + delta_x[-2,ii]*dt_last> 1:
-                delta_x[-1,ii] = (1 - single_freq[-1,ii])/dt_last
+            if single_freq[-1,ii] == 1:
+                delta_x[-1,ii] = 0
             else:
                 delta_x[-1,ii] = delta_x[-2,ii]
 

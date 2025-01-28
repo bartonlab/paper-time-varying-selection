@@ -389,17 +389,18 @@ def main(args):
     #     calculate by np.gradient function
     #         for ii in range(x_length):
     #             delta_x[:,ii] = np.gradient(single_freq.T[ii],times)
-    #     calculate manually
+        # calculate manually
         for t in range(len(single_freq)-1):
             delta_x[t] = (single_freq[t+1] - single_freq[t])/(times[t+1]-times[t])
 
         # dt for the last time point, make sure the expected x[t+1] is less than 1
-        dt_last = times[-1] - times[-2]
         for ii in range(x_length):
-            if single_freq[-1,ii] + delta_x[-1,ii]*dt_last> 1:
-                delta_x[-1,ii] = (1 - single_freq[-1,ii])/dt_last
+            if single_freq[-1,ii] == 1:
+                delta_x[-1,ii] = 0
             else:
                 delta_x[-1,ii] = delta_x[-2,ii]
+
+        return delta_x
 
         return delta_x
 
@@ -730,7 +731,9 @@ def main(args):
     # including the extended time points
     sc_all         = solution.sol(ExTimes)
     desired_sc_all = sc_all[:x_length,:] 
-    sc_sample         = solution.sol(interp_times)
+
+    time_sample       = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+    sc_sample         = solution.sol(time_sample)
     desired_sc_sample = sc_sample[:x_length,:]
 
     # save the solution with constant_time-varying selection coefficient
