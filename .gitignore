@@ -10,7 +10,7 @@ __pycache__
 
 # Old data
 /data/HIV/old
-/figures/trait/
+/figures/trait*/
 /figures/simple/
 
 try.ipynb

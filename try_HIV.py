@@ -107,29 +107,250 @@ def AnalyzeData(tag,HIV_DIR):
 
     return Result(seq_length, special_sites, uniq_t, r_rates, escape_group, escape_TF, trait_dis)
 
-
-def infer_epitope(tag,epitope,gamma_2tv,begin,end,xdotpre):
+def main(args):
     """Infer time-varying selection coefficients from HIV data"""
 
-    HIV_DIR    = 'data/HIV'
+    # Read in parameters from command line
+    parser = argparse.ArgumentParser(description='Time Varying Selection coefficients inference')
+    parser.add_argument('-tag',          type=str,    default='700010058-3',        help='input HIV data tag')
+    parser.add_argument('-name',         type=str,    default='',                   help='suffix for output data')
+    parser.add_argument('-dir',          type=str,    default='data/HIV',           help='directory for HIV data')
+    parser.add_argument('-output',       type=str,    default='output-new',         help='directory for HIV data')
+    parser.add_argument('-beta',         type=float,  default=4.0,                  help='magnification of extended gamma_2 at the ends')
+    parser.add_argument('-g1',           type=float,  default=10,                   help='regularization restricting the magnitude of the selection coefficients')
+    parser.add_argument('-g2c',          type=float,  default=100000,               help='regularization restricting the time derivative of the selection coefficients,constant')
+    parser.add_argument('-g2tv',         type=float,  default=50,                   help='regularization restricting the time derivative of the selection coefficients,time varying')
+    parser.add_argument('-o',            type=float,  default=1,                    help='magnetitude of negative guassian distribution')
+    parser.add_argument('--raw',         action='store_true',  default=False,       help='whether or not to save the raw data')
+    parser.add_argument('--TV',          action='store_false', default=True,        help='whether or not to infer')
+    parser.add_argument('--cr',          action='store_true', default=False,        help='whether or not to use a constant recombination rate')
+    parser.add_argument('--pt',          action='store_false', default=True,        help='whether or not to print the execution time')
     
-    beta       = 4.0
-    gamma_1    = 10.0
-    gamma_2c   = 100000.0
-    
+    arg_list  = parser.parse_args(args)
+
+    tag        = arg_list.tag
+    name       = arg_list.name
+    HIV_DIR    = arg_list.dir
+    output_dir = arg_list.output
+    beta       = arg_list.beta
+    gamma_1    = arg_list.g1     # regularization parameter, which will be change according to the time points
+    gamma_2c   = arg_list.g2c
+    gamma_2tv  = arg_list.g2tv
+    raw_save   = arg_list.raw
+    infer_tv   = arg_list.TV
+    cr         = arg_list.cr
+    print_time = arg_list.pt
+    omega      = arg_list.o
+
     ############################################################################
-    ################################# function #################################    
+    ################################# function #################################
+    # loading data from dat file
+    def getSequence(history,escape_TF,escape_group):
+        sVec      = []
+        nVec      = []
+        eVec      = []
+
+        temp_sVec   = []
+        temp_nVec   = []
+        temp_eVec   = []
+
+        times       = []
+        time        = 0
+        times.append(time)
+
+        ne          = len(escape_group)
+
+        for t in range(len(history)):
+            if history[t][0] != time:
+                time = history[t][0]
+                times.append(int(time))
+                sVec.append(temp_sVec)
+                nVec.append(temp_nVec)
+                eVec.append(temp_eVec)
+                temp_sVec   = []
+                temp_nVec   = []
+                temp_eVec   = []
+
+            temp_nVec.append(history[t][1])
+            temp_sVec.append(history[t][2:])
+
+            if ne > 0: # the patient contains escape group
+                temp_escape = np.zeros(ne, dtype=int)
+                for n in range(ne):
+                    for nn in range(len(escape_group[n])):
+                        index = escape_group[n][nn] + 2
+                        if history[t][index] not in escape_TF[n][nn]:
+                            temp_escape[n] = 1
+                            break
+                temp_eVec.append(temp_escape)
+
+            if t == len(history)-1:
+                sVec.append(temp_sVec)
+                nVec.append(temp_nVec)
+                eVec.append(temp_eVec)
+
+        return sVec,nVec,eVec
+
+    # get muVec
+    def getMutantS(sVec):
+        # use muVec matrix to record the index of time-varying sites
+        muVec = -np.ones((seq_length, q)) # default value is -1, positive number means the index
+        x_length  = 0
+
+        for i in range(seq_length):            
+            # find all possible alleles in site i
+            alleles     = [int(sVec[t][k][i]) for t in range(len(sVec)) for k in range(len(sVec[t]))]
+            allele_uniq = np.unique(alleles)
+            for allele in allele_uniq:
+                muVec[i][int(allele)] = x_length
+                x_length += 1
+
+        return x_length,muVec
+
+    # calculate single and pair allele frequency (multiple case)
+    def get_allele_frequency(sVec,nVec,eVec,muVec):
+
+        x  = np.zeros((len(nVec),x_length))           # single allele frequency
+        xx = np.zeros((len(nVec),x_length,x_length))  # pair allele frequency
+        for t in range(len(nVec)):
+            pop_size_t = np.sum([nVec[t]])
+            for k in range(len(nVec[t])):
+                # individual locus part
+                for i in range(seq_length):
+                    qq = int(sVec[t][k][i])
+                    aa = int(muVec[i][qq])
+                    if aa != -1: # if aa = -1, it means the allele does not exist
+                        x[t,aa] += nVec[t][k]
+                        for j in range(int(i+1), seq_length):
+                            qq = int(sVec[t][k][j])
+                            bb = int(muVec[j][qq])
+                            if bb != -1:
+                                xx[t,aa,bb] += nVec[t][k]
+                                xx[t,bb,aa] += nVec[t][k]
+                
+                # escape part
+                for n in range(ne):
+                    for n_q in range(2): # even: mutant type, odd: wild type
+                        aa = int(x_length-2*ne+2*n+n_q)
+                        e_k_n    = eVec[t][k][n] if n_q % 2 == 0 else (1 - eVec[t][k][n])
+                        x[t,aa] += e_k_n * nVec[t][k]
+                        
+                        for j in range(seq_length):
+                            qq = int(sVec[t][k][j])
+                            bb = int(muVec[j][qq])
+                            if bb != -1:
+                                xx[t,bb,aa] += e_k_n * nVec[t][k]
+                                xx[t,aa,bb] += e_k_n * nVec[t][k]
+
+                        for m in range(int(n+1), ne):
+                            for m_q in range(2):
+                                bb = int(x_length-2*ne+2*m+m_q)
+                                e_k_m = eVec[t][k][m] if m_q % 2 == 0 else (1 - eVec[t][k][m])
+                                xx[t,aa,bb] += e_k_n * e_k_m * nVec[t][k]
+                                xx[t,bb,aa] += e_k_m * e_k_n * nVec[t][k]
+
+            x[t,:]    = x[t,:]/pop_size_t
+            xx[t,:,:] = xx[t,:,:]/pop_size_t
+
+        return x,xx
+
+    # calculate escape frequency
+    def get_escape_fre_term(sVec,nVec):
+        ex  = np.zeros((len(nVec),seq_length,q))
+        for t in range(len(nVec)):
+            pop_size_t = np.sum([nVec[t]])
+            for k in range(len(sVec[t])):
+                for n in range(ne):
+                    site_mutation = []
+                    for nn in escape_group[n]:
+                        index = escape_group[n].index(nn)
+                        WT = escape_TF[n][index]
+                        if sVec[t][k][nn] not in WT:
+                            site_mutation.append(nn)
+                    if len(site_mutation) == 1:
+                        site = site_mutation[0]
+                        qq = int(sVec[t][k][site])
+                        ex[t,site,qq] += nVec[t][k]
+            ex[t,:,:] = ex[t,:,:] / pop_size_t
+        return ex
+
+    def compareElements(k_bp, sVec_n, sWT_n_all, compare_end=False):
+        same = False
+        for k in range(len(sWT_n_all)):
+            sWT_n = sWT_n_all[k]
+            if not compare_end: # compare the sequence before k point
+                if sVec_n[:k_bp] == sWT_n[:k_bp]:
+                    same = True
+                    break
+            else: # compare the sequence after k point
+                if sVec_n[k_bp:] == sWT_n[k_bp:]:
+                    same = True
+                    break
+        return same
+    
+    # calculate frequencies for recombination part (binary case)  
+    def get_p_k(sVec,nVec,escape_group,escape_TF):
+
+        ne        = len(escape_group)
+        n_k       = np.max([len(escape_group[n]) for n in range(ne)]) - 1
+
+        p_mut_k   = np.zeros((len(nVec),ne, n_k, 3)) # 0: time, 1: all k point, 2: p_k, p_k-, p_k+
+        p_wt      = np.zeros((len(nVec),ne)) # 0: time, 1: escape group
+
+        for t in range(len(nVec)):
+            pop_size_t = np.sum([nVec[t]])
+            
+            for n in range(len(escape_group)):
+                escape_group_n = escape_group[n]
+
+                sWT_n_all = list(product(*escape_TF[n]))
+                sWT_n_all = [list(combination) for combination in sWT_n_all]
+                
+                for k in range(len(sVec[t])): # different sequences at time t
+                    sVec_n = [int(sVec[t][k][i]) for i in escape_group_n]
+                    
+                    # no mutation within the trait group
+                    if sVec_n in sWT_n_all:
+                        p_wt[t][n] += nVec[t][k]
+
+                    for nn in range(len(escape_group_n)-1):
+                        k_bp = nn + 1
+
+                        # compare sequence with all possible WT sequence
+                        # if the sequence is different from all WT sequence, result is True
+                        head = compareElements(k_bp, sVec_n, sWT_n_all, compare_end=False)
+                        tail = compareElements(k_bp, sVec_n, sWT_n_all, compare_end=True)
+                        
+                        # containing mutation before and after break point k,p_k
+                        if not head and not tail:
+                            p_mut_k[t][n][nn][0] += nVec[t][k]
+                        
+                        # MT before break point k and WT after break point k,p_k-
+                        if not head and tail:
+                            p_mut_k[t][n][nn][1] += nVec[t][k]
+                        
+                        # WT before break point k and MT after break point k,p_k+
+                        if head and not tail:
+                            p_mut_k[t][n][nn][2] += nVec[t][k]
+
+            p_wt[t]    = p_wt[t] / pop_size_t
+            p_mut_k[t] = p_mut_k[t] / pop_size_t
+
+        return p_wt,p_mut_k
+
     # calculate recombination flux term at time t
-    def get_rec_flux_at_t(r_rates, x_trait, p_mut_k, trait_dis):
+    def get_rec_flux_at_t(r_rate, x_trait, p_mut_k, trait_dis):
+        flux = np.zeros(2*ne)
+        for n in range(ne):
+            fluxIn  = 0
+            fluxOut = 0
 
-        fluxIn  = 0
-        fluxOut = 0
-
-        for nn in range(len(escape_group[n_index])-1):
-            fluxIn  += trait_dis[n_index][nn] * (1 - x_trait) *p_mut_k[nn][0]
-            fluxOut += trait_dis[n_index][nn] * p_mut_k[nn][1]*p_mut_k[nn][2]
-        
-        flux = r_rates * (fluxIn - fluxOut)
+            for nn in range(len(escape_group[n])-1):
+                fluxIn  += trait_dis[n][nn] * (1 - x_trait[n]) *p_mut_k[n][nn][0]
+                fluxOut += trait_dis[n][nn] * p_mut_k[n][nn][1]*p_mut_k[n][nn][2]
+            
+            flux[2*n]   = r_rate * (fluxIn - fluxOut) # mutant type
+            flux[2*n+1] = - flux[2*n]                # wild type
 
         return flux
 
@@ -150,24 +371,29 @@ def infer_epitope(tag,epitope,gamma_2tv,begin,end,xdotpre):
         for t in range(len(x)):
             for i in range(seq_length):
                 for a in range(q):
-                    index = seq_index[i]
-                    if muVec[index][a] != -1:
-                        aa = np.where(poly_index == int(muVec[index][a]))[0]
+                    aa = int(muVec[i][a])
+                    if aa != -1:
                         for b in range(q):
+                            bb = int(muVec[i][b])
                             if b != a:
-                                if muVec[index][b] != -1:
-                                    bb = np.where(poly_index == int(muVec[index][b]))[0]
+                                if bb != -1:
                                     flux[t,aa] +=  muMatrix[b][a] * x[t,bb] - muMatrix[a][b] * x[t,aa]
                                 else:
                                     flux[t,aa] += -muMatrix[a][b] * x[t,aa]
-
-            for nn in range(len(escape_group[n_index])):
-                for a in range(q):
-                    WT = escape_TF[n_index][nn]
-
-                    if a not in WT:
-                        for b in WT:
-                            flux[t, -1] += muMatrix[b][a] * (1 - x[t,-1]) - muMatrix[a][b] * ex[t,nn,a]
+            
+            # escape part - mutant type
+            for n in range(ne):
+                for nn in range(len(escape_group[n])):
+                    for a in range(q):
+                        WT = escape_TF[n][nn]
+                        index = escape_group[n][nn]
+                        if a not in WT:
+                            for b in WT:
+                                flux[t, x_length-2*ne+2*n] += muMatrix[b][a] * (1 - x[t,x_length-2*ne+2*n]) - muMatrix[a][b] * ex[t,index,a]
+            
+            # escape part - wild type
+            for n in range(ne):
+                flux[t, x_length-2*ne+2*n+1] = - flux[t, x_length-2*ne+2*n]
 
         return flux
 
@@ -175,23 +401,18 @@ def infer_epitope(tag,epitope,gamma_2tv,begin,end,xdotpre):
     def cal_delta_x(single_freq,times):
 
         delta_x  = np.zeros((len(single_freq),x_length))   # difference between the frequency at time t and time t-1s
-        
         # calculate manually
-        if xdotpre:
-            for t in range(1,len(single_freq)):
-                delta_x[t] = (single_freq[t] - single_freq[t-1])/(times[t]-times[t-1])
-            delta_x[0] = delta_x[1]
+        for t in range(len(single_freq)-1):
+            delta_x[t] = (single_freq[t+1] - single_freq[t])/(times[t+1]-times[t])
 
-        else:
-            for t in range(len(single_freq)-1):
-                delta_x[t] = (single_freq[t+1] - single_freq[t])/(times[t+1]-times[t])
-
-            # dt for the last time point, make sure the expected x[t+1] is less than 1
-            for ii in range(x_length):
-                if single_freq[-1,ii] == 1:
-                    delta_x[-1,ii] = 0
-                else:
-                    delta_x[-1,ii] = delta_x[-2,ii]
+        # dt for the last time point, make sure the expected x[t+1] is less than 1
+        for ii in range(x_length):
+            if single_freq[-1,ii] == 1 and delta_x[-2,ii]>0:
+                delta_x[-1,ii] = 0
+            elif single_freq[-1,ii] == 0 and delta_x[-2,ii]<0:
+                delta_x[-1,ii] = 0
+            else:
+                delta_x[-1,ii] = delta_x[-2,ii]
 
         return delta_x
 
@@ -199,39 +420,38 @@ def infer_epitope(tag,epitope,gamma_2tv,begin,end,xdotpre):
     # gamma_1: time-independent, gamma_2: time-dependent
     def get_gamma1(last_time):
         # individual site: gamma_1s, escape group: gamma_1p
-        gamma_1s = np.round(gamma_1/last_time,3) # constant MPL gamma value / max time
+        gamma_1s = round(gamma_1/last_time,3) # constant MPL gamma value / max time
         gamma_1p = gamma_1s/10
         
         gamma1   = np.ones(x_length)*gamma_1s
-        for n in range(ne):
-            gamma1[x_length-ne+n] = gamma_1p
+        for n in range(2*ne):
+            gamma1[x_length-2*ne+n] = gamma_1p
         
         return gamma1
-
-    def get_gamma2(last_time, beta, begin, end):
-
-        gamma2 = np.ones((x_length,len(ExTimes))) * gamma_2c
-
+    
+    def get_gamma2(times, beta):
         # Use a time-varying gamma_prime, gamma_2tv is the middle value, 
         # boundary value is 4 times larger, decrese/increase exponentially within 10% generation.
-        gamma_t = np.ones(len(ExTimes))
+        last_time = times[-1]
+        gamma_t = np.ones(len(times))
         tv_range = max(int(round(last_time*0.1/10)*10),1)
         alpha  = np.log(beta) / tv_range
-        for ti, t in enumerate(ExTimes): # loop over all time points, ti: index, t: time
-            # vary at the beginning part
-            if begin:
-                if t <= 0:
-                    gamma_t[ti] = beta
-                elif 0 < t and t <= tv_range:
-                    gamma_t[ti] = beta * np.exp(-alpha * t)
-            # vary at the end part
-            if end:
-                if t >= last_time:
-                    gamma_t[ti] = beta
-                elif last_time - tv_range < t and t <= last_time:
-                    gamma_t[ti] = 1 * np.exp(alpha * (t - last_time + tv_range))
+        for ti, t in enumerate(times): # loop over all time points, ti: index, t: time
+            if t <= tv_range:
+                gamma_t[ti] = beta * np.exp(-alpha * t)
+            elif last_time - tv_range < t and t <= last_time:
+                gamma_t[ti] = 1 * np.exp(alpha * (t - last_time + tv_range))
         
-        gamma2[-1] = gamma_t * gamma_2tv
+        gamma2 = np.ones((x_length,len(times)))* gamma_2c
+        for i in range(x_length):
+            if i in p_sites:
+                for qq in range(len(NUC)):
+                    index = int (muVec[i][qq]) 
+                    if index != -1:
+                        gamma2[index] = gamma_t * gamma_2tv
+            
+            if i >= x_length-2*ne:
+                gamma2[i] = gamma_t * gamma_2tv
 
         return gamma2.T
 
@@ -293,58 +513,103 @@ def infer_epitope(tag,epitope,gamma_2tv,begin,end,xdotpre):
         
         return ExTimes
 
-    def get_cut_index(epitope):
-        df_trait = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
-        # get all binary traits for one tag
-        df_rows = df_trait[df_trait['epitope'].notna()]
-        unique_traits = df_rows['epitope'].unique()
+    ################################################################################
+    ############################# HIV data process #################################
+
+    if raw_save:
+        # obtain raw sequence data
+
+        data     = np.loadtxt('%s/input/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
+
+        # information for escape group
+        result       = AnalyzeData(tag,HIV_DIR)
+        escape_group = result.escape_group
+        escape_TF    = result.escape_TF
+        trait_dis    = result.trait_dis
+        seq_length   = result.seq_length
+        sample_times = result.uniq_t
+        r_rates      = result.r_rates
+        ne           = len(escape_group)
+
+        ## regularization parameter
+        p_sites      = result.special_sites
+
+        # obtain sequence data and frequencies
+        sVec,nVec,eVec = getSequence(data,escape_TF,escape_group)
+        x_length,muVec = getMutantS(sVec)
+        x_length      += ne * 2
+
+        # get all frequencies, 
+        # x: single allele frequency, xx: pair allele frequency
+        x,xx         = get_allele_frequency(sVec,nVec,eVec,muVec)
         
-        n_index = np.where(unique_traits == epitope)[0][0]
-        poly_sites = escape_group[n_index]
+        # ex: escape frequency
+        if ne != 0:
+            ex           = get_escape_fre_term(sVec,nVec)
+            p_wt,p_mut_k = get_p_k(sVec,nVec,escape_group,escape_TF)
+        else:
+            ex           = 0
+            p_wt         = 0
+            p_mut_k      = 0
 
-        selected_rows = muVec[poly_sites[0]:poly_sites[-1], :]
-        poly_index = selected_rows[selected_rows != -1]
-
-        return poly_sites,poly_index,n_index
+        #record all input information before interpolation
+        f = open('%s/rawdata/mul_rawdata_%s.npz'%(HIV_DIR,tag), mode='w+b')
+        escape_group = np.array(escape_group, dtype=object)
+        escape_TF    = np.array(escape_TF , dtype=object)
+        trait_dis    = np.array(trait_dis , dtype=object)
+        np.savez_compressed(f, muVec=muVec, single_freq=x, double_freq=xx, escape_freq=ex,\
+                            r_rates=r_rates, p_wt_freq=p_wt, p_mut_k_freq=p_mut_k,\
+                            special_sites=p_sites, escape_group=escape_group, escape_TF=escape_TF,\
+                            trait_dis=trait_dis,seq_length=seq_length, sample_times=sample_times)
+        f.close()
 
     ################################################################################
     ######################### time varying inference ###############################
-    # load the data
+    
+    if not infer_tv:
+        sys.exit(0)
+
     muMatrix = np.loadtxt("%s/input/Zanini-extended.dat"%HIV_DIR)
     
     # load processed data from rawdata file
-    rawdata  = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
-    
-    # information 
-    muVec        = rawdata['muVec']
-    escape_group = rawdata['escape_group'].tolist()
-    escape_TF    = rawdata['escape_TF'].tolist()
-    trait_dis    = rawdata['trait_dis'].tolist()
-    sample_times = rawdata['sample_times']
-    seq_index,poly_index,n_index = get_cut_index(epitope)
-    r_rates      = rawdata['r_rates']
-    
-    xx           = rawdata['double_freq']
-    new_index = np.append(poly_index,len(xx[0])-len(escape_group)+n_index)
-    new_index = [int(i) for i in new_index]
-    
-    seq_length   = len(seq_index)
-    ne           = 1
-    x_length     = len(new_index)
+    try:
+        rawdata  = np.load('%s/rawdata/mul_rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+        # information for individual sites
+        x            = rawdata['single_freq']
+        xx           = rawdata['double_freq']
+        ex           = rawdata['escape_freq']
+        muVec        = rawdata['muVec']
+        sample_times = rawdata['sample_times']
+        seq_length   = rawdata['seq_length']
 
-    # data for calculation
-    x            = rawdata['single_freq'][:,new_index]
-    xx           = rawdata['double_freq'][np.ix_(range(len(xx)), new_index, new_index)]
-    ex           = rawdata['escape_freq'][:,seq_index,:]
-    p_mut_k      = rawdata['p_mut_k_freq'][:,n_index,:,:]
-    
+        if cr:
+            r_rates = np.ones(len(sample_times)) * 1.4e-5
+        else:
+            r_rates = rawdata['r_rates']
+
+        # information for escape group
+        p_wt         = rawdata['p_wt_freq']
+        p_mut_k      = rawdata['p_mut_k_freq']
+        p_sites      = rawdata['special_sites']
+        escape_group = rawdata['escape_group'].tolist()
+        escape_TF    = rawdata['escape_TF'].tolist()
+        trait_dis    = rawdata['trait_dis'].tolist()
+
+        ne           = len(escape_group)
+        x_length     = len(x[0])
+
+    except FileNotFoundError:
+        print("error, rawdata file does not exist, please process the data first")
+        sys.exit(1)
+
     # extend the time range
-    interp_times = insert_time(sample_times)
+    # extend the time range
+    if sample_times[-1] > 100:
+        interp_times = insert_time(sample_times)
+    else:
+        interp_times = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
     ExTimes  = get_ExTimes(interp_times)
-
-    # get gamma_1 and gamma_2
-    gamma_1 = get_gamma1(sample_times[-1])
-    gamma_2 = get_gamma2(sample_times[-1],beta, begin, end)
+    # print(f"\nCH{tag[6:]} Raw sample time: {sample_times}\nExTimes: {ExTimes}")
 
     # get dx
     delta_x_raw = cal_delta_x(x, sample_times)
@@ -357,7 +622,49 @@ def infer_epitope(tag,epitope,gamma_2tv,begin,end,xdotpre):
     interp_dx  = interp1d(sample_times, delta_x_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
     interp_mu  = interp1d(sample_times, flux_mu_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
     interp_r   = interp1d(sample_times, r_rates, kind='linear', bounds_error=False, fill_value=0)
-    interp_g2  = interp1d(ExTimes, gamma_2, axis=0, kind='linear', bounds_error=False, fill_value=0)
+
+    # interpolate data with dt = 1
+    time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+
+    # get gamma_1 and gamma_2
+    gamma_1 = get_gamma1(sample_times[-1])
+    gamma_2 = get_gamma2(time_all,beta)
+
+    # Use linear interpolates to get the input arrays at any integer time point
+    interp_x   = interp1d(sample_times, x, axis=0, kind='linear', bounds_error=False, fill_value=0)
+    interp_xx  = interp1d(sample_times, xx, axis=0, kind='linear', bounds_error=False, fill_value=0)
+    interp_mut = interp1d(sample_times, p_mut_k, axis=0, kind='linear', bounds_error=False, fill_value=0) if ne > 0 else 0
+    interp_dx  = interp1d(sample_times, delta_x_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+    interp_mu  = interp1d(sample_times, flux_mu_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+    interp_r   = interp1d(sample_times, r_rates, kind='linear', bounds_error=False, fill_value=0)
+    
+    single_freq = interp_x(time_all)
+    double_freq = interp_xx(time_all)
+    flux_mut    = interp_mu(time_all)
+    p_mut_k     = interp_mut(time_all) if ne > 0 else 0
+    r_rates_all = interp_r(time_all) if not cr else np.ones(len(time_all))*1.4e-5
+    delta_x     = interp_dx(time_all)
+    
+    A_all = np.zeros((len(time_all),x_length,x_length))
+    b_all = np.zeros((len(time_all),x_length))
+
+    for ti in range(len(time_all)):
+        
+        # calculate A(t) = C(t) + gamma_1 * I
+        A_all[ti] = diffusion_matrix_at_t(single_freq[ti], double_freq[ti]) # covariance matrix
+        
+        # calculate b(t)
+        b_all[ti]   = flux_mut[ti] - delta_x[ti]
+
+        columns = [x_length-2*ne+2*n for n in range(ne)]  # index for mutant trait
+        x_trait = single_freq[:, columns]
+
+        flux_rec = get_rec_flux_at_t(r_rates_all[ti], x_trait[ti], p_mut_k[ti], trait_dis) if ne > 0 else 0
+        for n in range(2*ne): # recombination only for binary trait part
+            b_all[ti, x_length-2*ne+n] += flux_rec[n]
+
+    if print_time:
+        start_time = time_module.time()
 
     # solve the bounadry condition ODE to infer selections
     def fun(time,s):
@@ -369,37 +676,35 @@ def infer_epitope(tag,epitope,gamma_2tv,begin,end,xdotpre):
         # s' = s2, s2:the derivatives of the selection coefficients
         dsdt[:x_length, :] = s[x_length:,:]
 
-        single_freq = interp_x(time)
-        double_freq = interp_xx(time)
-        flux_mut    = interp_mu(time)
-        p_mut_k     = interp_mut(time)
-        r_rate      = interp_r(time)
-        delta_x     = interp_dx(time)
-        gamma2      = interp_g2(time)
-
         # s2'(t) = A(t)s1(t) + b(t), s1: the actual selection coefficients
         for ti, t in enumerate(time): # loop over all time points, ti: index, t: time
 
-            if t < 0 or t > sample_times[-1]:
-                # outside the range, only gamma
-                # s'' = gamma1* s(t)/gamma1(t)
-                dsdt[x_length:, ti] = gamma_1 * s[:x_length, ti] / gamma2[ti]
+            # # set value for gamma_1 of traits part
+            # # high covariance with positive part and low covariance with negative part
+            # for n in range(2*ne):
+            #     if s[x_length-2*ne+n, ti] < 0:
+            #         gamma_1[x_length-2*ne+n] = gamma_1[0]*omega
 
-            else:
-                # calculate the frequency at time t
-                C_t = diffusion_matrix_at_t(single_freq[ti], double_freq[ti]) # covariance matrix
-                flux_rec = get_rec_flux_at_t(r_rate[ti], single_freq[ti,x_length-ne:], p_mut_k[ti], trait_dis) if ne > 0 else 0
-                # calculate A(t) = C(t) + gamma_1 * I
-                A_t = C_t + np.diag(gamma_1) # add gamma_1 to the diagonal
+            if t < 0 or t > sample_times[-1]:
+                # get gamma2 for extrapolated time points
+                if t < 0:
+                    gamma2_t = gamma_2[0]
+                else:
+                    gamma2_t = gamma_2[-1]
+
+                # s'' = gamma1* s(t)/gamma1(t)
+                dsdt[x_length:, ti] = gamma_1 * s[:x_length, ti] / gamma2_t
                 
-                # calculate b(t)
-                b_t      = flux_mut[ti] - delta_x[ti]
-                for n in range(ne): # recombination only for binary trait part
-                    b_t[x_length-ne+n] += flux_rec[n]
+            else:
+                # get A(t), b(t) and gamma2(t)
+                time_index = round(t)
+                A_t      = A_all[time_index]                
+                b_t      = b_all[time_index]
+                gamma2_t = gamma_2[time_index]
         
                 # s'' = A(t)s(t) + b(t)
-                dsdt[x_length:, ti] = (A_t @ s[:x_length, ti] + b_t) / gamma2[ti]
-
+                dsdt[x_length:, ti] = ((A_t+np.diag(gamma_1)) @ s[:x_length, ti] + b_t) / gamma2_t
+                
         return dsdt
 
     # Boundary conditions
@@ -415,9 +720,24 @@ def infer_epitope(tag,epitope,gamma_2tv,begin,end,xdotpre):
 
     # Get the solution for sample times
     # removes the superfluous part of the array and only save the sampled times points
+    # including the extended time points
+    sc_all         = solution.sol(ExTimes)
+    desired_sc_all = sc_all[:x_length,:] 
+            
     # not include the extended time points
     time_sample       = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
     sc_sample         = solution.sol(time_sample)
     desired_sc_sample = sc_sample[:x_length,:]
 
-    return x,desired_sc_sample,sample_times
+    if print_time:
+        end_time = time_module.time()
+        print(f"CH{tag[6:]}---------{end_time - start_time} seconds")
+
+    # save the solution with constant_time-varying selection coefficient
+    # name = '-'+str(int(omega))
+    g = open('%s/%s/mul_sc_%s%s.npz'%(HIV_DIR, output_dir, tag, name), mode='w+b')
+    np.savez_compressed(g, all = desired_sc_all, selection=desired_sc_sample, time=sample_times, ExTimes=ExTimes)
+    g.close()
+    
+if __name__ == '__main__':
+    main(sys.argv[1:])
