@@ -1780,6 +1780,214 @@ def plot_gamma_prime(**pdata):
     if savepdf:
         plt.savefig('%s/gamma_t_new.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
+def plot_gamma_prime_trait(**pdata):
+
+    """
+    histogram of trait coefficients with different gamma^{prime} values
+    """
+
+    # unpack passed data
+    sim_dir       = pdata['sim_dir']        # 'simple'
+    generations   = pdata['generations']    # 500
+    ytick_t       = pdata['ytick_t']
+    yminorticks_t = pdata['yminorticks_t']
+    ytick_d       = pdata['ytick_d']
+    yminorticks_d = pdata['yminorticks_d']
+
+    fn            = pdata['fn']            # time-varying selection coefficient for binary trait
+
+    savepdf       = pdata['savepdf']           # True
+
+    timepoints  = int(generations) + 1
+    times       = np.linspace(0,generations,timepoints)
+
+    # data for selection coefficients for different simulations
+    output_suffix = ['_0.25', '_1', '']
+    tc_all_data = []
+    for ii in range(len(output_suffix)):
+        # get data for inference results for different simulations
+        tc_all   = np.zeros((100,generations+1))
+        output = output_suffix[ii]
+        for k in range(100):
+            name = str(k)
+            data_full = np.load('%s/%s/output%s/c_%s.npz'%(SIM_DIR,sim_dir,output,name), allow_pickle="True")
+            sc_full   = data_full['selection']
+            tc_all[k] = sc_full[-1]
+    
+        tc_ave = np.zeros(generations+1)
+        tc_dev = np.zeros(generations+1)
+        for t in range(len(tc_all[0])):
+            tc_ave[t] = np.average(tc_all[:,t])
+            mse       = np.mean((tc_all[:,t] - fn[t]) ** 2)
+            tc_dev[t] = np.sqrt(mse) #mse/variance
+        
+        tc_all_data.append([tc_all, tc_ave, tc_dev])
+        
+    ## gamma value
+    T_ex   = int(round(times[-1]*0.5/10)*10)
+    ex_gap  = 10
+    etleft  = np.linspace(-T_ex,-ex_gap,int(T_ex/ex_gap))
+    etright = np.linspace(times[-1]+ex_gap,times[-1]+T_ex,int(T_ex/ex_gap))
+    ExTimes = np.concatenate((etleft, times, etright))
+
+    gamma_p = []
+    beta = [0.25, 1, 4]
+    for ii in range(len(output_suffix)):
+        gamma_t = np.zeros(len(ExTimes))
+        last_time = times[-1]
+        tv_range = int(round(times[-1]*0.1/10)*10)
+        alpha  = np.log(beta[ii]) / tv_range
+        for ti, t in enumerate(ExTimes): # loop over all time points, ti: index, t: time
+            if t <= 0:
+                gamma_t[ti] = beta[ii]
+            elif t >= last_time:
+                gamma_t[ti] = beta[ii]
+            elif 0 < t and t <= tv_range:
+                gamma_t[ti] = beta[ii] * np.exp(-alpha * t)
+            elif last_time - tv_range < t and t <= last_time:
+                gamma_t[ti] = 1 * np.exp(alpha * (t - last_time + tv_range))
+            else:
+                gamma_t[ti] = 1
+
+        gamma_p.append(gamma_t)
+
+    # PLOT FIGURE
+    ## set up figure grid
+    w     = DOUBLE_COLUMN #SLIDE_WIDTH
+    goldh = w / 1.5
+    fig   = plt.figure(figsize=(w, goldh),dpi=1000)
+
+    box = dict(left=0.08, right=0.98, bottom=0.08, top=0.95)
+    gs = gridspec.GridSpec(3, 3, width_ratios=[1,1,1],wspace=0.3,hspace=0.25,**box)
+    ax  = [[plt.subplot(gs[n, 0]), plt.subplot(gs[n, 1]), plt.subplot(gs[n, 2])] for n in range(3)]
+
+    c_sin = 5
+    c_cos = 2
+
+    ## a -- histogram for selection coefficients
+    pprops = { 'xticks':      [-500, 0, 500, 1000, 1500],
+               'xticklabels': [],
+               'ylim':        [0, 4.2],
+               'yticks':      [0,1,4],
+               'yticklabels': ['0','g','4g'],
+               'nudgey':      1,
+               'xlabel':      '',
+               'ylabel':      '$\gamma^{\prime}$',
+               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0 },
+               'axoffset':    0.1,
+               'theme':       'open'}
+
+    mp.plot(type='line',ax=ax[0][0], x=[ExTimes], y=[gamma_p[0]], colors=[BKCOLOR], **pprops)
+    mp.plot(type='line',ax=ax[1][0], x=[ExTimes], y=[gamma_p[1]], colors=[BKCOLOR], **pprops)
+    pprops['xlabel'] = 'Generation'
+    pprops['xticklabels'] = [-500, 0, 500, 1000, 1500]
+    mp.plot(type='line',ax=ax[2][0], x=[ExTimes], y=[gamma_p[2]], colors=[BKCOLOR], **pprops)
+
+    # legend
+    yy =  2
+    coef_legend_dy = 0.6
+    xx_line = [-150, 100]
+    yy_line = np.zeros(3)
+    for i in range(3):
+        yy_line[i] = yy + coef_legend_dy*((2 - i))
+    c_col = C_group[0]
+
+    pprops['plotprops']['alpha'] = 0.5
+    mp.line(ax=ax[0][0], x=[xx_line], y=[[yy_line[0], yy_line[0]]], colors=[c_col], **pprops)
+    ax[0][0].text(300, yy+coef_legend_dy*2, 'Inferred coefficients', ha='left', va='center', **DEF_LABELPROPS)
+
+    pprops['plotprops']['alpha'] = 1.0
+    pprops['plotprops']['lw'] = SIZELINE*3
+    mp.line(ax=ax[0][0], x=[xx_line], y=[[yy_line[1], yy_line[1]]], colors=[c_col], **pprops)
+    ax[0][0].text(300, yy+coef_legend_dy, 'Average coefficients', ha='left', va='center', **DEF_LABELPROPS)
+
+    pprops['plotprops']['ls'] = ':'
+    mp.plot(type='line',ax=ax[0][0], x=[xx_line], y=[[yy,yy]], colors=[BKCOLOR], **pprops)
+    ax[0][0].text(300, yy, 'True coefficients', ha='left', va='center', **DEF_LABELPROPS)
+
+    dy = 0.03
+    ax[0][0].text(                     box['left']-0.04, box['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax[0][1].text((2*box['left']/3+box['right']/3)-0.02, box['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax[0][2].text((box['left']/3+2*box['right']/3)+0.01, box['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+    # add background
+    cBG = '#F5F5F5'
+    ddx = 0.025
+    ddy = 0.15
+    rec_xy = [box['left']+ddx, (2*box['top']/3+box['bottom']/3)+ddy]
+    rec = matplotlib.patches.Rectangle(xy=( rec_xy[0], rec_xy[1]),
+                                            width=(box['right']-box['left'])/3*0.65,height=(box['top']-box['bottom'])/3*0.4, 
+                                            transform=fig.transFigure, ec=None, fc=cBG, clip_on=False, zorder=-100)
+    rec = ax[0][0].add_patch(rec)
+
+    ## b  -- escape coefficients
+    pprops = { 'xticks':      [0, 200, 400, 600, 800, 1000],
+               'xticklabels': [],
+               'ylim':        [ytick_t[0], ytick_t[-1]],
+               'yticks':      ytick_t,
+               'yminorticks': yminorticks_t,
+               'yticklabels': [int(i*100) for i in ytick_t],
+               'nudgey':      1,
+               'xlabel':      '',
+               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.1},
+               'axoffset':    0.1,
+               'theme':       'open'}
+
+    for ii in range(len(output_suffix)):
+
+        tc_all = tc_all_data[ii][0]
+        tc_ave = tc_all_data[ii][1]
+
+        if ii == 2:
+            pprops['xticklabels'] = [0,200,400,600,800,1000]
+            pprops['xlabel'] = 'Generation'
+
+        pprops['plotprops']['ls'] = '-'
+        pprops['plotprops']['alpha'] = 0.1
+        pprops['plotprops']['lw'] = SIZELINE
+        for k in range(100):
+            mp.line(ax=ax[ii][1], x=[times], y=[tc_all[k]], colors=[c_col], **pprops)
+
+        pprops['plotprops']['alpha'] = 1
+        pprops['plotprops']['lw'] = SIZELINE*3
+        mp.line(ax=ax[ii][1], x=[times], y=[tc_ave], colors=[c_col], **pprops)
+
+        pprops['plotprops']['ls'] = ':'
+        pprops['plotprops']['alpha'] = 0.5
+        pprops['plotprops']['lw'] = SIZELINE*2
+        mp.plot(type='line',ax=ax[ii][1], x=[times], y=[fn], colors=[BKCOLOR], **pprops)
+
+    ## c  -- mean squared error
+    pprops = { 'xticks':      [0, 200, 400, 600, 800, 1000],
+               'xticklabels': [],
+               'ylim':        [ytick_d[0], ytick_d[-1]],
+               'yticks':      ytick_d,
+               'yminorticks': yminorticks_d,
+               'yticklabels': [int(i*100) for i in ytick_d],
+               'nudgey':      1,
+               'xlabel':      '',
+               'ylabel':      'Root mean square error (%)',
+               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1},
+               'axoffset':    0.1,
+               'theme':       'open'}
+
+    for ii in range(len(output_suffix)):
+        tc_dev = tc_all_data[ii][2]
+
+        if ii == 2:
+            pprops['xticklabels'] = [0,200,400,600,800,1000]
+            pprops['xlabel'] = 'Generation'
+
+        pprops['plotprops']['ls'] = '-'
+        pprops['plotprops']['alpha'] = 1.0
+        mp.plot(type='line',ax=ax[ii][2], x=[times], y=[tc_dev], colors=[c_col], **pprops)
+
+    # # SAVE FIGURE
+    if savepdf:
+        plt.savefig('%s/gamma_t_trait.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+
+
 def mpl(x_mu,sample_times):
     
     x        = np.stack(np.array((np.ones(len(x_mu))-x_mu,x_mu))).T # wild type and mutant type
