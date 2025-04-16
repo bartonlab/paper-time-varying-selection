@@ -310,18 +310,308 @@ def plot_simple(**pdata):
     else:
         plt.savefig('%s/%s/%s.jpg' % (FIG_DIR,sim_dir,name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
+def plot_simple_constant(**pdata):
+    """
+    Example evolutionary trajectory for a binary 20-site system
+    """
+
+    # unpack passed data
+    sim_dir       = pdata['sim_dir']            # 'simple'
+    name          = pdata['name']           # '0'
+    output1       = pdata['output1']         # 'output'
+    output2       = pdata['output2']         # 'output2' (for constant selection coefficients) 
+    seq_length    = pdata['seq_length']     # 20
+    generations   = pdata['generations']    # 500
+    ytick_t       = pdata['ytick_t']
+    yminorticks_t = pdata['yminorticks_t']
+
+    bene          = pdata['bene']           # [0,1]
+    dele          = pdata['dele']           # [4,5]
+    p_1           = pdata['p_1']            # [6,7] , special sites 1
+    p_2           = pdata['p_2']            # [8,9] , special sites 2
+
+    fB            = pdata['s_ben']          # 0.02
+    fD            = pdata['s_del']          # -0.02
+    fi_1          = pdata['fi_1']           # time-varying selection coefficient for special sites 1
+    fi_2          = pdata['fi_2']           # time-varying selection coefficient for special sites 2
+
+    savepdf       = pdata['savepdf']         # True 
+
+    p_tv = p_1 + p_2
+
+    # get data
+    data        = np.loadtxt("%s/%s/sequences/example-%s.dat"%(SIM_DIR,sim_dir,name.split('_')[0]))
+    timepoints  = int(generations) + 1
+    times       = np.linspace(0,generations,timepoints)
+    
+    data_full1    = np.load('%s/%s/%s/c_%s.npz'%(SIM_DIR,sim_dir,output1,name), allow_pickle="True")
+    sc_full       = data_full1['selection']
+    TimeVaryingSC = [np.average(sc_full[i]) for i in range(seq_length)]
+
+    data_full2 = np.load('%s/%s/%s/c_%s.npz'%(SIM_DIR,sim_dir,output2,name), allow_pickle="True")
+    sc_tv      = data_full2['selection']
+    sc_average = [np.average(sc_tv[i]) for i in range(seq_length)]
+
+    # Allele frequency x
+    x     = []
+    for t in range(timepoints):
+        idx    = data.T[0]==times[t]
+        t_data = data[idx].T[2:].T
+        t_num  = data[idx].T[1].T
+        t_freq = np.einsum('i,ij->j', t_num, t_data) / float(np.sum(t_num))
+        x.append(t_freq)
+    x = np.array(x).T # get allele frequency (binary case)
+
+    # set up figure grid
+    fig   = plt.figure(figsize=(DOUBLE_COLUMN, SINGLE_COLUMN*1.1),dpi=500)
+
+    box_tra = dict(left=0.15, right=0.47, bottom=0.72, top=0.95)
+    box_le  = dict(left=0.60, right=0.80, bottom=0.72, top=0.95)
+
+    box_tc1  = dict(left=0.15, right=0.47, bottom=0.38, top=0.61)
+    box_tc2  = dict(left=0.60, right=0.92, bottom=0.38, top=0.61)
+
+    box_sc1  = dict(left=0.15, right=0.27, bottom=0.05, top=0.25)
+    box_sc2  = dict(left=0.35, right=0.47, bottom=0.05, top=0.25)
+    box_sc3  = dict(left=0.60, right=0.92, bottom=0.05, top=0.25)
+
+    gs_tra  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tra)
+    gs_le   = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_le)
+    gs_tc1  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tc1)
+    gs_tc2  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tc2)
+    gs_sc1  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_sc1)
+    gs_sc2  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_sc2)
+    gs_sc3  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_sc3)
+
+    ax_tra  = plt.subplot(gs_tra[0, 0])
+    ax_le   = plt.subplot(gs_le[0, 0])
+    ax_tc1  = plt.subplot(gs_tc1[0, 0])
+    ax_tc2  = plt.subplot(gs_tc2[0, 0])
+    ax_sc1  = plt.subplot(gs_sc1[0, 0])
+    ax_sc2  = plt.subplot(gs_sc2[0, 0])
+    ax_sc3  = plt.subplot(gs_sc3[0, 0])
+
+    dx = -0.08
+    dy =  0.02
+
+    # color for time-varying mutations
+    c_sin = 5 # index for sin mutation
+    c_cos = 2 # index for cos mutation
+
+    ## a -- allele frequencies
+    pprops = { 'xticks':      [0, 200, 400, 600, 800, 1000],
+               'ylim':        [0, 1.10],
+               'yticks':      [0, 1.00],
+               'yticklabels' :[0, 1],
+               'yminorticks': [0.25, 0.5, 0.75,1],
+               'nudgey':      1,
+               'xlabel':      'Generation',
+               'ylabel':      'Allele\nfrequency, ' + r'$x$',
+               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
+               'axoffset':    0.1,
+               'theme':       'open'}
+
+    # all individual sites
+    for i in range(seq_length):
+        pprops['plotprops']['alpha'] = 1
+
+        if i in bene:
+            mp.line(ax=ax_tra, x=[times], y=[x[i]], colors=[C_BEN], **pprops)
+        elif i in dele:
+            mp.line(ax=ax_tra, x=[times], y=[x[i]], colors=[C_DEL], **pprops)
+        elif i in p_1:
+            mp.line(ax=ax_tra, x=[times], y=[x[i]], colors=[C_group[c_sin]], **pprops)
+        elif i in p_2:
+            mp.line(ax=ax_tra, x=[times], y=[x[i]], colors=[C_group[c_cos]], **pprops)
+        else:
+            mp.line(ax=ax_tra, x=[times], y=[x[i]], colors=[C_NEU], **pprops)
+
+    pprops['plotprops'] = {'lw': SIZELINE, 'ls': '-', 'alpha': 0 }
+    mp.plot(type='line',ax=ax_tra, x=[[0,500]], y=[[1,1]], colors=[C_NEU], **pprops)
+
+    ax_tra.text( box_tra['left']+dx,  box_tra['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+    ##  add legend
+    sprops = { 'lw' : 0, 's' : 9., 'marker' : 'o' }
+    lprops = { 'lw' : SIZELINE, 'ls' : '-', 'alpha': 1 }
+    pprops = { 'xlim':        [ -1 ,    6],
+               'ylim':        [-0.04, 0.04],
+               'yticks':      [],
+               'xticks':      [],
+               'theme':       'open',
+               'hide':        ['left','bottom'] }
+
+    legend_x  = 1.5
+    legend_dx = 0.8
+    x_dot     = legend_x - legend_dx
+    x_line    = [legend_x - 1.4*legend_dx, legend_x - 0.6*legend_dx]
+    legend_y  = 0.035
+    legend_dy = -0.015
+
+    # constant labels
+    c_coe1         = [C_BEN, C_NEU, C_DEL]
+    legend_t  = ['Beneficial', 'Neutral', 'Deleterious']
+    for k in range(len(legend_t)):
+        mp.scatter(ax=ax_le, x=[[x_dot]], y=[[legend_y + (k *legend_dy)]],colors=[c_coe1[k]],plotprops=sprops,**pprops)
+        ax_le.text(legend_x, legend_y + (k*legend_dy), legend_t[k], ha='left', va='center', **DEF_LABELPROPS)
+
+    # time-varying labels
+    yy_sin = legend_y + 2.9 * legend_dy
+    yy_cos = legend_y + 3.1 * legend_dy
+    mp.line(ax=ax_le, x=[x_line], y=[[yy_sin, yy_sin]], colors=[C_group[c_sin]], plotprops=lprops, **pprops)
+    mp.line(ax=ax_le, x=[x_line], y=[[yy_cos, yy_cos]], colors=[C_group[c_cos]], plotprops=lprops, **pprops)
+    ax_le.text(legend_x, legend_y + (3*legend_dy), 'Time varying', ha='left', va='center', **DEF_LABELPROPS)
+
+    # true coefficient labels
+    lprops['ls'] = ':'
+    yy =  [legend_y + 4.0 * legend_dy, legend_y + 4.2 * legend_dy, legend_y + 4.4 * legend_dy]
+    mp.line(ax=ax_le, x=[x_line], y=[[yy[0], yy[0]]], colors=[C_group[c_sin]], plotprops=lprops, **pprops)
+    mp.line(ax=ax_le, x=[x_line], y=[[yy[1], yy[1]]], colors=[C_group[c_cos]], plotprops=lprops, **pprops)
+    mp.plot(type='line',ax=ax_le, x=[x_line], y=[[yy[2], yy[2]]], colors=[BKCOLOR], plotprops=lprops, **pprops)
+    ax_le.text(legend_x, yy[1], 'True \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
+
+    ## b and e -- time-varying selection coefficients (sin/cos)
+    # f        -- time-varying selection coefficients for contant site
+    pprops = { 'xticks':      [0, 200, 400, 600, 800, 1000],
+               'ylim':        [ytick_t[0], ytick_t[-1]],
+               'yticks':      ytick_t,
+               'yminorticks': yminorticks_t,
+               'yticklabels': [int(i*100) for i in ytick_t],
+               'nudgey':      1,
+               'xlabel':      'Generation',
+               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
+               'axoffset':    0.1,
+               'theme':       'open'}
+
+    # b -- time-varying selection coefficients (timevarying + constant case)
+    for ii in p_1:
+        sc_p = sc_full[ii]
+        mp.line(ax=ax_tc1, x=[times], y=[sc_p], colors=[C_group[c_sin]], **pprops)
+    for ii in p_2:
+        sc_p = sc_full[ii]
+        mp.line(ax=ax_tc1, x=[times], y=[sc_p], colors=[C_group[c_cos]], **pprops)
+
+    pprops['plotprops']['ls'] = ':'
+    mp.line(            ax=ax_tc1, x=[times], y=[fi_1], colors=[C_group[c_sin]], **pprops)
+    mp.plot(type='line',ax=ax_tc1, x=[times], y=[fi_2], colors=[C_group[c_cos]], **pprops)
+
+    ax_tc1.text(box_tc1['left']+dx, box_tc1['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+    # e -- time-varying selection coefficients (all timevarying)
+    pprops['plotprops']['ls'] = '-'
+    for ii in p_1:
+        sc_p = sc_tv[ii]
+        mp.line(ax=ax_tc2, x=[times], y=[sc_p], colors=[C_group[c_sin]], **pprops)
+    for ii in p_2:
+        sc_p = sc_tv[ii]
+        mp.line(ax=ax_tc2, x=[times], y=[sc_p], colors=[C_group[c_cos]], **pprops)
+
+    pprops['plotprops']['ls'] = ':'
+    mp.line(            ax=ax_tc2, x=[times], y=[fi_1], colors=[C_group[c_sin]], **pprops)
+    mp.plot(type='line',ax=ax_tc2, x=[times], y=[fi_2], colors=[C_group[c_cos]], **pprops)
+
+    ax_tc2.text(box_tc2['left']+dx, box_tc2['top']+dy, 'e'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+    # f -- constant selection coefficients (all timevarying)
+    pprops['plotprops']['ls'] = '-'
+    for i in range(seq_length):
+        if i not in p_tv:
+            # constant selection coefficients
+            ydat = sc_tv[i]
+            if i in bene:
+                mp.line(ax=ax_sc3, x=[times], y=[ydat], colors=[C_BEN], **pprops)
+            elif i in dele:
+                mp.line(ax=ax_sc3, x=[times], y=[ydat], colors=[C_DEL], **pprops)
+            else:
+                mp.line(ax=ax_sc3, x=[times], y=[ydat], colors=[C_NEU], **pprops)
+
+    pprops['plotprops']['ls'] = ':'
+    xdat = [times[0], times[-1]]  # to ensure line is drawn across the full time range
+    mp.line(            ax=ax_sc3, x=[xdat], y=[[fB,fB]], colors=[C_BEN], **pprops)
+    mp.line(            ax=ax_sc3, x=[xdat], y=[[ 0, 0]], colors=[C_NEU], **pprops)
+    mp.plot(type='line',ax=ax_sc3, x=[xdat], y=[[fD,fD]], colors=[C_DEL], **pprops)
+
+    ax_sc3.text(box_sc3['left']+dx, box_sc3['top']+dy, 'f'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+    ## c and d -- constant selection coefficients (beneficial/neutral/deleterious)
+    sprops = { 'lw' : 0, 's' : 9., 'marker' : 'o' }
+    pprops = { 'xlim':        [ -0.3,    6],
+               'ylim':        [-0.06, 0.06],
+               'yticks':      [-0.06, 0, 0.06],
+               'yminorticks': [-0.04,-0.02, 0.02, 0.04],
+               'yticklabels': [-6, 0, 6],
+            #    'ylim':        [-0.04, 0.04],
+            #    'yticks':      [-0.04, 0, 0.04],
+            #    'yminorticks': [-0.02, 0.02],
+            #    'yticklabels': [-4, 0, 4],
+               'xticks':      [],
+               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'theme':       'open',
+               'hide':        ['bottom'] }
+    
+    nB        = len(bene)
+    nD        = len(dele)
+    nN        = seq_length-nB-nD-len(p_1)-len(p_2)
+
+    x_ben = np.random.normal(1, 0.08, nB)
+    x_neu = np.random.normal(3, 0.16, nN)
+    x_del = np.random.normal(5, 0.08, nD)
+    x_bar = np.hstack([x_ben,x_neu,x_del])
+
+    # c -- time-varying + constant
+    for i in range(seq_length):
+        if i not in p_tv:
+            xdat = [x_bar[i]]
+            ydat = [TimeVaryingSC[i]]
+            if i in bene:
+                mp.scatter(ax=ax_sc1, x=[xdat], y=[ydat],colors=[C_BEN],plotprops=sprops,**pprops)
+            elif i in dele:
+                mp.scatter(ax=ax_sc1, x=[xdat], y=[ydat],colors=[C_DEL],plotprops=sprops,**pprops)
+            else:
+                mp.scatter(ax=ax_sc1, x=[xdat], y=[ydat],colors=[C_NEU],plotprops=sprops,**pprops)
+
+    mp.line(ax=ax_sc1, x=[[0.5, 1.5]], y=[[fB,fB]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
+    mp.line(ax=ax_sc1, x=[[2, 4]], y=[[0,0]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
+    mp.plot(type ='line',ax=ax_sc1,x=[[4.5, 5.5]], y=[[fD,fD]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
+    ax_sc1.text(box_sc1['left']+dx, box_sc1['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    
+    # d -- all time-varying
+    for i in range(seq_length):
+        if i not in p_tv:
+            xdat = [x_bar[i]]
+            ydat = [sc_average[i]]
+            if i in bene:
+                mp.scatter(ax=ax_sc2, x=[xdat], y=[ydat],colors=[C_BEN],plotprops=sprops,**pprops)
+            elif i in dele:
+                mp.scatter(ax=ax_sc2, x=[xdat], y=[ydat],colors=[C_DEL],plotprops=sprops,**pprops)
+            else:
+                mp.scatter(ax=ax_sc2, x=[xdat], y=[ydat],colors=[C_NEU],plotprops=sprops,**pprops)
+
+    mp.line(ax=ax_sc2, x=[[0.5, 1.5]], y=[[fB,fB]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
+    mp.line(ax=ax_sc2, x=[[2, 4]], y=[[0,0]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
+    mp.plot(type ='line',ax=ax_sc2,x=[[4.5, 5.5]], y=[[fD,fD]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
+    ax_sc2.text(box_sc2['left']+dx, box_sc2['top']+dy, 'd'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+    filename = sim_dir.split('-')[0]  # get the first part of the sim_dir as filename
+    if savepdf==True:
+        plt.savefig('%s/fig-%s-alltv.pdf' % (FIG_DIR,filename), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+    else:
+        plt.savefig('%s/%s-alltv/%s.jpg' % (FIG_DIR,filename,name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+
+
 def plot_trait(**pdata):
     """
     Example evolutionary trajectory for a binary 20-site system
     """
 
     # unpack passed data
-    sim_dir       = pdata['sim_dir']            # 'trait'
+    sim_dir       = pdata['sim_dir']        # 'trait'
+    seq_dir       = pdata['seq_dir']        # 'sequences'
     output        = pdata['output']         # 'output'
     name          = pdata['name']           #'1-con'
 
     seq_length    = pdata['seq_length']     # 20
-    generations   = pdata['generations']    # 500
     ytick_e       = pdata['ytick_e']
     yminorticks_e = pdata['yminorticks_e']
     ytick_f       = pdata['ytick_f']
@@ -340,12 +630,19 @@ def plot_trait(**pdata):
     savepdf       = pdata['savepdf']         # True
 
     # get data
-    data        = np.loadtxt("%s/%s/sequences/example-%s.dat"%(SIM_DIR,sim_dir,name.split('_')[0]))
+    data        = np.loadtxt("%s/%s/%s/example-%s.dat"%(SIM_DIR,sim_dir,seq_dir,name.split('_')[0]))
     ne          = len(escape_group)
-    timepoints  = int(generations) + 1
-    times       = np.linspace(0,generations,timepoints)
 
-    data_full   = np.load('%s/%s/output%s/c_%s.npz'%(SIM_DIR,sim_dir,output,name), allow_pickle="True")
+    # get raw time points
+    times = []
+    for i in range(len(data)):
+        times.append(data[i][0])
+    sample_times = np.unique(times)
+    timepoints   = len(sample_times)
+
+    time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+
+    data_full   = np.load('%s/%s/%s/c_%s.npz'%(SIM_DIR,sim_dir,output,name), allow_pickle="True")
     sc_full     = data_full['selection']
     TimeVaryingSC = [np.average(sc_full[i]) for i in range(seq_length)]
     TimeVaryingTC = sc_full[-ne:]
@@ -357,7 +654,7 @@ def plot_trait(**pdata):
     # Allele frequency x
     x     = []
     for t in range(timepoints):
-        idx    = data.T[0]==times[t]
+        idx    = data.T[0]==sample_times[t]
         t_data = data[idx].T[2:].T
         t_num  = data[idx].T[1].T
         t_freq = np.einsum('i,ij->j', t_num, t_data) / float(np.sum(t_num))
@@ -367,7 +664,7 @@ def plot_trait(**pdata):
     # Escape group frequency y
     y    = []
     for t in range(timepoints):
-        idx    = data.T[0]==times[t]
+        idx    = data.T[0]==sample_times[t]
         t_num  = data[idx].T[1].T
         t_fre     = []
         for n in range(len(escape_group)):
@@ -439,13 +736,13 @@ def plot_trait(**pdata):
     for i in range(seq_length):
         if i not in p_sites:
             if i < len(bene):
-                mp.line(ax=ax_tra1, x=[times], y=[x[i]], colors=[C_BEN], **pprops)
+                mp.line(ax=ax_tra1, x=[sample_times], y=[x[i]], colors=[C_BEN], **pprops)
             elif i >= seq_length-len(dele):
-                mp.line(ax=ax_tra1, x=[times], y=[x[i]], colors=[C_DEL], **pprops)
+                mp.line(ax=ax_tra1, x=[sample_times], y=[x[i]], colors=[C_DEL], **pprops)
             else:
-                mp.line(ax=ax_tra1, x=[times], y=[x[i]], colors = [C_NEU], **pprops)
+                mp.line(ax=ax_tra1, x=[sample_times], y=[x[i]], colors = [C_NEU], **pprops)
         else:
-            mp.line(ax=ax_tra2, x=[times], y=[x[i]], colors = [C_tv], **pprops)
+            mp.line(ax=ax_tra2, x=[sample_times], y=[x[i]], colors = [C_tv], **pprops)
     
     pprops['plotprops'] = {'lw': SIZELINE, 'ls': '-', 'alpha': 0 }
     pprops['ylabel'] = 'Constant allele\nfrequency, ' + r'$x$'
@@ -474,13 +771,13 @@ def plot_trait(**pdata):
         # if the site is escape site, plot it in figure b
         found, group = find_in_nested_list(escape_group, i)
         if found:
-            mp.line(ax=ax_tra3, x=[times], y=[x[i]], colors=[C_group[group]], **pprops)
+            mp.line(ax=ax_tra3, x=[sample_times], y=[x[i]], colors=[C_group[group]], **pprops)
 
     # escape group
     pprops['plotprops']['alpha'] = 1.0
     for n in range(ne):
-        # mp.line(ax=ax_tra3, x=[times], y=[y[n]], colors=[C_group[n]], **pprops_c)
-        mp.plot(type='line',ax=ax_tra3, x=[times], y=[y[n]], colors=[C_group[n]], **pprops)
+        # mp.line(ax=ax_tra3, x=[sample_times], y=[y[n]], colors=[C_group[n]], **pprops_c)
+        mp.plot(type='line',ax=ax_tra3, x=[sample_times], y=[y[n]], colors=[C_group[n]], **pprops)
 
     ax_tra3.text( box_tra3['left']+dx,  box_tra3['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
@@ -575,10 +872,10 @@ def plot_trait(**pdata):
     for ii in range(len(p_sites)):
         p_index = p_sites[ii]
         sc_p = sc_full[p_index]
-        mp.line(ax=ax_sp, x=[times], y=[sc_p], colors=[C_tv], **pprops)
+        mp.line(ax=ax_sp, x=[time_all], y=[sc_p], colors=[C_tv], **pprops)
 
     pprops['plotprops']['ls'] = ':'
-    mp.plot(type='line',ax=ax_sp, x=[times], y=[fi], colors=[C_tv], **pprops)
+    mp.plot(type='line',ax=ax_sp, x=[time_all], y=[fi], colors=[C_tv], **pprops)
 
     ax_sp.text(box_sp['left']+dx, box_sp['top']+dy, 'e'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
@@ -598,10 +895,10 @@ def plot_trait(**pdata):
     yy =  0.05
     for n in range(ne):
         pprops['plotprops']['ls'] = ':'
-        mp.line(ax=ax_tc, x=[times], y=[fn], colors=[C_group[n]], **pprops)
+        mp.line(ax=ax_tc, x=[time_all], y=[fn], colors=[C_group[n]], **pprops)
 
         pprops['plotprops']['ls'] = '-'
-        mp.plot(type='line',ax=ax_tc, x=[times], y=[TimeVaryingTC[n]], colors=[C_group[n]], **pprops)
+        mp.plot(type='line',ax=ax_tc, x=[time_all], y=[TimeVaryingTC[n]], colors=[C_group[n]], **pprops)
 
     ax_tc.text(box_tc['left']+dx, box_tc['top']+dy, 'f'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
@@ -1788,6 +2085,7 @@ def plot_gamma_prime_trait(**pdata):
 
     # unpack passed data
     sim_dir       = pdata['sim_dir']        # 'simple'
+    out_dir       = pdata['out_dir']        # 'output'
     generations   = pdata['generations']    # 500
     ytick_t       = pdata['ytick_t']
     yminorticks_t = pdata['yminorticks_t']
@@ -1810,7 +2108,7 @@ def plot_gamma_prime_trait(**pdata):
         output = output_suffix[ii]
         for k in range(100):
             name = str(k)
-            data_full = np.load('%s/%s/output%s/c_%s.npz'%(SIM_DIR,sim_dir,output,name), allow_pickle="True")
+            data_full = np.load('%s/%s/%s%s/c_%s.npz'%(SIM_DIR,sim_dir,out_dir,output,name), allow_pickle="True")
             sc_full   = data_full['selection']
             tc_all[k] = sc_full[-1]
     

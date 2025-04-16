@@ -451,49 +451,35 @@ def simulate_trait(**pdata):
     f.close()
 
 # loading data from dat file
-def getSequence(history,escape_group):
+def getSequence(history,escape_group,sample_times):
     sVec      = []
     nVec      = []
     eVec      = []
 
-    temp_sVec   = []
-    temp_nVec   = []
-    temp_eVec   = []
-
-    times       = []
-    time        = 0
-    times.append(time)
-
     ne          = len(escape_group)
 
-    for t in range(len(history)):
-        if history[t][0] != time:
-            time = history[t][0]
-            times.append(int(time))
-            sVec.append(temp_sVec)
-            nVec.append(temp_nVec)
-            eVec.append(temp_eVec)
-            temp_sVec   = []
-            temp_nVec   = []
-            temp_eVec   = []
+    for time in sample_times:
+        idx = history.T[0] == time
+        data_t = history[idx]
+        temp_nVec   = []
+        temp_sVec   = []
+        temp_eVec   = []
+        for t in range(len(data_t)):
+            temp_nVec.append(data_t[t][1])
+            temp_sVec.append(data_t[t][2:])
 
-        temp_nVec.append(history[t][1])
-        temp_sVec.append(history[t][2:])
-
-        if ne > 0: # the patient contains escape group
-            temp_escape = np.zeros(ne, dtype=int)
-            for n in range(ne):
-                for nn in range(len(escape_group[n])):
-                    index = escape_group[n][nn] + 2
-                    if history[t][index] != 0:
-                        temp_escape[n] = 1
-                        break
-            temp_eVec.append(temp_escape)
-
-        if t == len(history)-1:
-            sVec.append(temp_sVec)
-            nVec.append(temp_nVec)
-            eVec.append(temp_eVec)
+            if ne > 0:
+                temp_escape = np.zeros(ne, dtype=int)
+                for n in range(ne):
+                    for nn in range(len(escape_group[n])):
+                        index = escape_group[n][nn] + 2
+                        if data_t[t][index] != 0:
+                            temp_escape[n] = 1
+                            break
+                temp_eVec.append(temp_escape)
+        nVec.append(temp_nVec)
+        sVec.append(temp_sVec)
+        eVec.append(temp_eVec)
 
     return sVec,nVec,eVec
 
@@ -585,31 +571,22 @@ def infer_simple(**pdata):
     ############################################################################
     ############################## Function ####################################
 
-    def getSequence(history):
+    def getSequence(history,sample_times):
         sVec      = []
         nVec      = []
-        temp_sVec   = []
-        temp_nVec   = []
 
-        times       = []
-        time        = 0
-        times.append(time)
+        for time in sample_times:
+            idx = history.T[0] == time
+            data_t = history[idx]
+            temp_nVec   = []
+            temp_sVec   = []
 
-        for t in range(len(history)):
-            if history[t][0] != time:
-                time = history[t][0]
-                times.append(int(time))
-                sVec.append(temp_sVec)
-                nVec.append(temp_nVec)
-                temp_sVec   = []
-                temp_nVec   = []
+            for t in range(len(data_t)):
+                temp_nVec.append(data_t[t][1])
+                temp_sVec.append(data_t[t][2:])
 
-            temp_nVec.append(history[t][1])
-            temp_sVec.append(history[t][2:])
-
-            if t == len(history)-1:
-                sVec.append(temp_sVec)
-                nVec.append(temp_nVec)
+            nVec.append(temp_nVec)
+            sVec.append(temp_sVec)
 
         return sVec,nVec
 
@@ -687,7 +664,7 @@ def infer_simple(**pdata):
     time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
 
     # obtain sequence data and frequencies
-    sVec,nVec      = getSequence(data)
+    sVec,nVec      = getSequence(data,sample_times)
     x_length,muVec = getMutantS()
 
     # get all frequencies, x: single allele frequency, xx: pair allele frequency
@@ -806,6 +783,7 @@ def infer_trait(**pdata):
     # unpack passed data
     sim_dir       = pdata['dir']            # 'trait'
     xfile         = pdata['xfile']          # index of the simulation
+    seq_dir       = pdata['seq_dir']        # 'sequences'
     output_dir    = pdata['output_dir']     # 'output'
 
     seq_length    = pdata['seq_length']     # 20
@@ -952,7 +930,7 @@ def infer_trait(**pdata):
     ####################### Inference (binary case) ############################
     
     # obtain raw data and information of traits
-    data         = np.loadtxt('%s/%s/sequences/example-%s.dat'%(SIM_DIR,sim_dir,xfile))
+    data         = np.loadtxt('%s/%s/%s/example-%s.dat'%(SIM_DIR,sim_dir,seq_dir,xfile))
     escape_group = read_file('%s/traitsite/traitsite-%s.dat'%(sim_dir,xfile))
     trait_dis    = read_file('%s/traitdis/traitdis-%s.dat'%(sim_dir,xfile))
     escape_TF    = read_file('%s/traitseq.dat'%(sim_dir))
@@ -966,7 +944,7 @@ def infer_trait(**pdata):
     time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
 
     # obtain sequence data and frequencies
-    sVec,nVec,eVec = getSequence(data,escape_group)
+    sVec,nVec,eVec = getSequence(data,escape_group,sample_times)
     x_length,muVec = getMutantS()
     x_length      += ne
 
@@ -1083,10 +1061,32 @@ def infer_trait(**pdata):
     desired_sc_all = sc_all[:x_length,:]
 
     # not include the extended time points
-    sc_sample         = solution.sol(sample_times)
+    sc_sample         = solution.sol(time_all)
     desired_sc_sample = sc_sample[:x_length,:]
 
     # save the solution with constant_time-varying selection coefficient
     g = open('%s/%s/%s/c_%s.npz'%(SIM_DIR,sim_dir,output_dir,xfile), mode='w+b')
-    np.savez_compressed(g, all = desired_sc_all, selection=desired_sc_sample, time=sample_times, ExTimes=ExTimes)
+    np.savez_compressed(g, all = desired_sc_all, selection=desired_sc_sample, time=time_all, ExTimes=ExTimes)
     g.close()
+
+def cut_seq(**pdata):
+
+    # unpack passed data
+    sim_dir       = pdata['dir']           # 'trait'
+    xfile         = pdata['xfile']         # index of the simulation
+    cut_dir       = pdata['cut_dir']            # 10
+    observed_time = pdata['cut_time']      
+
+    # obtain raw data and information of traits
+    data         = np.loadtxt('%s/%s/sequences/example-%s.dat'%(SIM_DIR,sim_dir,xfile))
+
+    # write the output file - dat format
+    f = open("%s/%s/cut/%s/sequences/example-%s.dat"%(SIM_DIR,sim_dir,cut_dir,xfile),'w')
+
+    for i in range(len(data)):
+        if data[i][0] in observed_time:
+            f.write('%d\t%d\t' % (data[i][0],data[i][1]))
+            f.write(' %s' % (' '.join([str(int(j)) for j in data[i][2:]])))
+            f.write('\n')
+    
+    f.close()
