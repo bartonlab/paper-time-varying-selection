@@ -9,10 +9,9 @@ __pycache__
 */*/.DS_Store
 
 # Old data
-/data/HIV/old
+/data/simulation/trait/cut/
 /figures/trait*/
-/figures/simple/
-
+/figures/simple*/
 try.ipynb
 try.py
 /src/*.m
