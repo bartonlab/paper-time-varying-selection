@@ -1,0 +1,17 @@
+#!/bin/bash
+cd ..
+python inference_HIV.py -tag 700010040-3 -output output-fixation || echo "CH040-3 failed, continuing with next script..." 
+python inference_HIV.py -tag 700010040-5 -output output-fixation || echo "CH040-5 failed, continuing with next script..." 
+python inference_HIV.py -tag 704010042-3 -output output-fixation || echo "CH042-3 failed, continuing with next script..." 
+python inference_HIV.py -tag 704010042-5 -output output-fixation || echo "CH042-5 failed, continuing with next script..." 
+python inference_HIV.py -tag 700010058-5 -output output-fixation || echo "CH058-5 failed, continuing with next script..." 
+python inference_HIV.py -tag 700010077-3 -output output-fixation || echo "CH077-3 failed, continuing with next script..." 
+python inference_HIV.py -tag 703010131-3 -output output-fixation || echo "CH131-3 failed, continuing with next script..." 
+python inference_HIV.py -tag 703010159-3 -output output-fixation || echo "CH159-3 failed, continuing with next script..." 
+python inference_HIV.py -tag 705010162-3 -output output-fixation || echo "CH162-3 failed, continuing with next script..." 
+python inference_HIV.py -tag 706010164-3 -output output-fixation || echo "CH164-3 failed, continuing with next script..." 
+python inference_HIV.py -tag 703010256-3 -output output-fixation || echo "CH256-3 failed, continuing with next script..." 
+python inference_HIV.py -tag 700010470-3 -output output-fixation || echo "CH470-3 failed, continuing with next script..." 
+python inference_HIV.py -tag 700010470-5 -output output-fixation || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV.py -tag 700010607-3 -output output-fixation || echo "CH607-3 failed, continuing with next script..." 
+echo "All scripts have been attempted."

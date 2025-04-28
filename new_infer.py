@@ -121,7 +121,7 @@ def main(args):
     parser.add_argument('-g1',           type=float,  default=10,                   help='regularization restricting the magnitude of the selection coefficients')
     parser.add_argument('-g2c',          type=float,  default=100000,               help='regularization restricting the time derivative of the selection coefficients,constant')
     parser.add_argument('-g2tv',         type=float,  default=50,                   help='regularization restricting the time derivative of the selection coefficients,time varying')
-    parser.add_argument('-o',            type=float,  default=10,                   help='magnetitude of negative guassian distribution')
+    parser.add_argument('-o',            type=float,  default=100,                  help='magnetitude of negative guassian distribution')
     parser.add_argument('--raw',         action='store_true',  default=False,       help='whether or not to save the raw data')
     parser.add_argument('--TV',          action='store_false', default=True,        help='whether or not to infer')
     parser.add_argument('--cr',          action='store_true', default=False,        help='whether or not to use a constant recombination rate')
@@ -607,6 +607,14 @@ def main(args):
     gamma_1 = get_gamma1(sample_times[-1])
     gamma_2 = get_gamma2(time_all,beta)
 
+    # Check if mutant epitope fixed
+    fixation_tag = [False] * ne
+    for n in range(ne):
+        x_epitope = x.T[-ne+n]
+    
+        if np.max(x_epitope[:-1]) == 1 and x_epitope[-1] == 1:
+            fixation_tag[n] = True
+
     # Use linear interpolates to get the input arrays at any integer time point
     interp_x   = interp1d(sample_times, x, axis=0, kind='linear', bounds_error=False, fill_value=0)
     interp_xx  = interp1d(sample_times, xx, axis=0, kind='linear', bounds_error=False, fill_value=0)
@@ -639,6 +647,7 @@ def main(args):
     if print_time:
         start_time = time_module.time()
 
+    gamma_1_epi_original = gamma_1[0]/10 * np.ones(ne)
     # solve the bounadry condition ODE to infer selections
     def fun(time,s):
         """ Function defining the right-hand side of the system of ODE's"""
@@ -655,11 +664,17 @@ def main(args):
             # set value for gamma_1 of traits part
             # high covariance with positive part and low covariance with negative part
             for n in range(ne):
-                if s[x_length-ne+n, ti] < 0:
-                    gamma_1[x_length-ne+n] = gamma_1[0]*omega
-                else:
-                    gamma_1[x_length-ne+n] = gamma_1[0]/10
+                
+                if fixation_tag[n] == True:
+                    if x[x_length-ne+n, ti] == 1:
+                        gamma_1_epi_original[n] = gamma_1[0]/1000 # gamma_1e/100, gamma_1e = gamma_1/10
+                        fixation_tag[n] = False # skip this judgment in next loops
 
+                if s[x_length-ne+n, ti] < 0:
+                    gamma_1[x_length-ne+n] = gamma_1_epi_original[n]*omega
+                else:
+                    gamma_1[x_length-ne+n] = gamma_1_epi_original[n]
+                
             if t < 0 or t > sample_times[-1]:
                 # get gamma2 for extrapolated time points
                 if t < 0:
@@ -669,6 +684,8 @@ def main(args):
 
                 # s'' = gamma1* s(t)/gamma1(t)
                 dsdt[x_length:, ti] = gamma_1 * s[:x_length, ti] / gamma2_t
+                
+                # Gamma distribution : wrong result
                 # for i in range(x_length): 
                 #     if i < x_length-ne:# individual sites
                 #         dsdt[x_length+i, ti] = gamma_1[i] * s[i, ti] / gamma2_t[i]
@@ -684,6 +701,8 @@ def main(args):
         
                 # s'' = A(t)s(t) + b(t)
                 dsdt[x_length:, ti] = ((A_t+np.diag(gamma_1)) @ s[:x_length, ti] + b_t) / gamma2_t
+                
+                # Gamma distribution : wrong result
                 # for i in range(x_length): 
                 #     if i < x_length-ne:# individual sites
                 #         # gamma2 s''(t) = C @ s(t) + gamma1 s + b(t)

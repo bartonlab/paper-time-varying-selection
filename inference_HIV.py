@@ -593,8 +593,22 @@ def main(args):
     # get gamma_1 and gamma_2
     gamma_1s = round(gamma_1/sample_times[-1],3) # constant MPL gamma value / max time
     gamma_1e = gamma_1s/10
+    gamma_1e_original = gamma_1e * np.ones(ne)
     gamma_1   = np.ones(x_length)*gamma_1s # set gamma_1 for traits at ODE part
     gamma_2 = get_gamma2(time_all,beta)
+
+    # Check if mutant epitope fixed and find the fixation time
+    fixation_time = np.zeros(ne)
+    for n in range(ne):
+        x_epitope = x.T[-ne+n]
+
+        # check if the mutant epitope is fixed
+        if np.max(x_epitope[:-1]) == 1 and x_epitope[-1] == 1:
+            # Find the fixation time
+            for ti in range(len(x_epitope)-1):
+                if x_epitope[ti] == 1 and x_epitope[ti+1] == 1:
+                    fixation_time[n] = sample_times[ti]
+                    break
 
     # Use linear interpolates to get the input arrays at any integer time point
     interp_x   = interp1d(sample_times, x, axis=0, kind='linear', bounds_error=False, fill_value=0)
@@ -644,10 +658,14 @@ def main(args):
             # set value for gamma_1 of traits part
             # high covariance with positive part and low covariance with negative part
             for n in range(ne):
+                if fixation_time[n] != 0 and t > fixation_time[n]:
+                    gamma_1e_original[n] = gamma_1e/100
+                    fixation_time[n] = 0 # skip this judgment in next loops
+
                 if s[x_length-ne+n, ti] < 0:
-                    gamma_1[x_length-ne+n] = gamma_1e * 100
+                    gamma_1[x_length-ne+n] = gamma_1e*10
                 else:
-                    gamma_1[x_length-ne+n] = gamma_1e
+                    gamma_1[x_length-ne+n] = gamma_1e_original[n]
 
             if t < 0 or t > sample_times[-1]:
                 # get gamma2 for extrapolated time points
