@@ -91,6 +91,23 @@ DEF_SUBLABELPROPS = {
     'clip_on' : False
 }
 
+ticklength   = 3
+tickpad      = 3
+axwidth      = 0.4
+
+def_tickprops = {
+    'length'    : ticklength,
+    'width'     : axwidth/2,
+    'pad'       : tickpad,
+    'axis'      : 'both',
+    'direction' : 'out',
+    'colors'    : '#252525',
+    'bottom'    : True,
+    'left'      : True,
+    'top'       : False,
+    'right'     : False
+    }
+
 # GLOBAL VARIABLES -- simulation
 NUC = ['-', 'A', 'C', 'G', 'T']
 
@@ -1523,6 +1540,8 @@ def plot_HIV_new(**pdata):
     xminortick = pdata['xminortick']
     ytick      = pdata['ytick']
     yminortick = pdata['yminortick']
+    respon_x = pdata['respon_x']
+    respon_y = pdata['respon_y']
     savepdf    = pdata['savepdf']
 
     tags = ['700010058-5','705010162-3', '700010077-3', '700010040-3']
@@ -1557,18 +1576,18 @@ def plot_HIV_new(**pdata):
     fig   = plt.figure(figsize=(w, goldh),dpi=500)
 
     box_top  = dict(left=0.05, right=0.95, bottom=0.75, top=0.95)
-    box_tra  = dict(left=0.15, right=0.50, bottom=0.10, top=0.68)
-    box_tc   = dict(left=0.61, right=0.96, bottom=0.10, top=0.68)
+    box_tra  = dict(left=0.10, right=0.43, bottom=0.10, top=0.68)
+    box_tc   = dict(left=0.51, right=0.84, bottom=0.10, top=0.68)
 
     gs_top = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_top)
-    gs_tra = gridspec.GridSpec(len(tags), 1, width_ratios=[1], height_ratios=[1 for k in range(len(tags))], hspace=0.35, **box_tra)
-    gs_tc  = gridspec.GridSpec(len(tags), 1, width_ratios=[1], height_ratios=[1 for k in range(len(tags))], hspace=0.35, **box_tc)
+    gs_tra = gridspec.GridSpec(len(tags), 1, width_ratios=[1], height_ratios=[1 for k in range(len(tags))], hspace=0.40, **box_tra)
+    gs_tc  = gridspec.GridSpec(len(tags), 1, width_ratios=[1], height_ratios=[1 for k in range(len(tags))], hspace=0.40, **box_tc)
 
     ax_top  = plt.subplot(gs_top[0, 0])
     ax_tra  = [plt.subplot(gs_tra[i, 0]) for i in range(len(tags))]
     ax_tc   = [plt.subplot(gs_tc[i, 0]) for i in range(len(tags))]
 
-    dx = -0.10
+    dx =  -0.04
     dy =  0.04
     
     # a -- inset HIV schematic
@@ -1627,7 +1646,31 @@ def plot_HIV_new(**pdata):
 
     ax_tra[0].text(box_tra['left']+dx,  box_tra['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
     
-    ## c -- inferred escape coefficients
+    ## c2
+    # T cell intensity
+    pprops = { 'yticks':      [0 , 0.5, 1.0],
+               'yminorticks': [0.25, 0.75],
+               'ylabel'      : 'SFU/ ' + r'$10^6$' + '\n PBMCs',
+               'axoffset':    0.1,
+               'tickprops':  def_tickprops,
+               'noaxes':     True,
+               'show':       ['right'],
+               'combine'     : True}
+    
+    pprops['tickprops']['right'] = True
+    pprops['tickprops']['left'] = False
+    pprops['tickprops']['bottom'] = False
+
+    for n in range(len(tags)):
+        ax2 = ax_tc[n].twinx()
+        pprops['xlim'] = [xtick[n][0], xtick[n][-1]]
+        pprops['xtick'] = []
+        lprops = {'lw': SIZELINE, 'ls': ':', 'alpha': 0.8 }
+        x_dat = respon_x[n]
+        y_dat = respon_y[n]/np.max(respon_y[n])
+        mp.plot(type='line', ax=ax2, x=[x_dat], y=[y_dat], colors=[C_group[n]], plotprops=lprops, **pprops)
+
+    ## c1 -- inferred escape coefficients
     pprops = { 'axoffset':    0.1,
                'theme':       'open',
                'combine'     : True}
@@ -1645,7 +1688,7 @@ def plot_HIV_new(**pdata):
 
         lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.5 }
         mp.line(ax=ax_tc[n], x=[times_all[n]], y=[tc_all_ex_all[n]], colors=[C_group[n]],plotprops=lprops, **pprops)
-
+        
         sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':1}
         mp.plot(type='scatter', ax=ax_tc[n], x=[sample_times_all[n]], y=[tc_sample_ex_all[n][:]], colors=[C_group[n]],plotprops=sprops, **pprops)
         
@@ -1653,8 +1696,8 @@ def plot_HIV_new(**pdata):
         ax_tc[n].axhline(y=var_ec_all[n], ls=':', lw=SIZELINE, color=C_group[n])
     
     c_x  = (xtick[0][-1] + xtick[0][0])/2
-    c_y  = ytick[0][-1] * 1.2
-    ax_tc[0].text(c_x, c_y, 'Inferred escape\n coefficient, ' + r'$\hat{s}$' + ' (%)', ha='center', va='center', **DEF_LABELPROPS)
+    c_y  = ytick[0][-1] * 1.4
+    ax_tc[0].text(c_x, c_y, 'Inferred escape coefficient, ' + r'$\hat{s}$' + ' (%) \n & Normolized T cell\nresponses in PBMCs', ha='center', va='center', **DEF_LABELPROPS)
 
     ax_tc[0].text(box_tc['left']+dx,  box_tc['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
     

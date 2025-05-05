@@ -117,7 +117,6 @@ def main(args):
     parser.add_argument('-name',         type=str,    default='',                   help='suffix for output data')
     parser.add_argument('-dir',          type=str,    default='data/HIV',           help='directory for HIV data')
     parser.add_argument('-output',       type=str,    default='output',             help='directory for HIV data')
-    parser.add_argument('-beta',         type=float,  default=4.0,                  help='magnification of extended gamma_2 at the ends')
     parser.add_argument('-g1',           type=float,  default=10,                   help='regularization restricting the magnitude of the selection coefficients')
     parser.add_argument('-g2c',          type=float,  default=100000,               help='regularization restricting the time derivative of the selection coefficients,constant')
     parser.add_argument('-g2tv',         type=float,  default=50,                   help='regularization restricting the time derivative of the selection coefficients,time varying')
@@ -125,6 +124,8 @@ def main(args):
     parser.add_argument('--TV',          action='store_false', default=True,        help='whether or not to infer')
     parser.add_argument('--cr',          action='store_true', default=False,        help='whether or not to use a constant recombination rate')
     parser.add_argument('--pt',          action='store_false', default=True,        help='whether or not to print the execution time')
+    parser.add_argument('-theta',        type=float,  default=100,                  help='magnification of fixation gamma')
+
     
     arg_list  = parser.parse_args(args)
 
@@ -132,7 +133,7 @@ def main(args):
     name       = arg_list.name
     HIV_DIR    = arg_list.dir
     output_dir = arg_list.output
-    beta       = arg_list.beta
+    theta      = arg_list.theta
     gamma_1    = arg_list.g1     # regularization parameter, which will be change according to the time points
     gamma_2c   = arg_list.g2c
     gamma_2tv  = arg_list.g2tv
@@ -394,11 +395,12 @@ def main(args):
 
     # regularization value gamma_1 and gamma_2
     # gamma_1: time-independent, gamma_2: time-dependent    
-    def get_gamma2(times, beta):
+    def get_gamma2(times):
         # Use a time-varying gamma_prime, gamma_2tv is the middle value, 
         # boundary value is 4 times larger, decrese/increase exponentially within 10% generation.
         gamma_t = np.ones(len(times))
         tv_range = max(int(round(times[-1]*0.1/10)*10),1)
+        beta   = 4
         alpha  = np.log(beta) / tv_range
         for ti, t in enumerate(times): # loop over all time points, ti: index, t: time
             if t <= tv_range:
@@ -595,7 +597,7 @@ def main(args):
     gamma_1e = gamma_1s/10
     gamma_1e_original = gamma_1e * np.ones(ne)
     gamma_1   = np.ones(x_length)*gamma_1s # set gamma_1 for traits at ODE part
-    gamma_2 = get_gamma2(time_all,beta)
+    gamma_2 = get_gamma2(time_all)
 
     # Check if mutant epitope fixed and find the fixation time
     fixation_time = np.zeros(ne)
@@ -659,11 +661,11 @@ def main(args):
             # high covariance with positive part and low covariance with negative part
             for n in range(ne):
                 if fixation_time[n] != 0 and t > fixation_time[n]:
-                    gamma_1e_original[n] = gamma_1e/100
+                    gamma_1e_original[n] = gamma_1e/theta 
                     fixation_time[n] = 0 # skip this judgment in next loops
 
                 if s[x_length-ne+n, ti] < 0:
-                    gamma_1[x_length-ne+n] = gamma_1e*10
+                    gamma_1[x_length-ne+n] = gamma_1e*100 # keep a high penalty for negative selection 
                 else:
                     gamma_1[x_length-ne+n] = gamma_1e_original[n]
 
