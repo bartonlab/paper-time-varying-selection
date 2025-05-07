@@ -746,7 +746,7 @@ def plot_trait(**pdata):
                'nudgey':      1,
                'xlabel':      'Generation',
                'ylabel':      'Allele\nfrequency, ' + r'$x$',
-               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
+               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.8 },
                'axoffset':    0.1,
                'theme':       'open'}
 
@@ -1572,12 +1572,12 @@ def plot_HIV_new(**pdata):
     # PLOT FIGURE
     # set up figure grid
     w     = SINGLE_COLUMN
-    goldh = w*1.2
+    goldh = w * 1.31
     fig   = plt.figure(figsize=(w, goldh),dpi=500)
 
     box_top  = dict(left=0.05, right=0.95, bottom=0.75, top=0.95)
-    box_tra  = dict(left=0.10, right=0.43, bottom=0.10, top=0.68)
-    box_tc   = dict(left=0.51, right=0.84, bottom=0.10, top=0.68)
+    box_tra  = dict(left=0.10, right=0.47, bottom=0.08, top=0.62)
+    box_tc   = dict(left=0.57, right=0.94, bottom=0.08, top=0.62)
 
     gs_top = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_top)
     gs_tra = gridspec.GridSpec(len(tags), 1, width_ratios=[1], height_ratios=[1 for k in range(len(tags))], hspace=0.40, **box_tra)
@@ -1593,21 +1593,21 @@ def plot_HIV_new(**pdata):
     # a -- inset HIV schematic
 
     # use mpimg.imread to read the image
-    img = mpimg.imread('%s/figure-HIV-schematic.png'%FIG_DIR)
+    # img = mpimg.imread('%s/figure-HIV-schematic.png'%FIG_DIR)
     # ax_fit.imshow(img,aspect='equal') # display the image
     # ax_fit.axis('off') # no axis
 
     # obtain the width and height of the image
-    height, width, _ = img.shape
-    x_min, x_max = 0, width
-    y_min, y_max = -height / 2, height / 2
+    # height, width, _ = img.shape
+    # x_min, x_max = 0, width
+    # y_min, y_max = -height / 2, height / 2
 
     # show the image and set the extent
-    ax_top.imshow(img, extent=[x_min, x_max, y_min, y_max])
+    # ax_top.imshow(img, extent=[x_min, x_max, y_min, y_max])
 
     # adjust the x-axis range to make the image fit the left side of the figure
-    ax_top.set_xlim(0, width*1.0)  # the image fit the left side of the figure
-    ax_top.set_ylim(-height / 2, height / 2)  # the image fit the middle side of the figure
+    # ax_top.set_xlim(0, width*1.0)  # the image fit the left side of the figure
+    # ax_top.set_ylim(-height / 2, height / 2)  # the image fit the middle side of the figure
 
     # close the axis
     ax_top.axis('off')
@@ -1626,7 +1626,7 @@ def plot_HIV_new(**pdata):
     for n in range(len(tags)):
         # add x axis and label at the bottom
         if n == len(tags) - 1:
-            pprops['xlabel']      = 'Days after Fiebig I/II'
+            pprops['xlabel']      = 'Time (days after Fiebig I/II)'
 
         pprops['xticks'] = xtick[n]
         pprops['xminorticks'] = xminortick[n]
@@ -1642,16 +1642,17 @@ def plot_HIV_new(**pdata):
         mp.plot(type='line', ax=ax_tra[n], x=[sample_times_all[n]], y=[traj_group_all[n]], colors=[C_group[n]], **pprops)
     
     b_x  = (xtick[0][-1] + xtick[0][0])/2
-    ax_tra[0].text(b_x, 1.4, 'escape variant\nfrequency', ha='center', va='center', **DEF_LABELPROPS)
+    ax_tra[0].text(b_x, 1.4, 'Escape mutant\nfrequency', ha='center', va='center', **DEF_LABELPROPS)
 
     ax_tra[0].text(box_tra['left']+dx,  box_tra['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
     
     ## c2
     # T cell intensity
-    pprops = { 'yticks':      [0 , 0.5, 1.0],
-               'yminorticks': [0.25, 0.75],
-               'ylabel'      : 'SFU/ ' + r'$10^6$' + '\n PBMCs',
-               'axoffset':    0.1,
+    pprops = { 'yticks':      [0, 1],
+               'yminorticks': [0.25, 0.5, 0.75],
+               'ylim':        [-0.1, 1.0],
+            #    'ylabel':      'SFU/ ' + r'$10^6$' + '\n PBMCs',
+               'axoffset':    0.0,
                'tickprops':  def_tickprops,
                'noaxes':     True,
                'show':       ['right'],
@@ -1678,28 +1679,47 @@ def plot_HIV_new(**pdata):
     for n in range(len(tags)):
         # add x axis and label at the bottom
         if n == len(tags) - 1:
-            pprops['xlabel']      = 'Days after Fiebig I/II'
+            pprops['xlabel']      = 'Time (days after Fiebig I/II)'
 
         pprops['xticks'] = xtick[n]
         pprops['xminorticks'] = xminortick[n]
         pprops['yticks'] = ytick[n]
         pprops['yminorticks'] = yminortick[n]
         pprops['yticklabels'] = [int(i*100) for i in ytick[n]]
+        pprops['ylim'] = [-0.1 * ytick[n][-1], 1.0 * ytick[n][-1]]
 
         lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.5 }
-        mp.line(ax=ax_tc[n], x=[times_all[n]], y=[tc_all_ex_all[n]], colors=[C_group[n]],plotprops=lprops, **pprops)
+        mp.line(ax=ax_tc[n], x=[times_all[n]], y=[tc_all_ex_all[n]], colors=[C_group[n]], plotprops=lprops, **pprops)
         
-        sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':1}
+        sprops = {'lw': 0, 's': 6, 'marker': 'o', 'alpha': 1}
         mp.plot(type='scatter', ax=ax_tc[n], x=[sample_times_all[n]], y=[tc_sample_ex_all[n][:]], colors=[C_group[n]],plotprops=sprops, **pprops)
         
-        ax_tc[n].axhline(y=0, ls='--', lw=SIZELINE/2, color=BKCOLOR)
-        ax_tc[n].axhline(y=var_ec_all[n], ls=':', lw=SIZELINE, color=C_group[n])
+        # ax_tc[n].axhline(y=0, ls='--', lw=SIZELINE/2, color=BKCOLOR)
+        # ax_tc[n].axhline(y=var_ec_all[n], ls=':', lw=SIZELINE, color=C_group[n])
     
-    c_x  = (xtick[0][-1] + xtick[0][0])/2
-    c_y  = ytick[0][-1] * 1.4
-    ax_tc[0].text(c_x, c_y, 'Inferred escape coefficient, ' + r'$\hat{s}$' + ' (%) \n & Normolized T cell\nresponses in PBMCs', ha='center', va='center', **DEF_LABELPROPS)
+    # c_x  = (xtick[0][-1] + xtick[0][0])/2
+    # c_y  = ytick[0][-1] * 1.4
+    # ax_tc[0].text(c_x, c_y, 'Inferred escape coefficient, ' + r'$\hat{s}$' + ' (%) \n & Normolized T cell\nresponses in PBMCs', ha='center', va='center', **DEF_LABELPROPS)
 
-    ax_tc[0].text(box_tc['left']+dx,  box_tc['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    # ax_tc[0].text(box_tc['left']+dx,  box_tc['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+    # true coefficient label
+    lprops_s = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.5, 'clip_on': False}
+    lprops_T = {'lw': SIZELINE, 'ls': ':', 'alpha': 0.8, 'clip_on': False}
+    legend_y  = 0.20
+    legend_dy = 0.04
+    legend_x  = 140
+    legend_dx = 30
+    x_line = [legend_x - 1.3*legend_dx, legend_x - 0.6*legend_dx]
+    yy = [legend_y, legend_y-legend_dy]
+
+    sprops = {'lw': 0, 's': 6, 'marker': 'o', 'alpha': 1, 'clip_on': False}
+    mp.scatter(ax=ax_tc[0], x=[x_line], y=[[yy[0], yy[0]]], colors=[BKCOLOR], plotprops=sprops, **pprops)
+    mp.line(ax=ax_tc[0], x=[x_line], y=[[yy[0], yy[0]]], colors=[BKCOLOR], plotprops=lprops_s, **pprops)
+    ax_tc[0].text(legend_x, yy[0], 'Escape coefficient', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
+
+    mp.line(ax=ax_tc[0], x=[x_line], y=[[yy[1], yy[1]]], colors=[BKCOLOR], plotprops=lprops_T, **pprops)
+    ax_tc[0].text(legend_x, yy[1], 'T cell intensity', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
     
     if savepdf:
         plt.savefig('%s/fig-epitope-new.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
@@ -2742,6 +2762,10 @@ def plot_single_mutation(**pdata):
 def plot_single_mutation_equation(**pdata):
 
     # unpack passed data
+    if 'seed' in pdata:
+        seed = pdata['seed']            # 0
+    else:
+        seed = 0
     generations   = pdata['generations']    # 200
     s_mutant      = pdata['s_mutant']        
     n_mutant      = pdata['n_mutant']       # 100
@@ -2781,6 +2805,8 @@ def plot_single_mutation_equation(**pdata):
 
     x_mutant = np.zeros(tps)
     # f_average = np.zeros(tps)
+
+    np.random.seed(seed)
 
     n_wild = N - n_mutant
     for t in range(tps):
@@ -2841,79 +2867,97 @@ def plot_single_mutation_equation(**pdata):
     # a -- schematic
 
     ax_11.text(box_11['left']+dx, box_11['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax_11.set_axis_off()
 
     ## b -- average fitness over time
     pprops = { 'xticks':   [0, 100, 200, 300, 400],
-            'yticks':      [ 0.92, 0.96, 1, 1.04, 1.08],
-            # 'yticklabels': [   -6,    -3, 0,    3,    6],
-            'ylabel':      'True fitness for wild type',
+            'yticks':      [ 0.96, 1, 1.04],
+            'yminorticks': [0.98, 1.02],
+            'ylim':        [0.95, 1.05],
+            'ylabel':      'Mutant fitness, ' + r'$f(t)$',
             'nudgey':      1,
-            'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0},
+            'plotprops':   {'lw': 1.5*SIZELINE, 'ls': '-', 'alpha': 1.0},
             'axoffset':    0.1,
             'theme':       'open'}
 
-    mp.plot(type='line',ax=ax_21, x=[sample_times], y=[s_mutant+1], colors=[BKCOLOR], **pprops)
+    c_fitness = '#AA6DDB'
+    mp.plot(type='line',ax=ax_21, x=[sample_times], y=[s_mutant+1], colors=[c_fitness], **pprops)
     ax_21.text(box_21['left']+dx, box_21['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
     ## c -- allele frequency for single mutation
     pprops = { 'xticks':   [0, 100, 200, 300, 400],
-            'ylim':        [0, 1.1],
-            'yticks':      [0, 1],
-            'yminorticks': [0.25, 0.5, 0.75],
+            'ylim':        [0, 1.05],
+            'yticks':      [0, 0.5, 1],
+            'yminorticks': [0.25, 0.75],
             'nudgey':      1,
-            'ylabel':      'Mutant allele frequency',
-            'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0 },
+            'ylabel':      'Mutant frequency, ' + r'$x(t)$',
+            'plotprops':   {'lw': 1.5*SIZELINE, 'ls': '-', 'alpha': 1.0 },
             'axoffset':    0.1,
             'theme':       'open'}
 
-    pprops['xlabel'] = 'Generation (days)'
+    pprops['xlabel'] = 'Time (generations)'
     mp.plot(type='line',ax=ax_31, x=[sample_times], y=[x.T[1]], colors=[BKCOLOR], **pprops)
 
     ax_31.text(box_31['left']+dx, box_31['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
     ## d -- Charge density
     pprops = { 'xticks':   [0, 100, 200, 300, 400],
-            'ylim':        [-0.00042, 0.00042],
-            'yticks':      [-0.0004, -0.0002, 0, 0.0002, 0.0004],
-            'yticklabels': [-4, -2, 0, 2, 4],
+            'ylim':        [-0.00032, 0.00032],
+            'yticks':      [-0.0003, 0, 0.0003],
+            'yminorticks': [-0.00015, 0.00015],
+            'yticklabels': [-3, 0, 3],
             'nudgey':      1,
-            'xlabel':      'Generation (days)',
-            'ylabel':      'Source term'+ r'$10^{-4}$',
-            'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0},
+            'ylabel':      'Selection source\n(10'+ r'$^{-4}$' + ' generations' + r'$^{-3}$' + ')',
+            'plotprops':   {'lw': 1.5*SIZELINE, 'ls': '-', 'alpha': 1.0},
             'axoffset':    0.1,
             'theme':       'open'}
 
-    mp.plot(type='line',ax=ax_12, x=[sample_times], y=[charge_1], colors=[BKCOLOR], **pprops)
+    c_source = '#F08F78'
+    mp.plot(type='line',ax=ax_12, x=[sample_times], y=[charge_1], colors=[c_source], **pprops)
     ax_12.text(box_12['left']+dx, box_12['top']+dy, 'd'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
     ## e -- screening length
     pprops = {'xlim':      [0, 410],
             'xticks':      [0, 100, 200, 300, 400],
-            'yticks':      [0, 50, 100],
+            'yticks':      [0, 30, 60],
+            'yminorticks': [15, 45],
             # 'yticklabels': [0, 50, 100],
             'nudgey':      1,
-            'ylabel':      'Screening length',
-            'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0},
+            'ylabel':      'Screening length\n(generations)',
+            'plotprops':   {'lw': 1.5*SIZELINE, 'ls': '-', 'alpha': 1.0},
             'axoffset':    0.1,
             'theme':       'open'}
 
-    mp.plot(type='line',ax=ax_22, x=[sample_times], y=[screening_11_t], colors=[BKCOLOR], **pprops)
+    c_screen = '#72ACF3'
+    mp.plot(type='line',ax=ax_22, x=[sample_times], y=[screening_11_t], colors=[c_screen], **pprops)
     ax_22.text(box_22['left']+dx, box_22['top']+dy, 'e'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
     ## f  -- Inferred selection coefficients and true coefficients
     pprops = { 'xticks':   [0, 100, 200, 300, 400],
-            'yticks':      [-0.08, -0.04, 0, 0.04, 0.08],
-            'yticklabels': [   -8,    -4, 0,    4,    8],
+            'yticks':      [-0.04, 0, 0.04],
+            'yticklabels': [   -4, 0,    4],
+            'yminorticks': [-0.02, 0.02],
+            'ylim':        [-0.05, 0.05],
             'nudgey':      1,
-            'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
-            'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0},
+            'xlabel':      'Time (generations)',
+            'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)',
+            'plotprops':   {'lw': 1.5*SIZELINE, 'ls': '-', 'alpha': 1.0},
             'axoffset':    0.1,
             'theme':       'open'}
 
-    mp.line(            ax=ax_32, x=[sample_times], y=[y_inferred], colors=[BKCOLOR], **pprops)
+    mp.line(            ax=ax_32, x=[sample_times], y=[y_inferred], colors=[c_fitness], **pprops)
     pprops['plotprops']['ls'] = ':'
-    mp.plot(type='line',ax=ax_32, x=[sample_times], y=[s_mutant], colors=[BKCOLOR], **pprops)
+    mp.plot(type='line',ax=ax_32, x=[sample_times], y=[s_mutant], colors=[c_fitness], **pprops)
     ax_32.text(box_32['left']+dx, box_32['top']+dy, 'f'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+    # true coefficient label
+    legend_y  = 0.04
+    legend_x  = 290
+    legend_dx = 20
+    x_line = [legend_x - 1.0*legend_dx, legend_x - 0.2*legend_dx]
+    yy = [legend_y, legend_y]
+    mp.line(ax=ax_32, x=[x_line], y=[[yy[0], yy[0]]], colors=[c_fitness], **pprops)
+    ax_32.text(legend_x, yy[1], 'True coefficient', ha='left', va='center', **DEF_LABELPROPS)
 
     # SAVE FIGURE
     if savepdf:
