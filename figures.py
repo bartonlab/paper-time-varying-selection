@@ -195,8 +195,8 @@ def plot_simple(**pdata):
                'yticklabels' :[0, 1],
                'yminorticks': [0.25, 0.5, 0.75,1],
                'nudgey':      1,
-               'xlabel':      'Generation',
-               'ylabel':      'Allele\nfrequency, ' + r'$x$',
+               'xlabel':      'Time (generations)',
+               'ylabel':      'Mutant\nfrequency, ' + r'$x(t)$',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
                'axoffset':    0.1,
                'theme':       'open'}
@@ -228,8 +228,8 @@ def plot_simple(**pdata):
                'yminorticks': yminorticks_t,
                'yticklabels': [int(i*100) for i in ytick_t],
                'nudgey':      1,
-               'xlabel':      'Generation',
-               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'xlabel':      'Time (generations)',
+               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
                'axoffset':    0.1,
                'theme':       'open'}
@@ -1437,15 +1437,15 @@ def plot_HIV_new(**pdata):
     pprops = { 'yticks':      [0, 1.0],
                'yminorticks': [0.25, 0.5, 0.75],
                'nudgey':      1.1,
-               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.4 },
+               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.4},
                'axoffset':    0.1,
                'theme':       'open',
-               'combine'     : True}
+               'combine':     True}
 
     for n in range(len(tags)):
         # add x axis and label at the bottom
         if n == len(tags) - 1:
-            pprops['xlabel']      = 'Time (days after Fiebig I/II)'
+            pprops['xlabel'] = 'Time (days after Fiebig I/II)'
 
         pprops['xticks'] = xtick[n]
         pprops['xminorticks'] = xminortick[n]
@@ -1460,8 +1460,8 @@ def plot_HIV_new(**pdata):
         pprops['plotprops']['alpha'] = 1
         mp.plot(type='line', ax=ax_tra[n], x=[sample_times_all[n]], y=[traj_group_all[n]], colors=[C_group[n]], **pprops)
     
-    b_x  = (xtick[0][-1] + xtick[0][0])/2
-    ax_tra[0].text(b_x, 1.4, 'Escape mutant\nfrequency', ha='center', va='center', **DEF_LABELPROPS)
+    # b_x  = (xtick[0][-1] + xtick[0][0])/2
+    # ax_tra[0].text(b_x, 1.4, 'Escape mutant\nfrequency', ha='center', va='center', **DEF_LABELPROPS)
 
     ax_tra[0].text(box_tra['left']+dx,  box_tra['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
     
@@ -1500,7 +1500,7 @@ def plot_HIV_new(**pdata):
     for n in range(len(tags)):
         # add x axis and label at the bottom
         if n == len(tags) - 1:
-            pprops['xlabel']      = 'Time (days after Fiebig I/II)'
+            pprops['xlabel'] = 'Time (days after Fiebig I/II)'
         
         pprops['xlim'] = [xtick[n][0], xtick[n][-1]*1.015]
         pprops['xticks'] = xtick[n]
@@ -1525,6 +1525,22 @@ def plot_HIV_new(**pdata):
 
     # ax_tc[0].text(box_tc['left']+dx,  box_tc['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
+    # frequency label
+    lprops_e = {'lw': SIZELINE, 'ls': '-', 'alpha': 1, 'clip_on': False}
+    lprops_m = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.4, 'clip_on': False}
+    legend_y  = 1.07 * 0.22 / (0.15)
+    legend_dy = 0.04 / (0.15)
+    legend_x  = 60
+    legend_dx = 30
+    x_line = [legend_x - 1.3*legend_dx, legend_x - 0.6*legend_dx]
+    yy = [legend_y, legend_y-legend_dy]
+
+    mp.line(ax=ax_tra[0], x=[x_line], y=[[yy[0], yy[0]]], colors=[BKCOLOR], plotprops=lprops_e, **pprops)
+    ax_tra[0].text(legend_x, yy[0], 'Escape frequency', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
+
+    mp.line(ax=ax_tra[0], x=[x_line], y=[[yy[1], yy[1]]], colors=[BKCOLOR], plotprops=lprops_m, **pprops)
+    ax_tra[0].text(legend_x, yy[1], 'Mutant frequency', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
+
     # true coefficient label
     lprops_s = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.5, 'clip_on': False}
     lprops_T = {'lw': SIZELINE, 'ls': ':', 'alpha': 0.8, 'clip_on': False}
@@ -1538,10 +1554,10 @@ def plot_HIV_new(**pdata):
     sprops = {'lw': 0, 's': 6, 'marker': 'o', 'alpha': 1, 'clip_on': False}
     mp.scatter(ax=ax_tc[0], x=[x_line], y=[[yy[0], yy[0]]], colors=[BKCOLOR], plotprops=sprops, **pprops)
     mp.line(ax=ax_tc[0], x=[x_line], y=[[yy[0], yy[0]]], colors=[BKCOLOR], plotprops=lprops_s, **pprops)
-    ax_tc[0].text(legend_x, yy[0], 'Escape coefficient, ' + r'$\hat{s}$' + ' (%)', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
+    ax_tc[0].text(legend_x, yy[0], 'Escape coefficient, ' + r'$\hat{s}(t)$' + ' (%)', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
 
     mp.line(ax=ax_tc[0], x=[x_line], y=[[yy[1], yy[1]]], colors=[BKCOLOR], plotprops=lprops_T, **pprops)
-    ax_tc[0].text(legend_x, yy[1], 'Normalized T cell intensity', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
+    ax_tc[0].text(legend_x, yy[1], 'Normalized CTL intensity', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
     
     if savepdf:
         plt.savefig('%s/fig-epitope-new.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
@@ -2666,12 +2682,12 @@ def plot_single_mutation_equation(**pdata):
     goldh = w * 0.6
     fig   = plt.figure(figsize=(w, goldh),dpi=1000)
 
-    box_11 = dict(left=0.12, right=0.46, bottom=0.74, top=0.96)
-    box_12 = dict(left=0.61, right=0.95, bottom=0.74, top=0.96)
-    box_21 = dict(left=0.12, right=0.46, bottom=0.42, top=0.64)
-    box_22 = dict(left=0.61, right=0.95, bottom=0.42, top=0.64)
-    box_31 = dict(left=0.12, right=0.46, bottom=0.10, top=0.32)
-    box_32 = dict(left=0.61, right=0.95, bottom=0.10, top=0.32)
+    box_11 = dict(left=0.08, right=0.46, bottom=0.73, top=0.95)
+    box_12 = dict(left=0.59, right=0.97, bottom=0.73, top=0.95)
+    box_21 = dict(left=0.08, right=0.46, bottom=0.41, top=0.63)
+    box_22 = dict(left=0.59, right=0.97, bottom=0.41, top=0.63)
+    box_31 = dict(left=0.08, right=0.46, bottom=0.09, top=0.31)
+    box_32 = dict(left=0.59, right=0.97, bottom=0.09, top=0.31)
 
     gs_11  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_11)
     gs_12  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_12)
@@ -2687,7 +2703,7 @@ def plot_single_mutation_equation(**pdata):
     ax_31 = plt.subplot(gs_31[0, 0])
     ax_32 = plt.subplot(gs_32[0, 0])
 
-    dx = -0.08
+    dx = -0.04
     dy =  0.02
 
     # a -- schematic
@@ -2700,7 +2716,7 @@ def plot_single_mutation_equation(**pdata):
             'yticks':      [ 0.96, 1, 1.04],
             'yminorticks': [0.98, 1.02],
             'ylim':        [0.95, 1.05],
-            'ylabel':      'Mutant fitness, ' + r'$f(t)$',
+            'ylabel':      'Mutant fitness,\n' + r'$f(t) = 1 + s(t)$',
             'nudgey':      1,
             'plotprops':   {'lw': 1.5*SIZELINE, 'ls': '-', 'alpha': 1.0},
             'axoffset':    0.1,
@@ -2709,6 +2725,8 @@ def plot_single_mutation_equation(**pdata):
     c_fitness = '#AA6DDB'
     mp.plot(type='line',ax=ax_21, x=[sample_times], y=[s_mutant+1], colors=[c_fitness], **pprops)
     ax_21.text(box_21['left']+dx, box_21['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+    # ax_21.text(legend_x, yy[1], 'True coefficient', ha='left', va='center', **DEF_LABELPROPS)
 
     ## c -- allele frequency for single mutation
     pprops = { 'xticks':   [0, 100, 200, 300, 400],
@@ -2733,7 +2751,7 @@ def plot_single_mutation_equation(**pdata):
             'yminorticks': [-0.00015, 0.00015],
             'yticklabels': [-3, 0, 3],
             'nudgey':      1,
-            'ylabel':      'Selection source\n(10'+ r'$^{-4}$' + ' generations' + r'$^{-3}$' + ')',
+            'ylabel':      'Fitness source\n(10'+ r'$^{-4}$' + ' generations' + r'$^{-3}$' + ')',
             'plotprops':   {'lw': 1.5*SIZELINE, 'ls': '-', 'alpha': 1.0},
             'axoffset':    0.1,
             'theme':       'open'}
@@ -2994,7 +3012,7 @@ def plot_epitopes(**pdata):
     # true coefficient label
     legend_x = (xtick[0] + xtick[-1])/2
     legend_y = ytick[n][-1] * 1.21
-    ax_tc[0].text(legend_x, legend_y, 'Escape coefficient, ' + r'$\hat{s}$' + ' (%) & Normalized T cell intensity', ha='center', va='center', clip_on=False, **DEF_LABELPROPS)
+    ax_tc[0].text(legend_x, legend_y, 'Escape coefficient, ' + r'$\hat{s}$' + ' (%) & Normalized CTL intensity', ha='center', va='center', clip_on=False, **DEF_LABELPROPS)
 
     ax_tc[0].text(box_tc['left']+dx,  box_tc['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
