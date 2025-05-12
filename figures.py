@@ -423,8 +423,8 @@ def plot_simple_constant(**pdata):
                'yticklabels' :[0, 1],
                'yminorticks': [0.25, 0.5, 0.75,1],
                'nudgey':      1,
-               'xlabel':      'Generation',
-               'ylabel':      'Allele\nfrequency, ' + r'$x$',
+               'xlabel':      'Time (generations)',
+               'ylabel':      'Mutant\nfrequency, ' + r'$x(t)$',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
                'axoffset':    0.1,
                'theme':       'open'}
@@ -496,8 +496,8 @@ def plot_simple_constant(**pdata):
                'yminorticks': yminorticks_t,
                'yticklabels': [int(i*100) for i in ytick_t],
                'nudgey':      1,
-               'xlabel':      'Generation',
-               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'xlabel':      'Time (generations)',
+               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
                'axoffset':    0.1,
                'theme':       'open'}
@@ -744,8 +744,8 @@ def plot_trait(**pdata):
                'yticklabels' :[0, 1],
                'yminorticks': [0.25, 0.5, 0.75,1],
                'nudgey':      1,
-               'xlabel':      'Generation',
-               'ylabel':      'Allele\nfrequency, ' + r'$x$',
+               'xlabel':      'Time (generations)',
+               'ylabel':      'Mutant\nfrequency, ' + r'$x(t)$',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.8 },
                'axoffset':    0.1,
                'theme':       'open'}
@@ -763,9 +763,9 @@ def plot_trait(**pdata):
             mp.line(ax=ax_tra2, x=[sample_times], y=[x[i]], colors = [C_tv], **pprops)
     
     pprops['plotprops'] = {'lw': SIZELINE, 'ls': '-', 'alpha': 0 }
-    pprops['ylabel'] = 'Constant allele\nfrequency, ' + r'$x$'
+    pprops['ylabel'] = 'Mutant frequency\n(constant fitness effect), ' + r'$x(t)$'
     mp.plot(type='line',ax=ax_tra1, x=[[0,1000]], y=[[1,1]], colors=[C_NEU], **pprops)
-    pprops['ylabel'] = 'Time-varying allele\nfrequency, ' + r'$x$'
+    pprops['ylabel'] = 'Mutant frequency\n(varying fitness effect), ' + r'$x(t)$'
     mp.plot(type='line',ax=ax_tra2, x=[[0,1000]], y=[[1,1]], colors=[C_NEU], **pprops)
 
     ax_tra1.text( box_tra1['left']+dx,  box_tra1['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
@@ -778,8 +778,8 @@ def plot_trait(**pdata):
                'yticklabels' :[0, 1],
                'yminorticks': [0.25, 0.5, 0.75,1],
                'nudgey':      1,
-               'xlabel':      'Generation',
-               'ylabel':      'Allele\nfrequency, ' + r'$x$',
+               'xlabel':      'Time (generations)',
+               'ylabel':      'Mutant\nfrequency, ' + r'$x(t)$',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
                'axoffset':    0.1,
                'theme':       'open'}
@@ -825,7 +825,7 @@ def plot_trait(**pdata):
     sprops['alpha'] = 0.6
     mp.scatter(ax=ax_lab, x=[[legend_x+legend_dx]], y=[[legend_y + (5 *legend_dy)]],colors=[C_group[0]],plotprops=sprops,**pprops)
     ax_lab.text(legend_x, legend_y + (4*legend_dy), 'Binary trait', ha='left', va='center', **DEF_LABELPROPS)
-    ax_lab.text(legend_x, legend_y + (5*legend_dy), 'Escape locus', ha='left', va='center', **DEF_LABELPROPS)
+    ax_lab.text(legend_x, legend_y + (5*legend_dy), 'Escape site', ha='left', va='center', **DEF_LABELPROPS)
 
     # true coefficient labels
     xx = [legend_x+1.5*legend_dx, legend_x+0.5*legend_dx]
@@ -841,7 +841,7 @@ def plot_trait(**pdata):
                'yminorticks': [-0.02, -0.01, 0.01, 0.02],
                'yticklabels': [-3, 0, 3],
                'xticks':      [],
-               'ylabel':      'Inferred constant\nselection coefficient, ' + r'$\hat{s}$' + ' (%)',
+               'ylabel':      'Inferred selection\ncoefficient (constant), ' + r'$\hat{s}$' + ' (%)',
                'theme':       'open',
                'hide':        ['bottom'] }
     
@@ -881,8 +881,8 @@ def plot_trait(**pdata):
                 'yminorticks': yminorticks_f,
                 'yticklabels': [int(i*100) for i in ytick_f],
                 'nudgey':      1,
-                'xlabel':      'Generation',
-                'ylabel':      'Inferred time-varying\nselection coefficient, ' + r'$\hat{s}$' + ' (%)',
+                'xlabel':      'TIme (generations)',
+                'ylabel':      'Inferred selection\ncoefficient (varying), ' + r'$\hat{s}(t)$' + ' (%)',
                 'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
                 'axoffset':    0.1,
                 'theme':       'open'}
@@ -904,8 +904,8 @@ def plot_trait(**pdata):
                'yminorticks': yminorticks_e,
                'yticklabels': [int(i*100) for i in ytick_e],
                'nudgey':      1,
-               'xlabel':      'Generation',
-               'ylabel':      'Inferred time-varying\ntrait coefficient, ' + r'$\hat{s}$' + ' (%)',
+               'xlabel':      'Time (generations)',
+               'ylabel':      'Inferred trait\ncoefficient (varying), ' + r'$\hat{s}(t)$' + ' (%)',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
                'axoffset':    0.1,
                'theme':       'open'}
@@ -926,6 +926,7 @@ def plot_trait(**pdata):
     else:
         plt.savefig('%s/%s/%s.jpg' % (FIG_DIR,sim_dir,name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
     
+
 def plot_simple_his(**pdata):
 
     """
@@ -1085,8 +1086,8 @@ def plot_simple_his(**pdata):
                'yminorticks': yminorticks_t,
                'yticklabels': [int(i*100) for i in ytick_t],
                'nudgey':      1,
-               'xlabel':      'Generation',
-               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'xlabel':      'Time (generations)',
+               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.15 },
                'axoffset':    0.1,
                'theme':       'open'}
@@ -1270,18 +1271,18 @@ def plot_trait_his(**pdata):
 
     mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[0][0],yy_line[0][0]]], colors=[c_epitope], **pprops)
     mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[0][1],yy_line[0][1]]], colors=[c_tv], **pprops)
-    ax_lab.text(2, yy+coef_legend_dy*2, 'Inferred \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
+    ax_lab.text(2, yy+coef_legend_dy*2, 'Inferred\ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
     pprops['plotprops']['alpha'] = 1
     pprops['plotprops']['lw'] = SIZELINE*3
     mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[1][0],yy_line[1][0]]], colors=[c_epitope], **pprops)
     mp.line(ax=ax_lab, x=[xx_line], y=[[yy_line[1][1],yy_line[1][1]]], colors=[c_tv], **pprops)
-    ax_lab.text(2, yy+coef_legend_dy, 'Average \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
+    ax_lab.text(2, yy+coef_legend_dy, 'Average\ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
     pprops['plotprops']['ls'] = ':'
     mp.line(            ax=ax_lab, x=[xx_line], y=[[yy_line[2][0],yy_line[2][0]]], colors=[c_epitope], **pprops)
     mp.plot(type='line',ax=ax_lab, x=[xx_line], y=[[yy_line[2][1],yy_line[2][1]]], colors=[c_tv], **pprops)
-    ax_lab.text(2, yy, 'True \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
+    ax_lab.text(2, yy, 'True\ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
     ## b  -- selection coefficients for special sites
     ax_tc.text(box_tc['left']+dx, box_tc['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
@@ -1292,8 +1293,8 @@ def plot_trait_his(**pdata):
                 'yminorticks': yminorticks_f,
                 'yticklabels': [int(i*100) for i in ytick_f],
                 'nudgey':      1,
-                'xlabel':      'Generation',
-                'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+                'xlabel':      'Time (generations)',
+                'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)',
                 'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.1 },
                 'axoffset':    0.15,
                 'theme':       'open'}
@@ -1326,8 +1327,8 @@ def plot_trait_his(**pdata):
                'yminorticks': yminorticks_e,
                'yticklabels': [int(i*100) for i in ytick_e],
                'nudgey':      1,
-               'xlabel':      'Generation',
-               'ylabel':      'Inferred trait\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'xlabel':      'Time (generations)',
+               'ylabel':      'Inferred trait\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.15 },
                'axoffset':    0.1,
                'theme':       'open'}
@@ -1867,8 +1868,8 @@ def plot_all_epitopes(**pdata):
                 'yminorticks': [0.25, 0.5, 0.75],
                 'nudgey':      1.1,
                 'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.8 },
-                'xlabel':      'Days after Fiebig I/II',
-                'ylabel':      'Trait frequencies',
+                'xlabel':      'Time (days after Fiebig I/II)',
+                'ylabel':      'Escape frequency',
                 'axoffset':    0.1,
                 'theme':       'open',
                 'combine':     True}
@@ -1885,12 +1886,12 @@ def plot_all_epitopes(**pdata):
     # b escape coefficients with extended time (time range:times)
     pprops = {  'xticks':      [ 0,  np.log(11),np.log(51),np.log(101), np.log(201),np.log(401),np.log(701)],
                 'xticklabels': [ 0, 10, 50, 100, 200, 400, 700],
-                'ylim':        [-0.02,0.42],
-                'yticks':      [-0.1,0,0.1,0.2,0.3,0.4],
-                'yminorticks': [-0.05,0.05,0.15,0.25,0.35],
-                'yticklabels': [-10,0,10,20,30,40],
-                'xlabel':      'Days after Fiebig I/II',
-                'ylabel':      'Inferred escape \ncoefficient, ' + r'$\hat{s}$' + ' (%)'}
+                'ylim':        [-0.02, 0.32],
+                'yticks':      [ 0,0.1,0.2,0.3],
+                'yminorticks': [ 0.05,0.15,0.25],
+                'yticklabels': [ 0,10,20,30],
+                'xlabel':      'Time (days after Fiebig I/II)',
+                'ylabel':      'Inferred escape\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)'}
 
     lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.5 }
     sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':1}
@@ -2035,7 +2036,7 @@ def plot_gamma_prime(**pdata):
 
     mp.plot(type='line',ax=ax[0][0], x=[ExTimes], y=[gamma_p[0]], colors=[BKCOLOR], **pprops)
     mp.plot(type='line',ax=ax[1][0], x=[ExTimes], y=[gamma_p[1]], colors=[BKCOLOR], **pprops)
-    pprops['xlabel'] = 'Generation'
+    pprops['xlabel'] = 'Time (generations)'
     pprops['xticklabels'] = [-500, 0, 500, 1000, 1500]
     mp.plot(type='line',ax=ax[2][0], x=[ExTimes], y=[gamma_p[2]], colors=[BKCOLOR], **pprops)
 
@@ -2088,7 +2089,7 @@ def plot_gamma_prime(**pdata):
                'yticklabels': [int(i*100) for i in ytick_t],
                'nudgey':      1,
                'xlabel':      '',
-               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.1},
                'axoffset':    0.1,
                'theme':       'open'}
@@ -2101,7 +2102,7 @@ def plot_gamma_prime(**pdata):
 
         if ii == 2:
             pprops['xticklabels'] = [0,200,400,600,800,1000]
-            pprops['xlabel'] = 'Generation'
+            pprops['xlabel'] = 'Time (generations)'
 
         pprops['plotprops']['ls'] = '-'
         for n in range(len(p_1)):
@@ -2150,7 +2151,7 @@ def plot_gamma_prime(**pdata):
 
         if ii == 2:
             pprops['xticklabels'] = [0,200,400,600,800,1000]
-            pprops['xlabel'] = 'Generation'
+            pprops['xlabel'] = 'Time (generations)'
 
         pprops['plotprops']['ls'] = '-'
         pprops['plotprops']['alpha'] = 1.0
@@ -2317,7 +2318,7 @@ def plot_gamma_prime_trait(**pdata):
                'yticklabels': [int(i*100) for i in ytick_t],
                'nudgey':      1,
                'xlabel':      '',
-               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.1},
                'axoffset':    0.1,
                'theme':       'open'}
@@ -2329,7 +2330,7 @@ def plot_gamma_prime_trait(**pdata):
 
         if ii == 2:
             pprops['xticklabels'] = [0,200,400,600,800,1000]
-            pprops['xlabel'] = 'Generation'
+            pprops['xlabel'] = 'Time (generations)'
 
         pprops['plotprops']['ls'] = '-'
         pprops['plotprops']['alpha'] = 0.1
@@ -2365,7 +2366,7 @@ def plot_gamma_prime_trait(**pdata):
 
         if ii == 2:
             pprops['xticklabels'] = [0,200,400,600,800,1000]
-            pprops['xlabel'] = 'Generation'
+            pprops['xlabel'] = 'Time (generations)'
 
         pprops['plotprops']['ls'] = '-'
         pprops['plotprops']['alpha'] = 1.0
@@ -2563,7 +2564,7 @@ def plot_single_mutation(**pdata):
                'yticks':      [0, 1],
                'yminorticks': [0.25, 0.5, 0.75],
                'nudgey':      1,
-               'ylabel':      'Allele frequency',
+               'ylabel':      'Mutant\nfrequency, ' + r'$x(t)$',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0 },
                'axoffset':    0.1,
                'theme':       'open'}
@@ -2580,7 +2581,7 @@ def plot_single_mutation(**pdata):
                'yticks':      [0, 0.02,0.04,0.06],
                'yticklabels': [0, 2, 4, 6],
                'nudgey':      1,
-               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0},
                'axoffset':    0.1,
                'theme':       'open'}
@@ -2593,8 +2594,8 @@ def plot_single_mutation(**pdata):
                'yticks':      [0, 0.02,0.04,0.06],
                'yticklabels': [0, 2, 4, 6],
                'nudgey':      1,
-               'xlabel':      'Generation (days)',
-               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}$' + ' (%)',
+               'xlabel':      'Time (generations)',
+               'ylabel':      'Inferred selection\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)',
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0},
                'axoffset':    0.1,
                'theme':       'open'}
