@@ -381,17 +381,17 @@ def plot_simple_constant(**pdata):
     x = np.array(x).T # get allele frequency (binary case)
 
     # set up figure grid
-    fig   = plt.figure(figsize=(DOUBLE_COLUMN, SINGLE_COLUMN*1.1),dpi=500)
+    fig   = plt.figure(figsize=(DOUBLE_COLUMN, SINGLE_COLUMN*1.2),dpi=500)
 
-    box_tra = dict(left=0.15, right=0.47, bottom=0.72, top=0.95)
-    box_le  = dict(left=0.60, right=0.80, bottom=0.72, top=0.95)
+    box_tra = dict(left=0.15, right=0.47, bottom=0.74, top=0.96)
+    box_le  = dict(left=0.60, right=0.80, bottom=0.74, top=0.96)
 
-    box_tc1  = dict(left=0.15, right=0.47, bottom=0.38, top=0.61)
-    box_tc2  = dict(left=0.60, right=0.92, bottom=0.38, top=0.61)
+    box_tc1  = dict(left=0.15, right=0.47, bottom=0.42, top=0.63)
+    box_tc2  = dict(left=0.60, right=0.92, bottom=0.42, top=0.63)
 
-    box_sc1  = dict(left=0.15, right=0.27, bottom=0.05, top=0.25)
-    box_sc2  = dict(left=0.35, right=0.47, bottom=0.05, top=0.25)
-    box_sc3  = dict(left=0.60, right=0.92, bottom=0.05, top=0.25)
+    box_sc1  = dict(left=0.15, right=0.27, bottom=0.11, top=0.29)
+    box_sc2  = dict(left=0.35, right=0.47, bottom=0.11, top=0.29)
+    box_sc3  = dict(left=0.60, right=0.92, bottom=0.11, top=0.29)
 
     gs_tra  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tra)
     gs_le   = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_le)
@@ -486,7 +486,7 @@ def plot_simple_constant(**pdata):
     mp.line(ax=ax_le, x=[x_line], y=[[yy[0], yy[0]]], colors=[C_group[c_sin]], plotprops=lprops, **pprops)
     mp.line(ax=ax_le, x=[x_line], y=[[yy[1], yy[1]]], colors=[C_group[c_cos]], plotprops=lprops, **pprops)
     mp.plot(type='line',ax=ax_le, x=[x_line], y=[[yy[2], yy[2]]], colors=[BKCOLOR], plotprops=lprops, **pprops)
-    ax_le.text(legend_x, yy[1], 'True \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
+    ax_le.text(legend_x, yy[1], 'True\ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
 
     ## b and e -- time-varying selection coefficients (sin/cos)
     # f        -- time-varying selection coefficients for contant site
@@ -1893,8 +1893,8 @@ def plot_all_epitopes(**pdata):
                 'xlabel':      'Time (days after Fiebig I/II)',
                 'ylabel':      'Inferred escape\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)'}
 
-    lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.5 }
-    sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':1}
+    lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.5}
+    sprops = {'lw': 0, 's': 6, 'marker': 'o', 'alpha': 1}
 
     for n in range(len(sample_times_all)):
         ne           = ne_all[n]
