@@ -8,12 +8,10 @@ __pycache__
 */.DS_Store
 */*/.DS_Store
 
-# Old data
-/data/simulation/trait/cut/*/sequences/
-/data/simulation/trait/cut/*/output/
-/data/simulation/trait/cut/*/output_1/
+# Large files
 /figures/trait*/
 /figures/simple*/
+
+# Old data
 try.ipynb
 try.py
-/src/*.m
