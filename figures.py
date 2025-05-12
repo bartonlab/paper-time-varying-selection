@@ -1486,6 +1486,7 @@ def plot_HIV_new(**pdata):
 
         pprops['xlim'] = [xtick[n][0], xtick[n][-1]*1.015]
         pprops['xtick'] = []
+        pprops['ylim'] = [-0.1, 1.0]
         
         x_dat = respon_x[n]
         y_dat = respon_y[n]/np.max(respon_y[n])
@@ -1756,7 +1757,11 @@ class FData:
     var_tag:[]
 
 def GetFigureData(out_dir,tag,HIV_DIR):
-    data_pro = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle="True")
+    try:
+        data_pro = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle="True")
+    except FileNotFoundError:
+        return FData(0,[],[],[],[],[],[],[],[])
+    
     escape_group = data_pro['escape_group']
     sample_times = data_pro['sample_times']
     ne           = len(escape_group)
@@ -2975,6 +2980,7 @@ def plot_epitopes(**pdata):
 
         pprops['xlim'] = [xtick[0], xtick[-1]*1.015]
         pprops['xtick'] = []
+        pprops['ylim'] = [-0.1, 1.0]
         
         x_dat = respon_x[n]
         y_dat = respon_y[n]/np.max(respon_y[n])
@@ -3023,206 +3029,206 @@ def plot_epitopes(**pdata):
         plt.savefig('%s/HIV/CH%s%s.jpg' % (FIG_DIR,tag[-5:],name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
 
-def plot_epitopes_compare(**pdata):
+# def plot_epitopes_compare(**pdata):
 
-    # unpack passed data
-    tag        = pdata['tag']
-    dir_names  = pdata['dir_names']
-    name       = pdata['name']
-    markers    = pdata['markers']
-    HIV_DIR    = pdata['HIV_DIR']
-    FIG_DIR    = pdata['FIG_DIR']
-    xtick      = pdata['xtick']
-    xminortick = pdata['xminortick']
-    ytick      = pdata['ytick']
-    yminortick = pdata['yminortick']
+#     # unpack passed data
+#     tag        = pdata['tag']
+#     dir_names  = pdata['dir_names']
+#     name       = pdata['name']
+#     markers    = pdata['markers']
+#     HIV_DIR    = pdata['HIV_DIR']
+#     FIG_DIR    = pdata['FIG_DIR']
+#     xtick      = pdata['xtick']
+#     xminortick = pdata['xminortick']
+#     ytick      = pdata['ytick']
+#     yminortick = pdata['yminortick']
 
-    # information for escape group
-    data_pro = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle="True")
-    escape_group = data_pro['escape_group']
-    sample_times = data_pro['sample_times']
-    ne           = len(escape_group)
+#     # information for escape group
+#     data_pro = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle="True")
+#     escape_group = data_pro['escape_group']
+#     sample_times = data_pro['sample_times']
+#     ne           = len(escape_group)
 
-    if ne == 0:
-        print(f'CH{tag[-5:]} has no binary trait')
-        return
+#     if ne == 0:
+#         print(f'CH{tag[-5:]} has no binary trait')
+#         return
     
-    # Get information for escape group
-    df_escape = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv'%(HIV_DIR,tag), memory_map=True)
+#     # Get information for escape group
+#     df_escape = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv'%(HIV_DIR,tag), memory_map=True)
     
-    epitopes = df_escape['epitope'].unique()
+#     epitopes = df_escape['epitope'].unique()
 
-    var_ec     = [] # escape coefficients for constant case
-    traj_var   = [] # frequencies for individual escape sites
-    traj_group = [] # frequencies for escape groups
-    var_tag    = [] # name for epitope
-    for n in range(len(epitopes)):
-        df_esc  = df_escape[(df_escape.epitope==epitopes[n])]
-        df_row  = df_esc.iloc[0]
-        var_ec.append(df_esc.iloc[0].tc_MPL)
+#     var_ec     = [] # escape coefficients for constant case
+#     traj_var   = [] # frequencies for individual escape sites
+#     traj_group = [] # frequencies for escape groups
+#     var_tag    = [] # name for epitope
+#     for n in range(len(epitopes)):
+#         df_esc  = df_escape[(df_escape.epitope==epitopes[n])]
+#         df_row  = df_esc.iloc[0]
+#         var_ec.append(df_esc.iloc[0].tc_MPL)
 
-        # get the name for epitopes
-        epi_nuc = ''.join(epitopes[n])
-        var_tag.append(epi_nuc[0]+epi_nuc[-1]+str(len(epi_nuc)))
+#         # get the name for epitopes
+#         epi_nuc = ''.join(epitopes[n])
+#         var_tag.append(epi_nuc[0]+epi_nuc[-1]+str(len(epi_nuc)))
 
-        # get frequencies for escape sites and groups
-        traj_group.append([df_row['xp_at_%d' % t] for t in sample_times])
-        traj_var_epi = []
-        for df_iter, df_entry in df_esc.iterrows():
-            if df_entry.nucleotide != '-': # not include '-' variants
-                traj_var_epi.append([df_entry['f_at_%d' % t] for t in sample_times])
-        traj_var.append(traj_var_epi)
+#         # get frequencies for escape sites and groups
+#         traj_group.append([df_row['xp_at_%d' % t] for t in sample_times])
+#         traj_var_epi = []
+#         for df_iter, df_entry in df_esc.iterrows():
+#             if df_entry.nucleotide != '-': # not include '-' variants
+#                 traj_var_epi.append([df_entry['f_at_%d' % t] for t in sample_times])
+#         traj_var.append(traj_var_epi)
 
-    # Import data for VL-dependent r
-    times_all     = []
-    tc_all_time   = []
-    tc_sample     = []
-    for dir_name in dir_names:
-        data_sc  = np.load('%s/%s_sc_%s.npz'%(HIV_DIR,dir_name,tag), allow_pickle="True")
-        sc_tv   = data_sc['selection']
+#     # Import data for VL-dependent r
+#     times_all     = []
+#     tc_all_time   = []
+#     tc_sample     = []
+#     for dir_name in dir_names:
+#         data_sc  = np.load('%s/%s_sc_%s.npz'%(HIV_DIR,dir_name,tag), allow_pickle="True")
+#         sc_tv   = data_sc['selection']
         
-        if 'old' in dir_name:
-            time_all = data_sc['interp_times']
-        else:
-            time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
-        sc_all     = np.zeros((ne,len(time_all)))
-        sc_sample  = np.zeros((ne,len(sample_times)))
-        var_length = (len(sc_tv) - 2 * ne) if 'mul' in dir_name else (len(sc_tv) - ne)
+#         if 'old' in dir_name:
+#             time_all = data_sc['interp_times']
+#         else:
+#             time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+#         sc_all     = np.zeros((ne,len(time_all)))
+#         sc_sample  = np.zeros((ne,len(sample_times)))
+#         var_length = (len(sc_tv) - 2 * ne) if 'mul' in dir_name else (len(sc_tv) - ne)
 
-        for n in range(ne):
-            if 'mul' in dir_name:
-                # selection coefficients for all time points
-                sc_all[n] = sc_tv[var_length+2*n]-sc_tv[var_length+2*n+1]
-                # selection coefficients for sampled time points
-                for i, ti in enumerate(time_all):
-                    if ti in sample_times:
-                        index = list(sample_times).index(ti)
-                        sc_sample[n][index] = sc_tv[var_length+2*n][i] - sc_tv[var_length+2*n+1][i]
+#         for n in range(ne):
+#             if 'mul' in dir_name:
+#                 # selection coefficients for all time points
+#                 sc_all[n] = sc_tv[var_length+2*n]-sc_tv[var_length+2*n+1]
+#                 # selection coefficients for sampled time points
+#                 for i, ti in enumerate(time_all):
+#                     if ti in sample_times:
+#                         index = list(sample_times).index(ti)
+#                         sc_sample[n][index] = sc_tv[var_length+2*n][i] - sc_tv[var_length+2*n+1][i]
 
-            else:
-                # selection coefficients for all time points
-                sc_all[n] = sc_tv[var_length+n]
-                # selection coefficients for sampled time points
-                for i, ti in enumerate(time_all):
-                    if ti in sample_times:
-                        index = list(sample_times).index(ti)
-                        sc_sample[n][index] = sc_tv[var_length+n][i]
+#             else:
+#                 # selection coefficients for all time points
+#                 sc_all[n] = sc_tv[var_length+n]
+#                 # selection coefficients for sampled time points
+#                 for i, ti in enumerate(time_all):
+#                     if ti in sample_times:
+#                         index = list(sample_times).index(ti)
+#                         sc_sample[n][index] = sc_tv[var_length+n][i]
         
-        times_all.append(time_all)
-        tc_all_time.append(sc_all)
-        tc_sample.append(sc_sample)
+#         times_all.append(time_all)
+#         tc_all_time.append(sc_all)
+#         tc_sample.append(sc_sample)
     
-    '''Setting ticks'''
-    if len(ytick) != ne or len(ytick[0]) == 0:
-        # set time axis automatically
-        mat_time = sample_times[-1]
-        if mat_time> 300:
-            dt = 200
-        elif mat_time < 100:
-            dt = 20
-        else:
-            dt = 100
+#     '''Setting ticks'''
+#     if len(ytick) != ne or len(ytick[0]) == 0:
+#         # set time axis automatically
+#         mat_time = sample_times[-1]
+#         if mat_time> 300:
+#             dt = 200
+#         elif mat_time < 100:
+#             dt = 20
+#         else:
+#             dt = 100
             
-        xtick = []
-        for n in range(math.ceil(mat_time/dt)):
-            xtick.append(n*dt)
-        xtick.append((n+1)*dt)
+#         xtick = []
+#         for n in range(math.ceil(mat_time/dt)):
+#             xtick.append(n*dt)
+#         xtick.append((n+1)*dt)
 
-        # set yticks automatically
-        ytick    = [[] for n in range(ne)]
-        for n in range(ne):
-            # epitope
-            max_var = max([max(tc_all_time[i][n]) for i in range(len(tc_all_time))])
-            min_var = min([min(tc_all_time[i][n]) for i in range(len(tc_all_time))])
-            ymax = max(max(var_ec[n], max_var) * 1.25,0.02)
-            ymin = min(min_var, -0.02)
-            ytick[n] = [round(ymin/0.01)*0.01,  0, round(var_ec[n]*100)/100 ,round(ymax/0.01)*0.01]
+#         # set yticks automatically
+#         ytick    = [[] for n in range(ne)]
+#         for n in range(ne):
+#             # epitope
+#             max_var = max([max(tc_all_time[i][n]) for i in range(len(tc_all_time))])
+#             min_var = min([min(tc_all_time[i][n]) for i in range(len(tc_all_time))])
+#             ymax = max(max(var_ec[n], max_var) * 1.25,0.02)
+#             ymin = min(min_var, -0.02)
+#             ytick[n] = [round(ymin/0.01)*0.01,  0, round(var_ec[n]*100)/100 ,round(ymax/0.01)*0.01]
 
-    # PLOT FIGURE
-    # set up figure grid
-    w     = DOUBLE_COLUMN #SLIDE_WIDTH
-    goldh = w / 4.3 * ne
-    fig   = plt.figure(figsize=(w, goldh),dpi=1000)
+#     # PLOT FIGURE
+#     # set up figure grid
+#     w     = DOUBLE_COLUMN #SLIDE_WIDTH
+#     goldh = w / 4.3 * ne
+#     fig   = plt.figure(figsize=(w, goldh),dpi=1000)
 
-    if ne > 1:
-        box = dict(left=0.07, right=0.98, bottom=0.10, top=0.95)
-    else:
-        box = dict(left=0.07, right=0.98, bottom=0.20, top=0.95)
-    gs = gridspec.GridSpec(ne, 2, width_ratios=[1,1],wspace=0.4,hspace=0.3,**box)
-    ax  = [[plt.subplot(gs[n, 0]), plt.subplot(gs[n, 1])] for n in range(ne)]
+#     if ne > 1:
+#         box = dict(left=0.07, right=0.98, bottom=0.10, top=0.95)
+#     else:
+#         box = dict(left=0.07, right=0.98, bottom=0.20, top=0.95)
+#     gs = gridspec.GridSpec(ne, 2, width_ratios=[1,1],wspace=0.4,hspace=0.3,**box)
+#     ax  = [[plt.subplot(gs[n, 0]), plt.subplot(gs[n, 1])] for n in range(ne)]
 
-    if len(xtick) == 0:
-        xtick = [int(i) for i in sample_times]
+#     if len(xtick) == 0:
+#         xtick = [int(i) for i in sample_times]
 
-    # a -- escape group frequencies
-    pprops = { 'xticks':      xtick,
-               'xminorticks': xminortick,
-               'xticklabels': [],
-               'yticks':      [0, 1.0],
-               'yminorticks': [0.25, 0.5, 0.75],
-               'nudgey':      1.1,
-               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.4 },
-               'axoffset':    0.1,
-               'theme':       'open',
-               'combine'     : True}
+#     # a -- escape group frequencies
+#     pprops = { 'xticks':      xtick,
+#                'xminorticks': xminortick,
+#                'xticklabels': [],
+#                'yticks':      [0, 1.0],
+#                'yminorticks': [0.25, 0.5, 0.75],
+#                'nudgey':      1.1,
+#                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.4 },
+#                'axoffset':    0.1,
+#                'theme':       'open',
+#                'combine'     : True}
 
-    for n in range(ne):
-        pprops['ylabel']          = var_tag[n]
-        # add x axis and label at the bottom
-        if n == ne - 1:
-            pprops['xticklabels'] = xtick
-            pprops['xlabel']      = 'Days after Fiebig I/II'
+#     for n in range(ne):
+#         pprops['ylabel']          = var_tag[n]
+#         # add x axis and label at the bottom
+#         if n == ne - 1:
+#             pprops['xticklabels'] = xtick
+#             pprops['xlabel']      = 'Days after Fiebig I/II'
 
-        # plot frequencies for individual escape sites
-        for nn in range(len(traj_var[n])):
-            pprops['plotprops']['alpha'] = 0.4
-            mp.line(ax=ax[n][0], x=[sample_times], y=[traj_var[n][nn]], colors=[C_group[n]], **pprops)
+#         # plot frequencies for individual escape sites
+#         for nn in range(len(traj_var[n])):
+#             pprops['plotprops']['alpha'] = 0.4
+#             mp.line(ax=ax[n][0], x=[sample_times], y=[traj_var[n][nn]], colors=[C_group[n]], **pprops)
 
-        # plot frequencies for individual group
-        pprops['plotprops']['alpha'] = 1
-        mp.plot(type='line', ax=ax[n][0], x=[sample_times], y=[traj_group[n]], colors=[C_group[n]], **pprops)
+#         # plot frequencies for individual group
+#         pprops['plotprops']['alpha'] = 1
+#         mp.plot(type='line', ax=ax[n][0], x=[sample_times], y=[traj_group[n]], colors=[C_group[n]], **pprops)
 
-    dy = 0.03
-    ax[0][0].text(                 box['left']-0.04, box['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-    ax[0][1].text((box['left']+box['right']/2)-0.02, box['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+#     dy = 0.03
+#     ax[0][0].text(                 box['left']-0.04, box['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+#     ax[0][1].text((box['left']+box['right']/2)-0.02, box['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
-    # b. -- escape coefficients for time-varying r and constant r
-    lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.6 }
-    sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':0.6}
-    pprops = { 'xticks':      xtick,
-               'xticklabels': [],
-               'ylabel':      'Inferred coefficient, ' + r'$\hat{s}$' + ' (%)'}
+#     # b. -- escape coefficients for time-varying r and constant r
+#     lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.6 }
+#     sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':0.6}
+#     pprops = { 'xticks':      xtick,
+#                'xticklabels': [],
+#                'ylabel':      'Inferred coefficient, ' + r'$\hat{s}$' + ' (%)'}
 
-    for n in range(ne):
-        pprops['ylim']       = [ytick[n][0], ytick[n][-1]]
-        pprops['yticks']      = ytick[n]
-        pprops['yticklabels'] = [int(i*100) for i in ytick[n]]
+#     for n in range(ne):
+#         pprops['ylim']       = [ytick[n][0], ytick[n][-1]]
+#         pprops['yticks']      = ytick[n]
+#         pprops['yticklabels'] = [int(i*100) for i in ytick[n]]
 
-        if len(yminortick) > 0:
-            pprops['yminorticks']  = yminortick[n]
+#         if len(yminortick) > 0:
+#             pprops['yminorticks']  = yminortick[n]
 
-        if n == ne - 1:
-            pprops['xticklabels'] = xtick
-            pprops['xlabel']      = 'Days after Fiebig I/II'
+#         if n == ne - 1:
+#             pprops['xticklabels'] = xtick
+#             pprops['xlabel']      = 'Days after Fiebig I/II'
 
-        # VL-dependent r
-        lprops['ls'] = '-'
-        for i in range(len(dir_names)):
-            sprops['marker'] = markers[i]
-            mp.line(   ax=ax[n][1], x=[times_all[i]], y=[tc_all_time[i][n]], colors=[C_group[n]], plotprops=lprops, **pprops)
-            mp.scatter(ax=ax[n][1], x=[sample_times], y=[tc_sample[i][n]],   colors=[C_group[n]], plotprops=sprops, **pprops)
+#         # VL-dependent r
+#         lprops['ls'] = '-'
+#         for i in range(len(dir_names)):
+#             sprops['marker'] = markers[i]
+#             mp.line(   ax=ax[n][1], x=[times_all[i]], y=[tc_all_time[i][n]], colors=[C_group[n]], plotprops=lprops, **pprops)
+#             mp.scatter(ax=ax[n][1], x=[sample_times], y=[tc_sample[i][n]],   colors=[C_group[n]], plotprops=sprops, **pprops)
 
-        ax[n][1].axhline(y=0, ls=':', lw=SIZELINE, color=BKCOLOR)
-        xdat = [sample_times[0],sample_times[-1]]
-        ydat = [var_ec[n], var_ec[n]]
-        lprops['ls'] = ':'
-        mp.plot(type='line',ax=ax[n][1], x=[xdat], y=[ydat], colors=[C_group[n]], plotprops=lprops, **pprops)
+#         ax[n][1].axhline(y=0, ls=':', lw=SIZELINE, color=BKCOLOR)
+#         xdat = [sample_times[0],sample_times[-1]]
+#         ydat = [var_ec[n], var_ec[n]]
+#         lprops['ls'] = ':'
+#         mp.plot(type='line',ax=ax[n][1], x=[xdat], y=[ydat], colors=[C_group[n]], plotprops=lprops, **pprops)
 
-    legend_x = (xtick[0] + xtick[-1])/2
-    legend = 'Selection coefficients\n for epitopes'
-    ax[0][1].text(legend_x, ytick[0][-1], legend, ha='center', va='center', **DEF_LABELPROPS)
+#     legend_x = (xtick[0] + xtick[-1])/2
+#     legend = 'Selection coefficients\n for epitopes'
+#     ax[0][1].text(legend_x, ytick[0][-1], legend, ha='center', va='center', **DEF_LABELPROPS)
     
-    plt.savefig('%s/CH%s-%s.jpg' % (FIG_DIR,tag[-5:],name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+#     plt.savefig('%s/CH%s-%s.jpg' % (FIG_DIR,tag[-5:],name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
 # def plot_special_site_compare(**pdata):
 
@@ -3408,415 +3414,728 @@ def plot_epitopes_compare(**pdata):
 #     else:
 #         plt.savefig('%s/HIV/sp-CH%s.jpg' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
-def plot_epitopes_dt(**pdata):
+# def plot_epitopes_gamma(**pdata):
 
-    # unpack passed data
-    tag        = pdata['tag']
-    HIV_DIR1   = pdata['HIV_DIR1'] # directory for long dt
-    HIV_DIR2   = pdata['HIV_DIR2']
-    FIG_DIR    = pdata['FIG_DIR']
-    xtick      = pdata['xtick']
-    xminortick = pdata['xminortick']
-    ytick      = pdata['ytick']
-    yminortick = pdata['yminortick']
-    savepdf    = pdata['savepdf']
+#     # unpack passed data
+#     tag      = pdata['tag']
+#     HIV_DIR  = pdata['HIV_DIR']
+#     FIG_DIR  = pdata['FIG_DIR']
+#     out_dir    = pdata['out_dir']
+#     xtick      = pdata['xtick']
+#     xminortick = pdata['xminortick']
+#     ytick      = pdata['ytick']
+#     yminortick = pdata['yminortick']
+#     savepdf    = pdata['savepdf']
 
-    # information for escape group
-    data_pro = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR1,tag), allow_pickle="True")
-    escape_group = data_pro['escape_group']
-    sample_time1 = data_pro['sample_times']
-    ne           = len(escape_group)
+#     # information for escape group
+#     data_pro = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle="True")
+#     escape_group = data_pro['escape_group']
+#     sample_times = data_pro['sample_times']
+#     ne           = len(escape_group)
 
-    if ne == 0:
-        print(f'CH{tag[-5:]} has no binary trait')
-        return
+#     if ne == 0:
+#         print(f'CH{tag[-5:]} has no binary trait')
+#         return
     
-    # Get information for escape group
-    df_escape = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv'%(HIV_DIR1,tag), memory_map=True)
-    epitopes = df_escape['epitope'].unique()
-    var_ec     = [] # escape coefficients for constant case
-    traj_var   = [] # frequencies for individual escape sites
-    traj_group = [] # frequencies for escape groups
-    var_tag    = [] # name for epitope
-    for n in range(len(epitopes)):
-        df_esc  = df_escape[(df_escape.epitope==epitopes[n])]
-        df_row  = df_esc.iloc[0]
-        var_ec.append(df_esc.iloc[0].tc_MPL)
-
-        # get the name for epitopes
-        epi_nuc = ''.join(epitopes[n])
-        var_tag.append(epi_nuc[0]+epi_nuc[-1]+str(len(epi_nuc)))
-
-        # get frequencies for escape sites and groups
-        traj_group.append([df_row['xp_at_%d' % t] for t in sample_time1])
-        traj_var_epi = []
-        for df_iter, df_entry in df_esc.iterrows():
-            if df_entry.nucleotide != '-': # not include '-' variants
-                traj_var_epi.append([df_entry['f_at_%d' % t] for t in sample_time1])
-        traj_var.append(traj_var_epi)
-
-    ''' Import data for long dt'''
-    data_sc  = np.load('%s/output/sc_%s.npz'%(HIV_DIR1,tag), allow_pickle="True")
-    sc_1   = data_sc['selection']
-    time_1 = np.linspace(0, sample_time1[-1], int(sample_time1[-1]+1))
-    sc_sample_1  = np.zeros((len(sc_1),len(sample_time1)))
-    # selection coefficients for sampled time points
-    for i, ti in enumerate(time_1):
-        if ti in sample_time1:
-            index = list(sample_time1).index(ti)
-            for j in range(len(sc_1)):
-                sc_sample_1[j][index] = sc_1[j][i]
-
-    ''' Import data for short dt'''
-    data_pro = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR2,tag), allow_pickle="True")
-    sample_time2 = data_pro['sample_times']
-    escape_group = data_pro['escape_group']
-    ne_2         = len(escape_group)
-
-    data_sc  = np.load('%s/output/sc_%s.npz'%(HIV_DIR2,tag), allow_pickle="True")
-    sc_2   = data_sc['selection']
-    time_2 = np.linspace(0, sample_time2[-1], int(sample_time2[-1]+1))
-    sc_sample_2  = np.zeros((len(sc_2),len(sample_time2)))
+#     # Get information for escape group
+#     df_escape = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv'%(HIV_DIR,tag), memory_map=True)
     
-    # selection coefficients for sampled time points
-    for i, ti in enumerate(time_2):
-        if ti in sample_time2:
-            index = list(sample_time2).index(ti)
-            for j in range(len(sc_2)):
-                sc_sample_2[j][index] = sc_2[j][i]
+#     epitopes = df_escape['epitope'].unique()
+
+#     var_ec     = [] # escape coefficients for constant case
+#     traj_var   = [] # frequencies for individual escape sites
+#     traj_group = [] # frequencies for escape groups
+#     var_tag    = [] # name for epitope
+#     for n in range(len(epitopes)):
+#         df_esc  = df_escape[(df_escape.epitope==epitopes[n])]
+#         df_row  = df_esc.iloc[0]
+#         var_ec.append(df_esc.iloc[0].tc_MPL)
+
+#         # get the name for epitopes
+#         epi_nuc = ''.join(epitopes[n])
+#         var_tag.append(epi_nuc[0]+epi_nuc[-1]+str(len(epi_nuc)))
+
+#         # get frequencies for escape sites and groups
+#         traj_group.append([df_row['xp_at_%d' % t] for t in sample_times])
+#         traj_var_epi = []
+#         for df_iter, df_entry in df_esc.iterrows():
+#             if df_entry.nucleotide != '-': # not include '-' variants
+#                 traj_var_epi.append([df_entry['f_at_%d' % t] for t in sample_times])
+#         traj_var.append(traj_var_epi)
     
-    ''''Make sure epitopes in both cases match each other'''
-    if ne != ne_2:
-        df_escape = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv'%(HIV_DIR2,tag), memory_map=True)
-        epitopes = df_escape['epitope'].unique()
-        var_ec_2     = [] # escape coefficients for constant case
-        var_tag_2    = [] # name for epitope
-        for n in range(len(epitopes)):
-            df_esc  = df_escape[(df_escape.epitope==epitopes[n])]
-            df_row  = df_esc.iloc[0]
-            var_ec_2.append(df_esc.iloc[0].tc_MPL)
+#     ''' Import data for VL-dependent r with different gamma_prime'''
+#     gammas   = [50, 200]
+#     time_new = np.linspace(0, sample_times[-1], int(sample_times[-1]+1))
+#     sc_all   = []
+#     sc_sample = []
 
-            # get the name for epitopes
-            epi_nuc = ''.join(epitopes[n])
-            var_tag_2.append(epi_nuc[0]+epi_nuc[-1]+str(len(epi_nuc)))
-    else:
-        var_ec_2 = var_ec
-        var_tag_2 = var_tag
-
-    '''Setting ticks'''
-    if len(ytick) != ne or len(ytick[0]) == 0:
-        autotick = True
-        # set xticks automatically
-        mat_time = sample_time1[-1]
-        if mat_time> 300:
-            dt = 200
-        elif mat_time < 100:
-            dt = 20
-        else:
-            dt = 100
-            
-        xtick = []
-        for n in range(math.ceil(mat_time/dt)):
-            xtick.append(n*dt)
-        xtick.append((n+1)*dt)
-
-        # set yticks automatically
-        ytick    = [[] for n in range(ne)]
-        for n in range(ne):
-            # epitope
-            max_var = max(max(sc_1[-(ne-n)]), max(sc_2[-(ne-n)]))
-            min_var = min(min(sc_1[-(ne-n)]), min(sc_2[-(ne-n)]))
-            ymax = max(max(var_ec[n], max_var) * 1.25,0.02)
-            ymin = min(min_var, -0.02)
-            ytick[n] = [round(ymin/0.01)*0.01,  0, round(var_ec[n]*100)/100 ,round(ymax/0.01)*0.01]
-    else:
-        autotick = False
-
-    # PLOT FIGURE
-    # set up figure grid
-    w     = DOUBLE_COLUMN #SLIDE_WIDTH
-    goldh = w / 3.0 * ne
-    fig   = plt.figure(figsize=(w, goldh),dpi=1000)
-
-    if ne > 1:
-        box = dict(left=0.07, right=0.98, bottom=0.10, top=0.95)
-    else:
-        box = dict(left=0.07, right=0.98, bottom=0.20, top=0.95)
-    gs = gridspec.GridSpec(ne, 2, width_ratios=[1,1],wspace=0.4,hspace=0.3,**box)
-    ax  = [[plt.subplot(gs[n, 0]), plt.subplot(gs[n, 1])] for n in range(ne)]
-
-    if len(xtick) == 0:
-        xtick = [int(i) for i in sample_time1]
-
-    # a -- escape group frequencies
-    pprops = { 'xticks':      xtick,
-               'xminorticks': xminortick,
-               'xticklabels': [],
-               'yticks':      [0, 1.0],
-               'yminorticks': [0.25, 0.5, 0.75],
-               'nudgey':      1.1,
-               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.4 },
-               'axoffset':    0.1,
-               'theme':       'open',
-               'combine'     : True}
-
-    for n in range(ne):
-        pprops['ylabel']          = var_tag[n]
-        # add x axis and label at the bottom
-        if n == ne - 1:
-            pprops['xticklabels'] = xtick
-            pprops['xlabel']      = 'Days after Fiebig I/II'
-
-        # plot frequencies for individual escape sites
-        for nn in range(len(traj_var[n])):
-            pprops['plotprops']['alpha'] = 0.4
-            mp.line(ax=ax[n][0], x=[sample_time1], y=[traj_var[n][nn]], colors=[C_group[n]], **pprops)
-
-        # plot frequencies for individual group
-        pprops['plotprops']['alpha'] = 1
-        mp.plot(type='line', ax=ax[n][0], x=[sample_time1], y=[traj_group[n]], colors=[C_group[n]], **pprops)
-
-    dy = 0.03
-    ax[0][0].text(                 box['left']-0.04, box['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-    ax[0][1].text((box['left']+box['right'])/2-0.02, box['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-
-    # b. -- escape coefficients for time-varying r and constant r
-    pprops = { 'xticks':      xtick,
-               'xticklabels': [],
-               'ylabel':      'Inferred coefficient, ' + r'$\hat{s}$' + ' (%)'}
-
-    for n in range(ne):
-        pprops['ylim']       = [ytick[n][0], ytick[n][-1]]
-        pprops['yticks']      = ytick[n]
-        pprops['yticklabels'] = [int(i*100) for i in ytick[n]]
-
-        if len(yminortick) > 0:
-            pprops['yminorticks']  = yminortick[n]
-
-        if n == ne - 1:
-            pprops['xticklabels'] = xtick
-            pprops['xlabel']      = 'Days after Fiebig I/II'
-
-        # short dt VL-dependent r
-        if var_tag[n] in var_tag_2:
-            n_2 = var_tag_2.index(var_tag[n])
-            lprops = {'lw': SIZELINE, 'ls': '--', 'alpha': 0.6 }
-            sprops = {'lw' : 0, 's' : 6, 'marker' : '*','alpha':0.8}
-            mp.line(   ax=ax[n][1], x=[time_2],     y=[sc_2[-(ne_2-n_2)]],        colors=[C_group[n]], plotprops=lprops, **pprops)
-            mp.scatter(ax=ax[n][1], x=[sample_time2], y=[sc_sample_2[-(ne_2-n_2)]], colors=[C_group[n]], plotprops=sprops, **pprops)
-            ax[n][1].axhline(y=var_ec_2[n_2], ls='--', lw=SIZELINE, color=C_group[n])
-
-        # long dt VL-dependent r
-        lprops = {'lw': SIZELINE, 'ls': ':', 'alpha': 0.6 }
-        sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':0.8}
-        mp.line(               ax=ax[n][1], x=[time_1],        y=[sc_1[-(ne-n)]],    colors=[C_group[n]], plotprops=lprops, **pprops)
-        mp.plot(type='scatter',ax=ax[n][1], x=[sample_time1], y=[sc_sample_1[-(ne-n)]], colors=[C_group[n]], plotprops=sprops, **pprops)
+#     for i in range(len(gammas) + 1):
+#         if i > 0:
+#             gamma = gammas[i-1]
+#             data_sc  = np.load('%s/%s/sc_%s_%s.npz'%(HIV_DIR,out_dir,tag,gamma), allow_pickle="True")
+#         else:
+#             data_sc  = np.load('%s/%s/old_sc_%s.npz'%(HIV_DIR,out_dir,tag), allow_pickle="True")
         
-        ax[n][1].axhline(y=var_ec[n], ls=':', lw=SIZELINE, color=C_group[n])
-        ax[n][1].axhline(y=0, ls=':', lw=SIZELINE, color=BKCOLOR)
+#         sc_gamma = data_sc['selection']
+#         sc_sample_gamma = np.zeros((len(sc_gamma),len(sample_times)))
+#         # selection coefficients for sampled time points
+#         for i, ti in enumerate(time_new):
+#             if ti in sample_times:
+#                 index = list(sample_times).index(ti)
+#                 for j in range(len(sc_gamma)):
+#                     sc_sample_gamma[j][index] = sc_gamma[j][i]
+        
+#         sc_all.append(sc_gamma)
+#         sc_sample.append(sc_sample_gamma)
+        
+#     '''Setting ticks'''
+#     if len(ytick) != ne or len(ytick[0]) == 0:
+#         autotick = True
+#         # set xticks automatically
+#         mat_time = sample_times[-1]
+#         if mat_time> 300:
+#             dt = 200
+#         elif mat_time < 100:
+#             dt = 20
+#         else:
+#             dt = 100
+            
+#         xtick = []
+#         for n in range(math.ceil(mat_time/dt)):
+#             xtick.append(n*dt)
+#         xtick.append((n+1)*dt)
 
-    legend_x = (xtick[0] + xtick[-1])/2
-    legend = 'Selection coefficients\n for epitopes'
-    ax[0][1].text(legend_x, ytick[0][-1], legend, ha='center', va='center', **DEF_LABELPROPS)
+#         # set yticks automatically
+#         ytick    = [[] for n in range(ne)]
+#         for n in range(ne):
+#             # epitope
+#             max_var = max([max(sc_all[i][-(ne-n)]) for i in range(len(gammas))])
+#             min_var = min([min(sc_all[i][-(ne-n)]) for i in range(len(gammas))])
+#             ymax = max(max(var_ec[n], max_var) * 1.25,0.02)
+#             ymin = min(min_var, -0.02)
+#             ytick[n] = [round(ymin/0.01)*0.01,  0, round(var_ec[n]*100)/100 ,round(ymax/0.01)*0.01]
+#     else:
+#         autotick = False
+
+#     # PLOT FIGURE
+#     # set up figure grid
+#     w     = DOUBLE_COLUMN #SLIDE_WIDTH
+#     goldh = w / 3.0 * ne
+#     fig   = plt.figure(figsize=(w, goldh),dpi=1000)
+
+#     if ne > 1:
+#         box = dict(left=0.07, right=0.98, bottom=0.10, top=0.95)
+#     else:
+#         box = dict(left=0.07, right=0.98, bottom=0.20, top=0.95)
+#     gs = gridspec.GridSpec(ne, 2, width_ratios=[1,1],wspace=0.4,hspace=0.3,**box)
+#     ax  = [[plt.subplot(gs[n, 0]), plt.subplot(gs[n, 1])] for n in range(ne)]
+
+#     if len(xtick) == 0:
+#         xtick = [int(i) for i in sample_times]
+
+#     # a -- escape group frequencies
+#     pprops = { 'xticks':      xtick,
+#                'xminorticks': xminortick,
+#                'xticklabels': [],
+#                'yticks':      [0, 1.0],
+#                'yminorticks': [0.25, 0.5, 0.75],
+#                'nudgey':      1.1,
+#                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.4 },
+#                'axoffset':    0.1,
+#                'theme':       'open',
+#                'combine'     : True}
+
+#     for n in range(ne):
+#         pprops['ylabel']          = var_tag[n]
+#         # add x axis and label at the bottom
+#         if n == ne - 1:
+#             pprops['xticklabels'] = xtick
+#             pprops['xlabel']      = 'Days after Fiebig I/II'
+
+#         # plot frequencies for individual escape sites
+#         for nn in range(len(traj_var[n])):
+#             pprops['plotprops']['alpha'] = 0.4
+#             mp.line(ax=ax[n][0], x=[sample_times], y=[traj_var[n][nn]], colors=[C_group[n]], **pprops)
+
+#         # plot frequencies for individual group
+#         pprops['plotprops']['alpha'] = 1
+#         mp.plot(type='line', ax=ax[n][0], x=[sample_times], y=[traj_group[n]], colors=[C_group[n]], **pprops)
+
+#     dy = 0.03
+#     ax[0][0].text(                 box['left']-0.04, box['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+#     ax[0][1].text((box['left']+box['right'])/2-0.02, box['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+#     # b. -- escape coefficients for time-varying r and constant r
+#     pprops = { 'xticks':      xtick,
+#                'xticklabels': [],
+#                'ylabel':      'Inferred coefficient, ' + r'$\hat{s}$' + ' (%)'}
+
+#     for n in range(ne):
+#         pprops['ylim']       = [ytick[n][0], ytick[n][-1]]
+#         pprops['yticks']      = ytick[n]
+#         pprops['yticklabels'] = [int(i*100) for i in ytick[n]]
+
+#         if len(yminortick) > 0:
+#             pprops['yminorticks']  = yminortick[n]
+
+#         if n == ne - 1:
+#             pprops['xticklabels'] = xtick
+#             pprops['xlabel']      = 'Days after Fiebig I/II'
+
+#         # new VL-dependent r
+#         lprops = {'lw': SIZELINE, 'ls': ':', 'alpha': 0.6 }
+#         mp.line(ax=ax[n][1], x=[time_new], y=[sc_all[0][-(ne-n)]], colors=[C_group[n]], plotprops=lprops, **pprops)
+        
+#         lprops = {'lw': SIZELINE, 'ls': '--', 'alpha': 0.8 }
+#         mp.line(ax=ax[n][1], x=[time_new], y=[sc_all[1][-(ne-n)]], colors=[C_group[n]], plotprops=lprops, **pprops)
+#         mp.line(ax=ax[n][1], x=[time_new], y=[sc_all[2][-(ne-n)]], colors=[C_group[n]], plotprops=lprops, **pprops)
+
+#         sprops = {'lw' : 0, 's' : 6, 'marker' : 'o','alpha':0.8}
+#         mp.scatter(ax=ax[n][1], x=[sample_times], y=[sc_sample[0][-(ne-n)]], colors=[C_group[n]], plotprops=sprops, **pprops)
+#         sprops = {'lw' : 0, 's' : 6, 'marker' : '*','alpha':0.9}
+#         mp.scatter(ax=ax[n][1], x=[sample_times], y=[sc_sample[1][-(ne-n)]], colors=[C_group[n]], plotprops=sprops, **pprops)
+#         sprops['marker'] = '^'
+#         mp.plot(type='scatter',ax=ax[n][1], x=[sample_times], y=[sc_sample[2][-(ne-n)]], colors=[C_group[n]], plotprops=sprops, **pprops)
+
+#         ax[n][1].axhline(y=var_ec[n], ls=':', lw=SIZELINE, color=C_group[n])
+#         ax[n][1].axhline(y=0, ls=':', lw=SIZELINE, color=BKCOLOR)
+
+#     legend_x = (xtick[0] + xtick[-1])/2
+#     legend = 'Selection coefficients\n for epitopes'
+#     ax[0][1].text(legend_x, ytick[0][-1], legend, ha='center', va='center', **DEF_LABELPROPS)
     
-    if savepdf:
-        plt.savefig('%s/compare-CH%s.pdf' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
-        plt.show()
-    else:
-        plt.savefig('%s/compare-CH%s.jpg' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+#     if savepdf:
+#         plt.savefig('%s/gamma-CH%s.pdf' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+#         plt.show()
+#     else:
+#         plt.savefig('%s/HIV/gamma-CH%s.jpg' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
-def plot_epitopes_gamma(**pdata):
+@dataclass
+class EData:
+    sample_times: list
+    time_all: list
+    traj_var: list
+    traj_group: list
+    tc_sample: list
+    tc_all: list
+    var_tag: list
+    respon_x: list
+    respon_y: list
+
+
+def get_epitopes_date(ppts, out_dir, HIV_DIR):
+    n = len(ppts)
+    res = EData(
+        sample_times = [[] for _ in range(n)],
+        time_all  = [[] for _ in range(n)],
+        traj_var  = [[] for _ in range(n)],
+        traj_group= [[] for _ in range(n)],
+        tc_sample = [[] for _ in range(n)],
+        tc_all    = [[] for _ in range(n)],
+        var_tag   = [[] for _ in range(n)],
+        respon_x  = [[] for _ in range(n)],
+        respon_y  = [[] for _ in range(n)],
+    )
+
+    for i in range(len(ppts)):
+        ppt = ppts[i]
+        
+        # 5' half-sequences
+        tag_0   = ppt + '-5'
+        FData_0 = GetFigureData(out_dir,tag_0,HIV_DIR)
+        ne_0    = FData_0.ne
+
+        # Get information for escape group
+        if ne_0 >  0:
+            df_escape_0 = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv'%(HIV_DIR,tag_0), memory_map=True)
+            epitopes_0 = list(df_escape_0['epitope'].unique())
+        else:
+            epitopes_0 = []
+
+        # 3' half-sequences
+        tag_1   = ppt + '-3'
+        FData_1 = GetFigureData(out_dir,tag_1,HIV_DIR)
+        ne_1    = FData_1.ne
+        
+        if ne_1 > 0:
+            df_escape_1 = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv'%(HIV_DIR,tag_1), memory_map=True)
+            epitopes_1  = list(df_escape_1['epitope'].unique())
+        else:
+            epitopes_1 = []
+
+        epitopes = epitopes_0 + epitopes_1
+        FData_all = [FData_0, FData_1]
+
+        try:
+            df_intensity = pd.read_csv('%s/T-cell-intensity/%s.csv'%(HIV_DIR, ppt), memory_map=True)
+
+            time_cols = df_intensity.filter(like='f_at_').columns
+
+            df_long = df_intensity.melt(id_vars=['epitope'],value_vars=time_cols,var_name='time_point',value_name='date_value')
+
+            df_long['time'] = df_long['time_point'].str.split('_').str[2]
+            valid_data = df_long[df_long['epitope'].isin(epitopes) & df_long['date_value'].notna()]
+
+            result = valid_data.groupby('epitope', group_keys=False).apply(lambda x: (x['time'].tolist(), x['date_value'].tolist()))
+            if len(result) > 0:
+                for epi, (times, intensity) in result.items():
+                    
+                    if epi in epitopes:
+                        if epi in epitopes_0:
+                            epi_index = list(epitopes_0).index(epi)
+                            half_index = 0
+                            ne = ne_0
+                        elif epi in epitopes_1:
+                            epi_index = list(epitopes_1).index(epi)
+                            half_index = 1
+                            ne = ne_1
+
+                        res.respon_x[i].append([int(t) for t in times])
+                        res.respon_y[i].append(intensity)
+
+                        res.sample_times[i].append(list(FData_all[half_index].sample_times))
+                        res.time_all[i].append(list(FData_all[half_index].times))
+                        res.traj_var[i].append(FData_all[half_index].traj_var[epi_index])      # frequencies for individual escape sites
+                        res.traj_group[i].append(FData_all[half_index].traj_group[epi_index])  # frequencies for escape groups
+                        res.tc_sample[i].append(FData_all[half_index].sc_sample_ex[-(ne-epi_index)])    # selection coefficients for sample time points
+                        res.tc_all[i].append(FData_all[half_index].sc_all_ex[-(ne-epi_index)])        # selection coefficients for all time points
+                        res.var_tag[i].append(FData_all[half_index].var_tag[epi_index])         # name for epitope
+                        
+        except FileNotFoundError:
+            print(f'CH{ppt[-5:]} has no T-cell intensity data')
+
+    return res
+
+
+def plot_all_epitopes_1(**pdata):
 
     # unpack passed data
-    tag      = pdata['tag']
+    ppts      = pdata['ppts']
     HIV_DIR  = pdata['HIV_DIR']
     FIG_DIR  = pdata['FIG_DIR']
-    out_dir    = pdata['out_dir']
+    out_dir  = pdata['output_dir']
     xtick      = pdata['xtick']
     xminortick = pdata['xminortick']
     ytick      = pdata['ytick']
     yminortick = pdata['yminortick']
     savepdf    = pdata['savepdf']
-
+    
+    results = get_epitopes_date(ppts, out_dir, HIV_DIR)
     # information for escape group
-    data_pro = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle="True")
-    escape_group = data_pro['escape_group']
-    sample_times = data_pro['sample_times']
-    ne           = len(escape_group)
-
-    if ne == 0:
-        print(f'CH{tag[-5:]} has no binary trait')
-        return
+    sample_times = results.sample_times
+    time_all     = results.time_all
+    traj_var     = results.traj_var
+    traj_group   = results.traj_group
+    tc_sample    = results.tc_sample
+    tc_all       = results.tc_all
+    var_tag      = results.var_tag
+    respon_x     = results.respon_x
+    respon_y     = results.respon_y
     
-    # Get information for escape group
-    df_escape = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv'%(HIV_DIR,tag), memory_map=True)
-    
-    epitopes = df_escape['epitope'].unique()
-
-    var_ec     = [] # escape coefficients for constant case
-    traj_var   = [] # frequencies for individual escape sites
-    traj_group = [] # frequencies for escape groups
-    var_tag    = [] # name for epitope
-    for n in range(len(epitopes)):
-        df_esc  = df_escape[(df_escape.epitope==epitopes[n])]
-        df_row  = df_esc.iloc[0]
-        var_ec.append(df_esc.iloc[0].tc_MPL)
-
-        # get the name for epitopes
-        epi_nuc = ''.join(epitopes[n])
-        var_tag.append(epi_nuc[0]+epi_nuc[-1]+str(len(epi_nuc)))
-
-        # get frequencies for escape sites and groups
-        traj_group.append([df_row['xp_at_%d' % t] for t in sample_times])
-        traj_var_epi = []
-        for df_iter, df_entry in df_esc.iterrows():
-            if df_entry.nucleotide != '-': # not include '-' variants
-                traj_var_epi.append([df_entry['f_at_%d' % t] for t in sample_times])
-        traj_var.append(traj_var_epi)
-    
-    ''' Import data for VL-dependent r with different gamma_prime'''
-    gammas   = [50, 200]
-    time_new = np.linspace(0, sample_times[-1], int(sample_times[-1]+1))
-    sc_all   = []
-    sc_sample = []
-
-    for i in range(len(gammas) + 1):
-        if i > 0:
-            gamma = gammas[i-1]
-            data_sc  = np.load('%s/%s/sc_%s_%s.npz'%(HIV_DIR,out_dir,tag,gamma), allow_pickle="True")
-        else:
-            data_sc  = np.load('%s/%s/old_sc_%s.npz'%(HIV_DIR,out_dir,tag), allow_pickle="True")
-        
-        sc_gamma = data_sc['selection']
-        sc_sample_gamma = np.zeros((len(sc_gamma),len(sample_times)))
-        # selection coefficients for sampled time points
-        for i, ti in enumerate(time_new):
-            if ti in sample_times:
-                index = list(sample_times).index(ti)
-                for j in range(len(sc_gamma)):
-                    sc_sample_gamma[j][index] = sc_gamma[j][i]
-        
-        sc_all.append(sc_gamma)
-        sc_sample.append(sc_sample_gamma)
-        
-    '''Setting ticks'''
-    if len(ytick) != ne or len(ytick[0]) == 0:
-        autotick = True
-        # set xticks automatically
-        mat_time = sample_times[-1]
-        if mat_time> 300:
-            dt = 200
-        elif mat_time < 100:
-            dt = 20
-        else:
-            dt = 100
-            
-        xtick = []
-        for n in range(math.ceil(mat_time/dt)):
-            xtick.append(n*dt)
-        xtick.append((n+1)*dt)
-
-        # set yticks automatically
-        ytick    = [[] for n in range(ne)]
-        for n in range(ne):
-            # epitope
-            max_var = max([max(sc_all[i][-(ne-n)]) for i in range(len(gammas))])
-            min_var = min([min(sc_all[i][-(ne-n)]) for i in range(len(gammas))])
-            ymax = max(max(var_ec[n], max_var) * 1.25,0.02)
-            ymin = min(min_var, -0.02)
-            ytick[n] = [round(ymin/0.01)*0.01,  0, round(var_ec[n]*100)/100 ,round(ymax/0.01)*0.01]
-    else:
-        autotick = False
 
     # PLOT FIGURE
     # set up figure grid
     w     = DOUBLE_COLUMN #SLIDE_WIDTH
-    goldh = w / 3.0 * ne
+    goldh = w * 1
     fig   = plt.figure(figsize=(w, goldh),dpi=1000)
 
-    if ne > 1:
-        box = dict(left=0.07, right=0.98, bottom=0.10, top=0.95)
-    else:
-        box = dict(left=0.07, right=0.98, bottom=0.20, top=0.95)
-    gs = gridspec.GridSpec(ne, 2, width_ratios=[1,1],wspace=0.4,hspace=0.3,**box)
-    ax  = [[plt.subplot(gs[n, 0]), plt.subplot(gs[n, 1])] for n in range(ne)]
+    box_a  = dict(left=0.10, right=0.47, bottom=0.33, top=0.93)
+    box_b  = dict(left=0.10, right=0.47, bottom=0.10, top=0.30)
+    box_c  = dict(left=0.57, right=0.94, bottom=0.54, top=0.94)
+    box_d  = dict(left=0.57, right=0.94, bottom=0.10, top=0.50)
 
-    if len(xtick) == 0:
-        xtick = [int(i) for i in sample_times]
+    gs_a = gridspec.GridSpec(6, 2, width_ratios=[1,1], height_ratios=[1 for k in range(6)], wspace=0.20, hspace=0.20, **box_a)
+    gs_b = gridspec.GridSpec(2, 2, width_ratios=[1,1], height_ratios=[1 for k in range(2)], wspace=0.20, hspace=0.20, **box_b)
+    gs_c = gridspec.GridSpec(4, 2, width_ratios=[1,1], height_ratios=[1 for k in range(4)], wspace=0.20, hspace=0.20, **box_c)
+    gs_d = gridspec.GridSpec(4, 2, width_ratios=[1,1], height_ratios=[1 for k in range(4)], wspace=0.20, hspace=0.20, **box_d)
 
-    # a -- escape group frequencies
-    pprops = { 'xticks':      xtick,
-               'xminorticks': xminortick,
-               'xticklabels': [],
-               'yticks':      [0, 1.0],
+    ax_a  = [[plt.subplot(gs_a[i, 0]), plt.subplot(gs_a[i, 1])] for i in range(6)]
+    ax_b  = [[plt.subplot(gs_b[i, 0]), plt.subplot(gs_b[i, 1])] for i in range(2)]
+    ax_c  = [[plt.subplot(gs_c[i, 0]), plt.subplot(gs_c[i, 1])] for i in range(4)]
+    ax_d  = [[plt.subplot(gs_d[i, 0]), plt.subplot(gs_d[i, 1])] for i in range(4)]
+
+    ax_list = [ax_a, ax_b, ax_c, ax_d]
+    
+    dx =  -0.04
+    dy =  0.02
+
+    # left -- escape group frequencies
+    pprops = { 'yticks':      [0, 1.0],
                'yminorticks': [0.25, 0.5, 0.75],
                'nudgey':      1.1,
                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.4 },
                'axoffset':    0.1,
                'theme':       'open',
                'combine'     : True}
-
-    for n in range(ne):
-        pprops['ylabel']          = var_tag[n]
-        # add x axis and label at the bottom
-        if n == ne - 1:
-            pprops['xticklabels'] = xtick
-            pprops['xlabel']      = 'Days after Fiebig I/II'
-
-        # plot frequencies for individual escape sites
-        for nn in range(len(traj_var[n])):
-            pprops['plotprops']['alpha'] = 0.4
-            mp.line(ax=ax[n][0], x=[sample_times], y=[traj_var[n][nn]], colors=[C_group[n]], **pprops)
-
-        # plot frequencies for individual group
-        pprops['plotprops']['alpha'] = 1
-        mp.plot(type='line', ax=ax[n][0], x=[sample_times], y=[traj_group[n]], colors=[C_group[n]], **pprops)
-
-    dy = 0.03
-    ax[0][0].text(                 box['left']-0.04, box['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-    ax[0][1].text((box['left']+box['right'])/2-0.02, box['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-
-    # b. -- escape coefficients for time-varying r and constant r
-    pprops = { 'xticks':      xtick,
-               'xticklabels': [],
-               'ylabel':      'Inferred coefficient, ' + r'$\hat{s}$' + ' (%)'}
-
-    for n in range(ne):
-        pprops['ylim']       = [ytick[n][0], ytick[n][-1]]
-        pprops['yticks']      = ytick[n]
-        pprops['yticklabels'] = [int(i*100) for i in ytick[n]]
-
-        if len(yminortick) > 0:
-            pprops['yminorticks']  = yminortick[n]
-
-        if n == ne - 1:
-            pprops['xticklabels'] = xtick
-            pprops['xlabel']      = 'Days after Fiebig I/II'
-
-        # new VL-dependent r
-        lprops = {'lw': SIZELINE, 'ls': ':', 'alpha': 0.6 }
-        mp.line(ax=ax[n][1], x=[time_new], y=[sc_all[0][-(ne-n)]], colors=[C_group[n]], plotprops=lprops, **pprops)
-        
-        lprops = {'lw': SIZELINE, 'ls': '--', 'alpha': 0.8 }
-        mp.line(ax=ax[n][1], x=[time_new], y=[sc_all[1][-(ne-n)]], colors=[C_group[n]], plotprops=lprops, **pprops)
-        mp.line(ax=ax[n][1], x=[time_new], y=[sc_all[2][-(ne-n)]], colors=[C_group[n]], plotprops=lprops, **pprops)
-
-        sprops = {'lw' : 0, 's' : 6, 'marker' : 'o','alpha':0.8}
-        mp.scatter(ax=ax[n][1], x=[sample_times], y=[sc_sample[0][-(ne-n)]], colors=[C_group[n]], plotprops=sprops, **pprops)
-        sprops = {'lw' : 0, 's' : 6, 'marker' : '*','alpha':0.9}
-        mp.scatter(ax=ax[n][1], x=[sample_times], y=[sc_sample[1][-(ne-n)]], colors=[C_group[n]], plotprops=sprops, **pprops)
-        sprops['marker'] = '^'
-        mp.plot(type='scatter',ax=ax[n][1], x=[sample_times], y=[sc_sample[2][-(ne-n)]], colors=[C_group[n]], plotprops=sprops, **pprops)
-
-        ax[n][1].axhline(y=var_ec[n], ls=':', lw=SIZELINE, color=C_group[n])
-        ax[n][1].axhline(y=0, ls=':', lw=SIZELINE, color=BKCOLOR)
-
-    legend_x = (xtick[0] + xtick[-1])/2
-    legend = 'Selection coefficients\n for epitopes'
-    ax[0][1].text(legend_x, ytick[0][-1], legend, ha='center', va='center', **DEF_LABELPROPS)
     
+    for idx, ax in enumerate(ax_list):
+        
+        pprops['xticks']    = xtick[idx]
+        pprops['xminorticks'] = xminortick[idx]
+
+        ne  = len(var_tag[idx])
+        for n in range(ne):
+            pprops['ylabel']          = var_tag[idx][n]
+            # add x axis and label at the bottom
+            if n == ne - 1:
+                pprops['xticklabels'] = xtick[idx]
+                if idx == 1 or idx == 3:
+                    pprops['xlabel']      = 'Time (days after Fiebig I/II)'
+                else:
+                    pprops['xlabel']      = ''
+
+            else:
+                pprops['xticklabels'] = []
+                pprops['xlabel']      = ''
+
+            # plot frequencies for individual escape sites
+            for nn in range(len(traj_var[idx][n])):
+                pprops['plotprops']['alpha'] = 0.4
+                mp.line(ax=ax[n][0], x=[sample_times[idx][n]], y=[traj_var[idx][n][nn]], colors=[C_group[n]], **pprops)
+
+            # plot frequencies for individual group
+            pprops['plotprops']['alpha'] = 1
+            mp.plot(type='line', ax=ax[n][0], x=[sample_times[idx][n]], y=[traj_group[idx][n]], colors=[C_group[n]], **pprops)
+
+    # left 2 -- T cell intensity
+    pprops = { 'xticklabels': [],
+               'yticks':      [0, 1],
+               'yminorticks': [0.25, 0.5, 0.75],
+               'axoffset':    0.1,
+               'tickprops':   def_tickprops,
+               'plotprops':   {'lw': SIZELINE, 'ls': ':', 'alpha': 0.8 },
+               'noaxes':      True,
+               'show':        ['right'],
+               'combine'      : True}
+
+    pprops['tickprops']['right'] = True
+    pprops['tickprops']['left'] = False
+    pprops['tickprops']['bottom'] = False
+
+    for idx, ax in enumerate(ax_list):
+
+        ne  = len(var_tag[idx])
+        pprops['xlim'] = [xtick[idx][0], xtick[idx][-1]*1.015]
+        pprops['xtick'] = []
+        
+        for n in range(ne):
+            pprops['ylim']       = [-0.1,  1.0]
+            
+            ax2 = ax[n][1].twinx()
+            ax2.set_position(ax[n][1].get_position())
+
+            if n == ne - 1:
+                if idx == 1 or idx == 3:
+                    pprops['xlabel']      = 'Time (days after Fiebig I/II)'
+                else:
+                    pprops['xlabel']      = ''
+
+            x_dat = respon_x[idx][n]
+            y_dat = respon_y[idx][n]/np.max(respon_y[idx][n])
+
+            ax2.axhline(y=30/np.max(respon_y[idx][n]), ls='-', lw=SIZELINE, color=C_group[n], alpha=0.2)
+            mp.plot(type='line', ax=ax2, x=[x_dat], y=[y_dat], colors=[C_group[n]], **pprops)
+            
+            ax2.spines['right'].set_bounds(0, 1)
+
+    ## b1 -- inferred escape coefficients
+    lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.5 }
+    sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':0.5}
+    pprops = { 'xticklabels': [],
+               'axoffset':    0.1,
+               'theme':       'open',
+               'combine'     : True}
+
+    for idx, ax in enumerate(ax_list):
+
+        ne  = len(var_tag[idx])
+        pprops['xlim'] = [xtick[idx][0], xtick[idx][-1]*1.015]
+        pprops['xticks'] = xtick[idx]
+
+        for n in range(ne):
+            pprops['ylim']       = [-ytick[idx][n][-1]*0.1, ytick[idx][n][-1]]
+            pprops['yticks']      = ytick[idx][n]
+            pprops['yticklabels'] = [int(i*100) for i in ytick[idx][n]]
+            # pprops['yminorticks']  = yminortick[idx][n]
+
+            if n == ne - 1:
+                pprops['xticklabels'] = xtick[idx]
+                if idx == 1 or idx == 3:
+                    pprops['xlabel']      = 'Time (days after Fiebig I/II)'
+                else:
+                    pprops['xlabel']      = ''
+            else:
+                pprops['xticklabels'] = []
+                pprops['xlabel']      = ''
+
+            # VL-dependent r
+            mp.line(               ax=ax[n][1], x=[time_all[idx][n]],     y=[tc_all[idx][-(ne-n)]],    colors=[C_group[n]], plotprops=lprops, **pprops)
+            mp.plot(type='scatter',ax=ax[n][1], x=[sample_times[idx][n]], y=[tc_sample[idx][-(ne-n)]], colors=[C_group[n]], plotprops=sprops, **pprops)
+    
+    # true coefficient label
+    ax_a[0][0].text(box_a['left']+dx,  box_a['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax_b[0][0].text(box_b['left']+dx,  box_b['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax_c[0][0].text(box_c['left']+dx,  box_c['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax_d[0][0].text(box_d['left']+dx,  box_d['top']+dy, 'd'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)            
+
+
+    # frequency label
+    lprops_e = {'lw': SIZELINE, 'ls': '-', 'alpha': 1, 'clip_on': False}
+    lprops_m = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.4, 'clip_on': False}
+    lprops_s = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.5, 'clip_on': False}
+    lprops_T = {'lw': SIZELINE, 'ls': ':', 'alpha': 0.8, 'clip_on': False}
+
+    legend_y  = 1.07 * 0.22 / (0.15)
+    legend_dy = 0.04 / (0.15)
+    
+    # a
+    legend_x  = 0.15 * xtick[0][-1]
+    legend_dx = legend_x/2
+    x_line = [legend_x - 1.3*legend_dx, legend_x - 0.6*legend_dx]
+    yy = [legend_y, legend_y-legend_dy]
+
+    mp.line(ax=ax_a[0][0], x=[x_line], y=[[yy[0], yy[0]]], colors=[BKCOLOR], plotprops=lprops_e, **pprops)
+    ax_a[0][0].text(legend_x, yy[0], 'Escape frequency', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
+
+    mp.line(ax=ax_a[0][0], x=[x_line], y=[[yy[1], yy[1]]], colors=[BKCOLOR], plotprops=lprops_m, **pprops)
+    ax_a[0][0].text(legend_x, yy[1], 'Mutant frequency', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
+
+    legend_y  = 0.148
+    legend_dy = 0.028
+
+    yy = [legend_y, legend_y-legend_dy]
+    sprops = {'lw': 0, 's': 6, 'marker': 'o', 'alpha': 1, 'clip_on': False}
+    mp.scatter(ax=ax_a[0][1], x=[x_line], y=[[yy[0], yy[0]]], colors=[BKCOLOR], plotprops=sprops, **pprops)
+    mp.line(ax=ax_a[0][1], x=[x_line], y=[[yy[0], yy[0]]], colors=[BKCOLOR], plotprops=lprops_s, **pprops)
+    ax_a[0][1].text(legend_x, yy[0], 'Escape coefficient, ' + r'$\hat{s}(t)$' + ' (%)', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
+
+    mp.line(ax=ax_a[0][1], x=[x_line], y=[[yy[1], yy[1]]], colors=[BKCOLOR], plotprops=lprops_T, **pprops)
+    ax_a[0][1].text(legend_x, yy[1], 'Normalized CTL intensity', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
+
     if savepdf:
-        plt.savefig('%s/gamma-CH%s.pdf' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+        plt.savefig('%s/fig-epitopes-1.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
         plt.show()
-    else:
-        plt.savefig('%s/HIV/gamma-CH%s.jpg' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+
+def plot_all_epitopes_2(**pdata):
+
+    # unpack passed data
+    ppts      = pdata['ppts']
+    HIV_DIR  = pdata['HIV_DIR']
+    FIG_DIR  = pdata['FIG_DIR']
+    out_dir  = pdata['output_dir']
+    xtick      = pdata['xtick']
+    xminortick = pdata['xminortick']
+    ytick      = pdata['ytick']
+    yminortick = pdata['yminortick']
+    savepdf    = pdata['savepdf']
+    
+    results = get_epitopes_date(ppts, out_dir, HIV_DIR)
+    # information for escape group
+    sample_times = results.sample_times
+    time_all     = results.time_all
+    traj_var     = results.traj_var
+    traj_group   = results.traj_group
+    tc_sample    = results.tc_sample
+    tc_all       = results.tc_all
+    var_tag      = results.var_tag
+    respon_x     = results.respon_x
+    respon_y     = results.respon_y
+    
+    # PLOT FIGURE
+    # set up figure grid
+    w     = DOUBLE_COLUMN #SLIDE_WIDTH
+    goldh = w * 1
+    fig   = plt.figure(figsize=(w, goldh),dpi=1000)
+
+    box_a  = dict(left=0.10, right=0.47, bottom=0.54, top=0.94) # 4
+    box_b  = dict(left=0.10, right=0.47, bottom=0.31, top=0.51) # 2
+    box_c  = dict(left=0.10, right=0.47, bottom=0.18, top=0.28) # 1
+    box_d  = dict(left=0.10, right=0.47, bottom=0.05, top=0.15) # 1
+
+    box_e  = dict(left=0.57, right=0.94, bottom=0.64, top=0.94) # 3
+    box_f  = dict(left=0.57, right=0.94, bottom=0.31, top=0.61) # 3
+    box_g  = dict(left=0.57, right=0.94, bottom=0.18, top=0.28) # 1
+    box_h  = dict(left=0.57, right=0.94, bottom=0.05, top=0.15) # 1
+
+    gs_a = gridspec.GridSpec(4, 2, width_ratios=[1,1], height_ratios=[1 for k in range(4)], wspace=0.20, hspace=0.20, **box_a)
+    gs_b = gridspec.GridSpec(2, 2, width_ratios=[1,1], height_ratios=[1 for k in range(2)], wspace=0.20, hspace=0.20, **box_b)
+    gs_c = gridspec.GridSpec(1, 2, width_ratios=[1,1], height_ratios=[1 for k in range(1)], wspace=0.20, hspace=0.20, **box_c)
+    gs_d = gridspec.GridSpec(1, 2, width_ratios=[1,1], height_ratios=[1 for k in range(1)], wspace=0.20, hspace=0.20, **box_d)
+    gs_e = gridspec.GridSpec(3, 2, width_ratios=[1,1], height_ratios=[1 for k in range(3)], wspace=0.20, hspace=0.20, **box_e)
+    gs_f = gridspec.GridSpec(3, 2, width_ratios=[1,1], height_ratios=[1 for k in range(3)], wspace=0.20, hspace=0.20, **box_f)
+    gs_g = gridspec.GridSpec(1, 2, width_ratios=[1,1], height_ratios=[1 for k in range(1)], wspace=0.20, hspace=0.20, **box_g)
+    gs_h = gridspec.GridSpec(1, 2, width_ratios=[1,1], height_ratios=[1 for k in range(1)], wspace=0.20, hspace=0.20, **box_h)
+
+    ax_a  = [[plt.subplot(gs_a[i, 0]), plt.subplot(gs_a[i, 1])] for i in range(4)]
+    ax_b  = [[plt.subplot(gs_b[i, 0]), plt.subplot(gs_b[i, 1])] for i in range(2)]
+    ax_c  = [[plt.subplot(gs_c[i, 0]), plt.subplot(gs_c[i, 1])] for i in range(1)]
+    ax_d  = [[plt.subplot(gs_d[i, 0]), plt.subplot(gs_d[i, 1])] for i in range(1)]
+    ax_e  = [[plt.subplot(gs_e[i, 0]), plt.subplot(gs_e[i, 1])] for i in range(3)]
+    ax_f  = [[plt.subplot(gs_f[i, 0]), plt.subplot(gs_f[i, 1])] for i in range(3)]
+    ax_g  = [[plt.subplot(gs_g[i, 0]), plt.subplot(gs_g[i, 1])] for i in range(1)]
+    ax_h  = [[plt.subplot(gs_h[i, 0]), plt.subplot(gs_h[i, 1])] for i in range(1)]
+
+    ax_list = [ax_a, ax_b, ax_c, ax_d, ax_e, ax_f, ax_g, ax_h]
+    
+    dx =  -0.04
+    dy =  0.02
+
+    # left -- escape group frequencies
+    pprops = { 'yticks':      [0, 1.0],
+               'yminorticks': [0.25, 0.5, 0.75],
+               'nudgey':      1.1,
+               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.4 },
+               'axoffset':    0.1,
+               'theme':       'open',
+               'combine'     : True}
+    
+    for idx, ax in enumerate(ax_list):
+        
+        pprops['xticks']    = xtick[idx]
+        pprops['xminorticks'] = xminortick[idx]
+
+        ne  = len(var_tag[idx])
+        for n in range(ne):
+            pprops['ylabel']          = var_tag[idx][n]
+            # add x axis and label at the bottom
+            if n == ne - 1:
+                pprops['xticklabels'] = xtick[idx]
+                if idx == 7 or idx == 3:
+                    pprops['xlabel']      = 'Time (days after Fiebig I/II)'
+                else:
+                    pprops['xlabel']      = ''
+
+            else:
+                pprops['xticklabels'] = []
+                pprops['xlabel']      = ''
+
+            # plot frequencies for individual escape sites
+            for nn in range(len(traj_var[idx][n])):
+                pprops['plotprops']['alpha'] = 0.4
+                mp.line(ax=ax[n][0], x=[sample_times[idx][n]], y=[traj_var[idx][n][nn]], colors=[C_group[n]], **pprops)
+
+            # plot frequencies for individual group
+            pprops['plotprops']['alpha'] = 1
+            mp.plot(type='line', ax=ax[n][0], x=[sample_times[idx][n]], y=[traj_group[idx][n]], colors=[C_group[n]], **pprops)
+
+    # left 2 -- T cell intensity
+    pprops = { 'xticklabels': [],
+               'yticks':      [0, 1],
+               'yminorticks': [0.25, 0.5, 0.75],
+               'axoffset':    0.1,
+               'tickprops':   def_tickprops,
+               'plotprops':   {'lw': SIZELINE, 'ls': ':', 'alpha': 0.8 },
+               'noaxes':      True,
+               'show':        ['right'],
+               'combine'      : True}
+
+    pprops['tickprops']['right'] = True
+    pprops['tickprops']['left'] = False
+    pprops['tickprops']['bottom'] = False
+
+    for idx, ax in enumerate(ax_list):
+
+        ne  = len(var_tag[idx])
+        pprops['xlim'] = [xtick[idx][0], xtick[idx][-1]*1.015]
+        pprops['xtick'] = []
+        
+        for n in range(ne):
+            pprops['ylim']       = [-0.1,  1.0]
+            
+            ax2 = ax[n][1].twinx()
+            ax2.set_position(ax[n][1].get_position())
+
+            if n == ne - 1:
+                if idx == 7 or idx == 3:
+                    pprops['xlabel']      = 'Time (days after Fiebig I/II)'
+                else:
+                    pprops['xlabel']      = ''
+
+            x_dat = respon_x[idx][n]
+            y_dat = respon_y[idx][n]/np.max(respon_y[idx][n])
+
+            ax2.axhline(y=30/np.max(respon_y[idx][n]), ls='-', lw=SIZELINE, color=C_group[n], alpha=0.2)
+            mp.plot(type='line', ax=ax2, x=[x_dat], y=[y_dat], colors=[C_group[n]], **pprops)
+            
+            ax2.spines['right'].set_bounds(0, 1)
+
+    ## b1 -- inferred escape coefficients
+    lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.5 }
+    sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':0.5}
+    pprops = { 'xticklabels': [],
+               'axoffset':    0.1,
+               'theme':       'open',
+               'combine'     : True}
+
+    for idx, ax in enumerate(ax_list):
+
+        ne  = len(var_tag[idx])
+        pprops['xlim'] = [xtick[idx][0], xtick[idx][-1]*1.015]
+        pprops['xticks'] = xtick[idx]
+
+        for n in range(ne):
+            pprops['ylim']       = [-ytick[idx][n][-1]*0.1, ytick[idx][n][-1]]
+            pprops['yticks']      = ytick[idx][n]
+            pprops['yticklabels'] = [int(i*100) for i in ytick[idx][n]]
+            # pprops['yminorticks']  = yminortick[idx][n]
+
+            if n == ne - 1:
+                pprops['xticklabels'] = xtick[idx]
+                if idx == 7 or idx == 3:
+                    pprops['xlabel']      = 'Time (days after Fiebig I/II)'
+                else:
+                    pprops['xlabel']      = ''
+            else:
+                pprops['xticklabels'] = []
+                pprops['xlabel']      = ''
+
+            # VL-dependent r
+            mp.line(               ax=ax[n][1], x=[time_all[idx][n]],     y=[tc_all[idx][-(ne-n)]],    colors=[C_group[n]], plotprops=lprops, **pprops)
+            mp.plot(type='scatter',ax=ax[n][1], x=[sample_times[idx][n]], y=[tc_sample[idx][-(ne-n)]], colors=[C_group[n]], plotprops=sprops, **pprops)
+    
+    # true coefficient label
+    ax_a[0][0].text(box_a['left']+dx,  box_a['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax_b[0][0].text(box_b['left']+dx,  box_b['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax_c[0][0].text(box_c['left']+dx,  box_c['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax_d[0][0].text(box_d['left']+dx,  box_d['top']+dy, 'd'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)            
+    ax_e[0][0].text(box_e['left']+dx,  box_e['top']+dy, 'e'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax_f[0][0].text(box_f['left']+dx,  box_f['top']+dy, 'f'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax_g[0][0].text(box_g['left']+dx,  box_g['top']+dy, 'g'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax_h[0][0].text(box_h['left']+dx,  box_h['top']+dy, 'h'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+
+    # frequency label
+    lprops_e = {'lw': SIZELINE, 'ls': '-', 'alpha': 1, 'clip_on': False}
+    lprops_m = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.4, 'clip_on': False}
+    lprops_s = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.5, 'clip_on': False}
+    lprops_T = {'lw': SIZELINE, 'ls': ':', 'alpha': 0.8, 'clip_on': False}
+
+    legend_y  = 1.07 * 0.22 / (0.15)
+    legend_dy = 0.04 / (0.15)
+    
+    # a
+    legend_x  = 0.15 * xtick[0][-1]
+    legend_dx = legend_x/2
+    x_line = [legend_x - 1.3*legend_dx, legend_x - 0.6*legend_dx]
+    yy = [legend_y, legend_y-legend_dy]
+
+    mp.line(ax=ax_a[0][0], x=[x_line], y=[[yy[0], yy[0]]], colors=[BKCOLOR], plotprops=lprops_e, **pprops)
+    ax_a[0][0].text(legend_x, yy[0], 'Escape frequency', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
+
+    mp.line(ax=ax_a[0][0], x=[x_line], y=[[yy[1], yy[1]]], colors=[BKCOLOR], plotprops=lprops_m, **pprops)
+    ax_a[0][0].text(legend_x, yy[1], 'Mutant frequency', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
+
+    legend_y  = 0.32
+    legend_dy = 0.05
+
+    yy = [legend_y, legend_y-legend_dy]
+    sprops = {'lw': 0, 's': 6, 'marker': 'o', 'alpha': 1, 'clip_on': False}
+    mp.scatter(ax=ax_a[0][1], x=[x_line], y=[[yy[0], yy[0]]], colors=[BKCOLOR], plotprops=sprops, **pprops)
+    mp.line(ax=ax_a[0][1], x=[x_line], y=[[yy[0], yy[0]]], colors=[BKCOLOR], plotprops=lprops_s, **pprops)
+    ax_a[0][1].text(legend_x, yy[0], 'Escape coefficient, ' + r'$\hat{s}(t)$' + ' (%)', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
+
+    mp.line(ax=ax_a[0][1], x=[x_line], y=[[yy[1], yy[1]]], colors=[BKCOLOR], plotprops=lprops_T, **pprops)
+    ax_a[0][1].text(legend_x, yy[1], 'Normalized CTL intensity', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
+
+    if savepdf:
+        plt.savefig('%s/fig-epitopes-2.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+        plt.show()
