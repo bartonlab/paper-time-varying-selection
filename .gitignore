@@ -9,7 +9,9 @@ __pycache__
 */*/.DS_Store
 
 # Old data
-/data/simulation/trait/cut/
+/data/simulation/trait/cut/*/sequences/
+/data/simulation/trait/cut/*/output/
+/data/simulation/trait/cut/*/output_1/
 /figures/trait*/
 /figures/simple*/
 try.ipynb
