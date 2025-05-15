@@ -9,9 +9,13 @@ __pycache__
 */*/.DS_Store
 
 # Large files
-/figures/trait*/
+/figures/trait/
 /figures/simple*/
 
 # Old data
 try.ipynb
 try.py
+/figures/HIV-compare/
+/figures/old
+/data/HIV/output-nofixation
+/data/HIV/output-fixation100

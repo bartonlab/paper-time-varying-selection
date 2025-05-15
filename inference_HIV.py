@@ -30,10 +30,14 @@ class Result:
     escape_TF: List[List[int]]
     trait_dis: List[List[int]]
 
-def AnalyzeData(tag,HIV_DIR):
+def AnalyzeData(tag,HIV_DIR,add_time=False):
 
     df_info = pd.read_csv('%s/constant/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
-    seq     = np.loadtxt('%s/input/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
+    
+    if add_time:
+        seq     = np.loadtxt('%s/input/sequence/%s-poly-seq2state-add.dat'%(HIV_DIR,tag))
+    else:
+        seq     = np.loadtxt('%s/input/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
 
     """get sequence length"""
     seq_length = len(seq[0])-2
@@ -45,7 +49,11 @@ def AnalyzeData(tag,HIV_DIR):
     uniq_t = np.unique(times)
 
     '''get recombinant rate'''
-    r_rates = np.loadtxt('%s/input/r_rates/r-%s.dat'%(HIV_DIR, tag))
+    if add_time:
+        r_rates = np.loadtxt('%s/input/r_rates/r-%s-add.dat'%(HIV_DIR, tag))
+    else:
+        r_rates = np.loadtxt('%s/input/r_rates/r-%s.dat'%(HIV_DIR, tag))
+
     if len(r_rates) != len(uniq_t):
         print('Error: the length of r_rates is not equal to the length of time')
         sys.exit
@@ -120,11 +128,12 @@ def main(args):
     parser.add_argument('-g1',           type=float,  default=10,                   help='regularization restricting the magnitude of the selection coefficients')
     parser.add_argument('-g2c',          type=float,  default=100000,               help='regularization restricting the time derivative of the selection coefficients,constant')
     parser.add_argument('-g2tv',         type=float,  default=50,                   help='regularization restricting the time derivative of the selection coefficients,time varying')
+    parser.add_argument('-theta',        type=float,  default=10,                   help='magnification of fixation gamma')
     parser.add_argument('--raw',         action='store_true',  default=False,       help='whether or not to save the raw data')
     parser.add_argument('--TV',          action='store_false', default=True,        help='whether or not to infer')
     parser.add_argument('--cr',          action='store_true', default=False,        help='whether or not to use a constant recombination rate')
     parser.add_argument('--pt',          action='store_false', default=True,        help='whether or not to print the execution time')
-    parser.add_argument('-theta',        type=float,  default=100,                  help='magnification of fixation gamma')
+    parser.add_argument('--add',         action='store_true', default=False,        help='whether or not to add time to the input data')
 
     
     arg_list  = parser.parse_args(args)
@@ -140,6 +149,7 @@ def main(args):
     raw_save   = arg_list.raw
     infer_tv   = arg_list.TV
     cr         = arg_list.cr
+    add_time   = arg_list.add
     print_time = arg_list.pt
     
     ############################################################################
@@ -155,7 +165,7 @@ def main(args):
         temp_eVec   = []
 
         times       = []
-        time        = 0
+        time        = history[0][0]
         times.append(time)
 
         ne          = len(escape_group)
@@ -479,7 +489,7 @@ def main(args):
         else:
             time_step = 100
 
-        etleft  = np.arange(-t_extend, 0, time_step)
+        etleft  = np.arange(times[0]-t_extend, times[0], time_step)
         etright = np.arange(times[-1]+time_step,times[-1]+t_extend,time_step)
         if times[-1]+t_extend - etright[-1]  < time_step/2:
             etright[-1] = times[-1]+t_extend
@@ -494,11 +504,16 @@ def main(args):
 
     if raw_save:
         # obtain raw sequence data
-
-        data     = np.loadtxt('%s/input/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
+        if add_time:
+            data     = np.loadtxt('%s/input/sequence/%s-poly-seq2state-add.dat'%(HIV_DIR,tag))
+        else:
+            data     = np.loadtxt('%s/input/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
 
         # information for escape group
-        result       = AnalyzeData(tag,HIV_DIR)
+        if add_time:
+            result       = AnalyzeData(tag,HIV_DIR,add_time=True)
+        else:
+            result       = AnalyzeData(tag,HIV_DIR)
         escape_group = result.escape_group
         escape_TF    = result.escape_TF
         trait_dis    = result.trait_dis
@@ -528,7 +543,10 @@ def main(args):
             p_mut_k = 0
 
         #record all input information before interpolation
-        f = open('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), mode='w+b')
+        if add_time:
+            f = open('%s/rawdata/rawdata_%s-add.npz'%(HIV_DIR,tag), mode='w+b')
+        else:
+            f = open('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), mode='w+b')
         escape_group = np.array(escape_group, dtype=object)
         escape_TF    = np.array(escape_TF , dtype=object)
         trait_dis    = np.array(trait_dis , dtype=object)
@@ -537,9 +555,6 @@ def main(args):
                             escape_group=escape_group, escape_TF=escape_TF,trait_dis=trait_dis,\
                             seq_length=seq_length, sample_times=sample_times)
         f.close()
-
-        # rawdata_tag = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
-        # sc_io.savemat('%s/rawdata/rawdata_%s.mat'%(HIV_DIR,tag), rawdata_tag)
 
     ################################################################################
     ######################### time varying inference ###############################
@@ -551,7 +566,11 @@ def main(args):
     
     # load processed data from rawdata file
     try:
-        rawdata  = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+        if add_time:
+            rawdata  = np.load('%s/rawdata/rawdata_%s-add.npz'%(HIV_DIR,tag), allow_pickle=True)
+        else:
+            rawdata  = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+        
         # information for individual sites
         x            = rawdata['single_freq']
         xx           = rawdata['double_freq']
@@ -586,7 +605,6 @@ def main(args):
         interp_times = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
     ExTimes  = get_ExTimes(interp_times)
     time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
-    # print(f"\nCH{tag[6:]} Raw sample time: {sample_times}\nExTimes: {ExTimes}")
 
     # get dx
     delta_x_raw = cal_delta_x(x, sample_times)
@@ -731,7 +749,10 @@ def main(args):
         print(f"CH{tag[6:]}---------{end_time - start_time} seconds")
 
     # save the solution with constant_time-varying selection coefficient
-    g = open('%s/%s/sc_%s.npz'%(HIV_DIR, output_dir, tag), mode='w+b')
+    if add_time:
+        g = open('%s/%s/sc_%s-add.npz'%(HIV_DIR, output_dir, tag), mode='w+b')
+    else:
+        g = open('%s/%s/sc_%s.npz'%(HIV_DIR, output_dir, tag), mode='w+b')
     np.savez_compressed(g, all = desired_sc_all, selection=desired_sc_sample, time=sample_times, ExTimes=ExTimes)
     g.close()
     

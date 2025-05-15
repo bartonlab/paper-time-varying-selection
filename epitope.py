@@ -359,7 +359,7 @@ def get_cut_analysis(HIV_DIR,tag):
             polymorphic_index += 1
     g.close()
 
-    # write the information for remainning sites into a new epitope file
+    # write the information for remaining sites into a new epitope file
     df_info_cut = pd.read_csv('%s/constant/analysis/%s-analyze.csv' %(HIV_DIR,tag), comment='#', memory_map=True)
     cols_1 = ['HXB2_index', 'nucleotide', 'TF', 'consensus', 'epitope', 'escape', 'sc_old']
     f = open('%s/constant/epitopes/escape_group-%s.csv'%(HIV_DIR,tag),'w')
