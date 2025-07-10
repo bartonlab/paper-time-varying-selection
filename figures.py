@@ -19,8 +19,6 @@ import matplotlib.gridspec as gridspec
 from matplotlib.patches import FancyArrowPatch
 import matplotlib.image as mpimg
 
-import seaborn as sns
-
 import mplot as mp
 
 import re
