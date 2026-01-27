@@ -19,3 +19,9 @@ try.py
 /figures/old
 /data/HIV/output-nofixation
 /data/HIV/output-fixation100
+/data/HIV/constant/output/cut
+/data/HIV/input/*/cut/
+/data/HIV/*/cut/
+
+/data/simulation/simple/*/nsdt
+/data/simulation/trait/

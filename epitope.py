@@ -1,6 +1,9 @@
 # LIBRARIES
 import os
 import sys
+import scipy as sp
+from scipy import integrate
+from scipy.interpolate import interp1d
 import numpy as np
 import pandas as pd
 import re
@@ -1393,3 +1396,1069 @@ def analyze_result(HIV_DIR,tag):
                         g.write(',%f'%xp[i,t])
                     g.write('\n')
 
+def output_sc_const(HIV_DIR, tag):
+    ''' 
+    output the average value for time-varying selection coefficient into csv file
+    '''
+
+    df = pd.read_csv('data/HIV/constant/analysis/%s-analyze.csv' %tag)
+    df_mut = df[df['TF'] != df['nucleotide']].copy()
+    # remove "sc_old" column if exists
+    if 'sc_old' in df_mut.columns:
+        df_mut = df_mut.drop(columns=['sc_old'])
+
+    # import data with extended time
+    sc_file = '%s/output/sc_%s.npz'%(HIV_DIR,tag)   
+    raw_file = '%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag)
+    if not os.path.exists(sc_file):
+        print(f'File not found for {tag} - no time-varying nucleotides')
+        return
+
+    # load raw data
+    rawdata  = np.load(raw_file, allow_pickle="True")
+    muVec    = rawdata['muVec']
+    sp_sites = rawdata['special_sites']
+
+    # load selection coefficients
+    data_tc     = np.load(sc_file, allow_pickle="True")
+    sc_all   = data_tc['selection']# time range:times
+
+    nuc_to_idx = {nuc:i for i, nuc in enumerate(NUC)}
+    sc_avg_all = []
+    sc_std_all = []
+    if_special = [''] * len(df_mut)
+    idx = 0
+    for _, row in df_mut.iterrows():
+        site    = row['polymorphic_index']
+        nuc_mut = row['nucleotide']
+        nuc_TF  = row['TF']
+
+        idx_mut = muVec[site,nuc_to_idx[nuc_mut]]
+        idx_TF  = muVec[site,nuc_to_idx[nuc_TF]]
+        sc_row  = sc_all[int(idx_mut)] - sc_all[int(idx_TF)]
+
+        sc_avg_all.append(np.mean(sc_row))
+        sc_std_all.append(np.std(sc_row))
+        if site in sp_sites:
+            if_special[idx] = 'True'
+        idx += 1
+
+    df_mut["sc_avg"] = sc_avg_all
+    df_mut["sc_std"] = sc_std_all
+    df_mut["if_special"] = if_special
+    df_mut["sc_std"] = df_mut["sc_std"].apply(lambda x: f"{x:.6e}")
+    df_mut.to_csv('output.csv', index=False)
+    df_mut.rename(columns={"sc_MPL":"sc_const"}, inplace=True)
+
+    df_mut.to_csv('%s/analysis/%s-analysis.csv' % (HIV_DIR, tag), index=False)
+
+def cal_action(tag, eps=1, HIV_DIR = 'data/HIV'):
+    """
+    Calculate action between time-varying and constant pattern (only epitope)
+    """
+    # calculate recombination flux term at time t
+    def get_rec_flux_at_t(r_rates, x_trait, p_mut_k, trait_dis):
+        flux = np.zeros(ne)
+        for n in range(ne):
+            fluxIn  = 0
+            fluxOut = 0
+
+            for nn in range(len(escape_group[n])-1):
+                fluxIn  += trait_dis[n][nn] * (1 - x_trait[n]) *p_mut_k[n][nn][0]
+                fluxOut += trait_dis[n][nn] * p_mut_k[n][nn][1]*p_mut_k[n][nn][2]
+            
+            flux[n] = r_rates * (fluxIn - fluxOut)
+
+        return flux
+
+    def diffusion_matrix_at_t(x,xx):
+        x_length = len(x)
+        C = np.zeros([x_length,x_length])
+        for i in range(x_length):
+            C[i,i] = x[i] - x[i] * x[i]
+            for j in range(int(i+1) ,x_length):
+                C[i,j] = xx[i,j] - x[i] * x[j]
+                C[j,i] = xx[i,j] - x[i] * x[j]
+        return C
+    
+    # calculate mutation flux term at sampled time
+    def cal_mut_flux(x,ex,muVec):
+        flux = np.zeros((len(x),x_length))
+        for t in range(len(x)):
+            for i in range(seq_length):
+                for a in range(q):
+                    aa = int(muVec[i][a])
+                    if aa != -1:
+                        for b in range(q):
+                            bb = int(muVec[i][b])
+                            if b != a:
+                                if bb != -1:
+                                    flux[t,aa] +=  muMatrix[b][a] * x[t,bb] - muMatrix[a][b] * x[t,aa]
+                                else:
+                                    flux[t,aa] += -muMatrix[a][b] * x[t,aa]
+            for n in range(ne):
+                for nn in range(len(escape_group[n])):
+                    for a in range(q):
+                        WT = escape_TF[n][nn]
+                        index = escape_group[n][nn]
+                        if a not in WT:
+                            for b in WT:
+                                flux[t, x_length-ne+n] += muMatrix[b][a] * (1 - x[t,x_length-ne+n]) - muMatrix[a][b] * ex[t,index,a]
+        return flux
+
+    def get_sc_common(sc_all, muVec):
+        sc_const = np.zeros(x_length)
+        for i in range(seq_length):
+            for a in range(q):
+                aa = int(muVec[i][a])
+                if aa != -1:
+                    sc_const[aa] = sc_all[i*q + a]
+        for n in range(ne):
+            sc_const[x_length-ne+n] = sc_all[seq_length*q + n]
+        return sc_const
+
+    def insert_time(arr, allowed_gaps=(7, 8, 9, 10, 11, 12, 13)):
+        """
+        Insert values into an array, ensuring the difference between adjacent values 
+        is within the allowed_gaps range as evenly distributed as possible.
+        """
+        result = []
+
+        for i in range(len(arr) - 1):
+            result.append(arr[i])  # add current value
+            diff = arr[i+1] - arr[i]
+            
+            if diff < max(allowed_gaps):
+                continue
+
+            while diff > max(allowed_gaps):
+                # choose the gap that is closest to 10
+                if diff % 10 == 0:
+                    step = diff/10
+                else:
+                    step = (diff // 10) + 1
+                gap = min(allowed_gaps, key=lambda x: abs(x - diff / step))
+                next_value = result[-1] + gap
+                result.append(next_value)
+                diff = arr[i+1] - next_value  # update the remaining difference
+            
+            # check if the last gap is in the allowed_gaps
+            if diff not in allowed_gaps:
+                print(f"Warning: the gap between {result[-1]} and {arr[i+1]} is not in the allowed_gaps range.")
+            
+        # Add the last value
+        if result[-1] != arr[-1]:
+            result.append(arr[-1])
+
+        return np.array(result)
+
+    # Load data
+    rawdata  = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+    muMatrix = np.loadtxt("%s/input/Zanini-extended.dat"%HIV_DIR)
+
+    # information for individual sites
+    x            = rawdata['single_freq']
+    xx           = rawdata['double_freq']
+    ex           = rawdata['escape_freq']
+    muVec        = rawdata['muVec']
+    sample_times = rawdata['sample_times']
+    seq_length   = rawdata['seq_length']
+    r_rates      = rawdata['r_rates']
+
+    # information for escape group
+    p_mut_k      = rawdata['p_mut_k_freq']
+    escape_group = rawdata['escape_group'].tolist()
+    escape_TF    = rawdata['escape_TF'].tolist()
+    trait_dis    = rawdata['trait_dis'].tolist()
+    ne           = len(escape_group)
+    x_length     = len(x[0])
+
+    # Get sc for common mutation and wild-type
+    q = len(NUC)
+    sc_const_all = np.loadtxt('%s/constant/output/sc-%s.dat'%(HIV_DIR,tag))
+    sc_const = get_sc_common(sc_const_all, muVec)
+
+    # check if the length for constant selection coefficient matches frequency data
+    if len(sc_const) != x_length:
+        print(f'Error: length of selection coefficient does not match frequency data for {tag}')
+        print(f'       length of sc: {len(sc_const)}, length of x: {x_length}')
+        return None
+    
+    # extend the time range
+    if sample_times[-1] > 100:
+        interp_times = insert_time(sample_times)
+    else:
+        interp_times = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+    times_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+    sc_all = np.load('%s/output/sc_%s.npz'%(HIV_DIR,tag), allow_pickle=True)['selection'].T
+
+    # selection coefficients for sampled time points
+    interp_index = {t: i for i, t in enumerate(interp_times)}
+    sc_tv = np.zeros((len(interp_times), x_length))
+    for ti, t in enumerate(times_all):
+        if t in interp_index:
+            sc_tv[interp_index[t]] = sc_all[ti]
+
+    # Use linear interpolates to get the input arrays at any integer time point
+    interp_x   = interp1d(sample_times, x, axis=0, kind='linear', bounds_error=False, fill_value=0)
+    interp_xx  = interp1d(sample_times, xx, axis=0, kind='linear', bounds_error=False, fill_value=0)
+    interp_ex  = interp1d(sample_times, ex, axis=0, kind='linear', bounds_error=False, fill_value=0) if ne > 0 else 0
+    interp_mut = interp1d(sample_times, p_mut_k, axis=0, kind='linear', bounds_error=False, fill_value=0) if ne > 0 else 0
+    interp_r   = interp1d(sample_times, r_rates, kind='linear', bounds_error=False, fill_value=0)
+    
+    single_freq = interp_x(interp_times)
+    double_freq = interp_xx(interp_times)
+    epitope_freq = interp_ex(interp_times) if ne > 0 else 0
+    p_mut_k     = interp_mut(interp_times) if ne > 0 else 0
+    r_rate      = interp_r(interp_times)
+
+    # get mutation flux at sampled time points
+    flux_mut = cal_mut_flux(single_freq, epitope_freq, muVec)
+
+    # Get matrix A and vector b
+    action_tv = 0
+    action_const = 0
+    action_null = 0
+    for ti in range(len(interp_times)-1):
+        x_t, xx_t = single_freq[ti], double_freq[ti]
+        sc_t = sc_tv[ti]
+
+        dt = interp_times[ti+1] - interp_times[ti]
+        dx_t = (single_freq[ti+1] - single_freq[ti]) / dt
+
+        # calculate C(t)
+        C_raw = diffusion_matrix_at_t(x_t, xx_t) # covariance matrix
+        C_t   = C_raw + eps * np.eye(C_raw.shape[0])
+
+        # calculate flux(t) = flux_mut(t) + flux_rec(t)
+        flux_total = flux_mut[ti]
+        flux_rec = get_rec_flux_at_t(r_rate[ti], x_t[x_length-ne:], p_mut_k[ti], trait_dis) if ne > 0 else 0
+        for n in range(ne): # recombination only for binary trait part
+            flux_total[x_length-ne+n] += flux_rec[n]
+
+        d_const = dx_t - C_raw @ sc_const - flux_total
+        d_tv    = dx_t - C_raw @ sc_t - flux_total
+        d_null  = dx_t - flux_total
+
+        action_const += (d_const @ np.linalg.solve(C_t, d_const)) * dt # d_const^T C^-1 d_const * dt
+        action_tv    += (d_tv @ np.linalg.solve(C_t, d_tv)) * dt # d_tv^T C^-1 d_tv * dt
+        action_null  += (d_null @ np.linalg.solve(C_t, d_null)) * dt # d_null^T C^-1 d_null * dt
+
+    actions = [action_const, action_tv, action_null]
+    max_id  = np.argmin(actions)
+    action_str = ['constant', 'time-varying', 'null']
+    suffix = '|no epitope' if ne == 0 else ''
+
+    print(f'CH{tag[-5:]}|{action_const:.4f}|{action_tv:.4f}|{action_null:.4f}|{action_str[max_id]}{suffix}')
+
+    return action_const, action_tv
+
+
+def cal_freq_change(tag, HIV_DIR = 'data/HIV'):
+    """
+    Calculate diff between time-varying and constant pattern
+    """
+
+    # calculate recombination flux term at time t
+    def get_rec_flux_at_t(r_rates, x_trait, p_mut_k, trait_dis):
+        flux = np.zeros(ne)
+        for n in range(ne):
+            fluxIn  = 0
+            fluxOut = 0
+
+            for nn in range(len(escape_group[n])-1):
+                fluxIn  += trait_dis[n][nn] * (1 - x_trait[n]) *p_mut_k[n][nn][0]
+                fluxOut += trait_dis[n][nn] * p_mut_k[n][nn][1]*p_mut_k[n][nn][2]
+            
+            flux[n] = r_rates * (fluxIn - fluxOut)
+
+        return flux
+
+    def diffusion_matrix_at_t(x,xx):
+        x_length = len(x)
+        C = np.zeros([x_length,x_length])
+        for i in range(x_length):
+            C[i,i] = x[i] - x[i] * x[i]
+            for j in range(int(i+1) ,x_length):
+                C[i,j] = xx[i,j] - x[i] * x[j]
+                C[j,i] = xx[i,j] - x[i] * x[j]
+        return C
+    
+    # calculate mutation flux term at sampled time
+    def cal_mut_flux(x,ex,muVec):
+        flux = np.zeros((len(x),x_length))
+        for t in range(len(x)):
+            for i in range(seq_length):
+                for a in range(q):
+                    aa = int(muVec[i][a])
+                    if aa != -1:
+                        for b in range(q):
+                            bb = int(muVec[i][b])
+                            if b != a:
+                                if bb != -1:
+                                    flux[t,aa] +=  muMatrix[b][a] * x[t,bb] - muMatrix[a][b] * x[t,aa]
+                                else:
+                                    flux[t,aa] += -muMatrix[a][b] * x[t,aa]
+            for n in range(ne):
+                for nn in range(len(escape_group[n])):
+                    for a in range(q):
+                        WT = escape_TF[n][nn]
+                        index = escape_group[n][nn]
+                        if a not in WT:
+                            for b in WT:
+                                flux[t, x_length-ne+n] += muMatrix[b][a] * (1 - x[t,x_length-ne+n]) - muMatrix[a][b] * ex[t,index,a]
+        return flux
+
+    def get_sc_common(sc_all, muVec):
+        sc_const = np.zeros(x_length)
+        for i in range(seq_length):
+            for a in range(q):
+                aa = int(muVec[i][a])
+                if aa != -1:
+                    sc_const[aa] = sc_all[i*q + a]
+        for n in range(ne):
+            sc_const[x_length-ne+n] = sc_all[seq_length*q + n]
+        return sc_const
+
+    def insert_time(arr, allowed_gaps=(7, 8, 9, 10, 11, 12, 13)):
+        """
+        Insert values into an array, ensuring the difference between adjacent values 
+        is within the allowed_gaps range as evenly distributed as possible.
+        """
+        result = []
+
+        for i in range(len(arr) - 1):
+            result.append(arr[i])  # add current value
+            diff = arr[i+1] - arr[i]
+            
+            if diff < max(allowed_gaps):
+                continue
+
+            while diff > max(allowed_gaps):
+                # choose the gap that is closest to 10
+                if diff % 10 == 0:
+                    step = diff/10
+                else:
+                    step = (diff // 10) + 1
+                gap = min(allowed_gaps, key=lambda x: abs(x - diff / step))
+                next_value = result[-1] + gap
+                result.append(next_value)
+                diff = arr[i+1] - next_value  # update the remaining difference
+            
+            # check if the last gap is in the allowed_gaps
+            if diff not in allowed_gaps:
+                print(f"Warning: the gap between {result[-1]} and {arr[i+1]} is not in the allowed_gaps range.")
+            
+        # Add the last value
+        if result[-1] != arr[-1]:
+            result.append(arr[-1])
+
+        return np.array(result)
+
+    # Load data
+    rawdata  = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+    muMatrix = np.loadtxt("%s/input/Zanini-extended.dat"%HIV_DIR)
+
+    # information for individual sites
+    x            = rawdata['single_freq']
+    xx           = rawdata['double_freq']
+    ex           = rawdata['escape_freq']
+    muVec        = rawdata['muVec']
+    sample_times = rawdata['sample_times']
+    seq_length   = rawdata['seq_length']
+    r_rates      = rawdata['r_rates']
+
+    # information for escape group
+    p_mut_k      = rawdata['p_mut_k_freq']
+    escape_group = rawdata['escape_group'].tolist()
+    escape_TF    = rawdata['escape_TF'].tolist()
+    trait_dis    = rawdata['trait_dis'].tolist()
+    ne           = len(escape_group)
+    x_length     = len(x[0])
+
+    # Get sc for common mutation and wild-type
+    q = len(NUC)
+    sc_const_all = np.loadtxt('%s/constant/output/sc-%s.dat'%(HIV_DIR,tag))
+    sc_const = get_sc_common(sc_const_all, muVec)
+
+    # check if the length for constant selection coefficient matches frequency data
+    if len(sc_const) != x_length:
+        print(f'Error: length of selection coefficient does not match frequency data for {tag}')
+        print(f'       length of sc: {len(sc_const)}, length of x: {x_length}')
+        return None
+    
+    # extend the time range
+    if sample_times[-1] > 100:
+        interp_times = insert_time(sample_times)
+    else:
+        interp_times = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+
+    times_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+    sc_all = np.load('%s/output/sc_%s.npz'%(HIV_DIR,tag), allow_pickle=True)['selection'].T
+
+    # selection coefficients for interpolated time points
+    interp_index = {t: i for i, t in enumerate(interp_times)}
+    sc_tv = np.zeros((len(interp_times), x_length))
+    for ti, t in enumerate(times_all):
+        if t in interp_index:
+            sc_tv[interp_index[t]] = sc_all[ti]
+
+    # Use linear interpolates to get the input arrays at any integer time point
+    interp_x   = interp1d(sample_times, x, axis=0, kind='linear', bounds_error=False, fill_value=0)
+    interp_xx  = interp1d(sample_times, xx, axis=0, kind='linear', bounds_error=False, fill_value=0)
+    interp_ex  = interp1d(sample_times, ex, axis=0, kind='linear', bounds_error=False, fill_value=0) if ne > 0 else 0
+    interp_mut = interp1d(sample_times, p_mut_k, axis=0, kind='linear', bounds_error=False, fill_value=0) if ne > 0 else 0
+    interp_r   = interp1d(sample_times, r_rates, kind='linear', bounds_error=False, fill_value=0)
+    
+    single_freq = interp_x(interp_times)
+    double_freq = interp_xx(interp_times)
+    epitope_freq = interp_ex(interp_times) if ne > 0 else 0
+    p_mut_k     = interp_mut(interp_times) if ne > 0 else 0
+    r_rate      = interp_r(interp_times)
+
+    # get mutation flux at sampled time points
+    flux_mut = cal_mut_flux(single_freq, epitope_freq, muVec)
+
+    change_tv = 0
+    change_const = 0
+    change_null = 0
+    for ti in range(len(interp_times)-1):
+
+        x_t, xx_t = single_freq[ti], double_freq[ti]
+        sc_t = sc_tv[ti] # Time-varying
+        
+        dx = single_freq[ti+1] - single_freq[ti]
+        dt = interp_times[ti+1] - interp_times[ti]
+
+        # calculate C(t)
+        C_raw = diffusion_matrix_at_t(x_t, xx_t) # covariance matrix
+
+        # calculate flux(t) = flux_mut(t) + flux_rec(t)
+        flux_total = flux_mut[ti]
+        flux_rec = get_rec_flux_at_t(r_rate[ti], x_t[x_length-ne:], p_mut_k[ti], trait_dis) if ne > 0 else 0
+        for n in range(ne): # recombination only for binary trait part
+            flux_total[x_length-ne+n] += flux_rec[n]
+
+        d_const = C_raw @ sc_const + flux_total - dx/dt
+        d_tv    = C_raw @ sc_t + flux_total - dx/dt
+        d_null  = flux_total - dx/dt
+
+        change_const += np.sqrt(np.sum(d_const * d_const))* dt     # d_const^T d_const * dt
+        change_tv    += np.sqrt(np.sum(d_tv * d_tv))* dt           # d_tv^T C^-1 d_tv * dt
+        change_null  += np.sqrt(np.sum(d_null * d_null))* dt       # d_null^T C^-1 d_null * dt
+
+    actions = [change_const, change_tv, change_null]
+    min_id  = np.argmin(actions)
+    action_str = ['constant', 'time-varying', 'null'] 
+    print(f'CH{tag[-5:]}|{change_const:.4f}|{change_tv:.4f}|{change_null:.4f}|{action_str[min_id]}')
+
+def cal_freq_change_epitope(tag, HIV_DIR = 'data/HIV'):
+    """
+    Calculate diff between time-varying and constant pattern (only epitope)
+    """
+    # calculate recombination flux term at time t
+    def get_rec_flux_at_t(r_rates, x_trait, p_mut_k, trait_dis):
+        flux = np.zeros(ne)
+        for n in range(ne):
+            fluxIn  = 0
+            fluxOut = 0
+
+            for nn in range(len(escape_group[n])-1):
+                fluxIn  += trait_dis[n][nn] * (1 - x_trait[n]) *p_mut_k[n][nn][0]
+                fluxOut += trait_dis[n][nn] * p_mut_k[n][nn][1]*p_mut_k[n][nn][2]
+            
+            flux[n] = r_rates * (fluxIn - fluxOut)
+
+        return flux
+
+    def diffusion_matrix_at_t(x,xx):
+        x_length = len(x)
+        C = np.zeros([x_length,x_length])
+        for i in range(x_length):
+            C[i,i] = x[i] - x[i] * x[i]
+            for j in range(int(i+1) ,x_length):
+                C[i,j] = xx[i,j] - x[i] * x[j]
+                C[j,i] = xx[i,j] - x[i] * x[j]
+        return C
+
+    # calculate mutation flux term at sampled time
+    def cal_mut_flux_epitope(x,ex):
+        flux = np.zeros((len(x),ne))
+        for t in range(len(x)):
+            for n in range(ne):
+                for nn in range(len(escape_group[n])):
+                    for a in range(q):
+                        WT = escape_TF[n][nn]
+                        index = escape_group[n][nn]
+                        if a not in WT:
+                            for b in WT:
+                                flux[t, n] += muMatrix[b][a] * (1 - x[t,n]) - muMatrix[a][b] * ex[t,index,a]
+        return flux
+
+    def insert_time(arr, allowed_gaps=(7, 8, 9, 10, 11, 12, 13)):
+        """
+        Insert values into an array, ensuring the difference between adjacent values 
+        is within the allowed_gaps range as evenly distributed as possible.
+        """
+        result = []
+
+        for i in range(len(arr) - 1):
+            result.append(arr[i])  # add current value
+            diff = arr[i+1] - arr[i]
+            
+            if diff < max(allowed_gaps):
+                continue
+
+            while diff > max(allowed_gaps):
+                # choose the gap that is closest to 10
+                if diff % 10 == 0:
+                    step = diff/10
+                else:
+                    step = (diff // 10) + 1
+                gap = min(allowed_gaps, key=lambda x: abs(x - diff / step))
+                next_value = result[-1] + gap
+                result.append(next_value)
+                diff = arr[i+1] - next_value  # update the remaining difference
+            
+            # check if the last gap is in the allowed_gaps
+            if diff not in allowed_gaps:
+                print(f"Warning: the gap between {result[-1]} and {arr[i+1]} is not in the allowed_gaps range.")
+            
+        # Add the last value
+        if result[-1] != arr[-1]:
+            result.append(arr[-1])
+
+        return np.array(result)
+    
+    # Load data
+    rawdata  = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+    muMatrix = np.loadtxt("%s/input/Zanini-extended.dat"%HIV_DIR)
+
+    # information for epitope
+    p_mut_raw    = rawdata['p_mut_k_freq']
+    escape_group = rawdata['escape_group'].tolist()
+    escape_TF    = rawdata['escape_TF'].tolist()
+    trait_dis    = rawdata['trait_dis'].tolist()
+    ne           = len(escape_group)
+    x_length     = len(rawdata['single_freq'][0])
+    if ne == 0:
+        print(f'CH{tag[-5:]}|No epitope sites, skipped')
+        return
+
+    # information for individual sites
+    x            = rawdata['single_freq'][:,x_length-ne:]
+    xx           = rawdata['double_freq'][:,x_length-ne:,x_length-ne:]
+    ex           = rawdata['escape_freq']
+    sample_times = rawdata['sample_times']
+    r_rates      = rawdata['r_rates']
+
+    # Get sc for common mutation and wild-type
+    q = len(NUC)
+    sc_const_all = np.loadtxt('%s/constant/output/sc-%s.dat'%(HIV_DIR,tag))
+    ec_const = sc_const_all[x_length - ne : x_length]
+
+    # check if the length for constant selection coefficient matches frequency data
+    if len(ec_const) != ne:
+        print(f'Error: length of selection coefficient does not match frequency data for {tag}')
+        print(f'       length of sc: {len(ec_const)}, length of x: {x_length}')
+    
+    # extend the time range
+    if sample_times[-1] > 100:
+        interp_times = insert_time(sample_times)
+    else:
+        interp_times = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+
+    # extend the time range
+    times_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+    sc_tv_all = np.load('%s/output/sc_%s.npz'%(HIV_DIR,tag), allow_pickle=True)['selection'].T
+    ec_tv_all = sc_tv_all[:, x_length - ne : x_length]
+
+    # selection coefficients for interpolated time points
+    interp_index = {t: i for i, t in enumerate(interp_times)}
+    ec_tv = np.zeros((len(interp_times), ne))
+    for ti, t in enumerate(times_all):
+        if t in interp_index:
+            ec_tv[interp_index[t]] = ec_tv_all[ti]
+
+    # Use linear interpolates to get the input arrays at any integer time point
+    interp_x   = interp1d(sample_times, x, axis=0, kind='linear', bounds_error=False, fill_value=0)
+    interp_xx  = interp1d(sample_times, xx, axis=0, kind='linear', bounds_error=False, fill_value=0)
+    interp_ex  = interp1d(sample_times, ex, axis=0, kind='linear', bounds_error=False, fill_value=0) if ne > 0 else 0
+    interp_mut = interp1d(sample_times, p_mut_raw, axis=0, kind='linear', bounds_error=False, fill_value=0) if ne > 0 else 0
+    interp_r   = interp1d(sample_times, r_rates, kind='linear', bounds_error=False, fill_value=0)
+
+    single_freq = interp_x(interp_times)
+    double_freq = interp_xx(interp_times)
+    epitope_freq = interp_ex(interp_times) if ne > 0 else 0
+    p_mut_k     = interp_mut(interp_times) if ne > 0 else 0
+    r_rate      = interp_r(interp_times)
+
+    # get mutation flux at sampled time points
+    flux_mut = cal_mut_flux_epitope(single_freq, epitope_freq)
+
+    # Calculate changes for different patterns
+    change_tv = 0
+    change_const = 0
+    change_null = 0
+
+    for ti in range(len(interp_times)-1):
+
+        x_t, xx_t = single_freq[ti], double_freq[ti]
+        
+        dx = single_freq[ti+1] - single_freq[ti]
+        dt = times_all[ti+1] - times_all[ti]
+
+        # calculate C(t)
+        C_raw = diffusion_matrix_at_t(x_t, xx_t) # covariance matrix
+
+        # calculate flux(t) = flux_mut(t) + flux_rec(t)
+        flux_rec   = get_rec_flux_at_t(r_rate[ti], x_t, p_mut_k[ti], trait_dis) if ne > 0 else 0
+        flux_total = flux_mut[ti] + flux_rec
+
+        # use constant sc for individual mutation
+        # print(ec_const, ec_tv[ti])
+        d_const = C_raw @ ec_const + flux_total - dx/dt
+        d_tv    = C_raw @ ec_tv[ti] + flux_total - dx/dt
+        d_null  = flux_total - dx/dt
+
+        dx2_const = np.sqrt(np.sum(d_const * d_const))      # d_const^T d_const * dt
+        dx2_tv    = np.sqrt(np.sum(d_tv * d_tv))            # d_tv^T C^-1 d_tv * dt
+        dx2_null  = np.sqrt(np.sum(d_null * d_null))        # d_null^T C^-1 d_null * dt
+
+        change_const += dx2_const * dt
+        change_tv    += dx2_tv * dt
+        change_null  += dx2_null * dt
+
+    actions = [change_const, change_tv, change_null]
+    min_id  = np.argmin(actions)
+    action_str = ['constant', 'time-varying', 'null']
+    print(f'CH{tag[-5:]}|{change_const:.4f}|{change_tv:.4f}|{change_null:.4f}|{action_str[min_id]}')
+
+def cal_freq_change_new(tag, HIV_DIR = 'data/HIV'):
+    """
+    Calculate diff between time-varying and constant pattern
+    time-varying  = constant sc for non-epitope sites and time-varying sc for epitope sites and epitope
+    """
+    # calculate recombination flux term at time t
+    def get_rec_flux_at_t(r_rates, x_trait, p_mut_k, trait_dis):
+        flux = np.zeros(ne)
+        for n in range(ne):
+            fluxIn  = 0
+            fluxOut = 0
+
+            for nn in range(len(escape_group[n])-1):
+                fluxIn  += trait_dis[n][nn] * (1 - x_trait[n]) *p_mut_k[n][nn][0]
+                fluxOut += trait_dis[n][nn] * p_mut_k[n][nn][1]*p_mut_k[n][nn][2]
+            
+            flux[n] = r_rates * (fluxIn - fluxOut)
+
+        return flux
+
+    def diffusion_matrix_at_t(x,xx):
+        x_length = len(x)
+        C = np.zeros([x_length,x_length])
+        for i in range(x_length):
+            C[i,i] = x[i] - x[i] * x[i]
+            for j in range(int(i+1) ,x_length):
+                C[i,j] = xx[i,j] - x[i] * x[j]
+                C[j,i] = xx[i,j] - x[i] * x[j]
+        return C
+    
+    # calculate mutation flux term at sampled time
+    def cal_mut_flux(x,ex,muVec):
+        flux = np.zeros((len(x),x_length))
+        for t in range(len(x)):
+            for i in range(seq_length):
+                for a in range(q):
+                    aa = int(muVec[i][a])
+                    if aa != -1:
+                        for b in range(q):
+                            bb = int(muVec[i][b])
+                            if b != a:
+                                if bb != -1:
+                                    flux[t,aa] +=  muMatrix[b][a] * x[t,bb] - muMatrix[a][b] * x[t,aa]
+                                else:
+                                    flux[t,aa] += -muMatrix[a][b] * x[t,aa]
+            for n in range(ne):
+                for nn in range(len(escape_group[n])):
+                    for a in range(q):
+                        WT = escape_TF[n][nn]
+                        index = escape_group[n][nn]
+                        if a not in WT:
+                            for b in WT:
+                                flux[t, x_length-ne+n] += muMatrix[b][a] * (1 - x[t,x_length-ne+n]) - muMatrix[a][b] * ex[t,index,a]
+        return flux
+
+    def get_sc_common(sc_all, muVec):
+        sc_const = np.zeros(x_length)
+        for i in range(seq_length):
+            for a in range(q):
+                aa = int(muVec[i][a])
+                if aa != -1:
+                    sc_const[aa] = sc_all[i*q + a]
+        for n in range(ne):
+            sc_const[x_length-ne+n] = sc_all[seq_length*q + n]
+        return sc_const
+    
+    def insert_time(arr, allowed_gaps=(7, 8, 9, 10, 11, 12, 13)):
+        """
+        Insert values into an array, ensuring the difference between adjacent values 
+        is within the allowed_gaps range as evenly distributed as possible.
+        """
+        result = []
+
+        for i in range(len(arr) - 1):
+            result.append(arr[i])  # add current value
+            diff = arr[i+1] - arr[i]
+            
+            if diff < max(allowed_gaps):
+                continue
+
+            while diff > max(allowed_gaps):
+                # choose the gap that is closest to 10
+                if diff % 10 == 0:
+                    step = diff/10
+                else:
+                    step = (diff // 10) + 1
+                gap = min(allowed_gaps, key=lambda x: abs(x - diff / step))
+                next_value = result[-1] + gap
+                result.append(next_value)
+                diff = arr[i+1] - next_value  # update the remaining difference
+            
+            # check if the last gap is in the allowed_gaps
+            if diff not in allowed_gaps:
+                print(f"Warning: the gap between {result[-1]} and {arr[i+1]} is not in the allowed_gaps range.")
+            
+        # Add the last value
+        if result[-1] != arr[-1]:
+            result.append(arr[-1])
+
+        return np.array(result)
+
+    # Load data
+    rawdata  = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+    muMatrix = np.loadtxt("%s/input/Zanini-extended.dat"%HIV_DIR)
+
+    # information for individual sites
+    x            = rawdata['single_freq']
+    xx           = rawdata['double_freq']
+    ex           = rawdata['escape_freq']
+    muVec        = rawdata['muVec']
+    sample_times = rawdata['sample_times']
+    seq_length   = rawdata['seq_length']
+    r_rates      = rawdata['r_rates']
+
+    # information for escape group
+    p_mut_k      = rawdata['p_mut_k_freq']
+    escape_group = rawdata['escape_group'].tolist()
+    escape_TF    = rawdata['escape_TF'].tolist()
+    trait_dis    = rawdata['trait_dis'].tolist()
+    ne           = len(escape_group)
+    x_length     = len(x[0])
+    escape_sites = [x for sub in escape_group for x in sub] # flatten the escape sites
+
+    # Get sc for common mutation and wild-type
+    q = len(NUC)
+    sc_const_all = np.loadtxt('%s/constant/output/sc-%s.dat'%(HIV_DIR,tag))
+    sc_const = get_sc_common(sc_const_all, muVec)
+
+    # check if the length for constant selection coefficient matches frequency data
+    if len(sc_const) != x_length:
+        print(f'Error: length of selection coefficient does not match frequency data for {tag}')
+        print(f'       length of sc: {len(sc_const)}, length of x: {x_length}')
+        return None
+    
+    # extend the time range
+    if sample_times[-1] > 100:
+        interp_times = insert_time(sample_times)
+    else:
+        interp_times = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+
+    times_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+    sc_all = np.load('%s/output/sc_%s.npz'%(HIV_DIR,tag), allow_pickle=True)['selection'].T
+
+    # selection coefficients for interpolated time points
+    interp_index = {t: i for i, t in enumerate(interp_times)}
+    sc_tv = np.tile(sc_const, (len(interp_times), 1)) # Initialize with constant sc
+    for ti, t in enumerate(times_all):
+        if t in interp_index:
+            # individual site
+            for i in escape_sites:
+                for j in range(len(muVec[i])):
+                    aa = int(muVec[i][j])
+                    if aa != -1:
+                        sc_tv[interp_index[t], aa] = sc_all[ti, aa]
+            # epitope
+            for n in range(ne):
+                sc_tv[interp_index[t], x_length - ne + n] = sc_all[ti, x_length - ne + n]
+
+    # Use linear interpolates to get the input arrays at any integer time point
+    interp_x   = interp1d(sample_times, x, axis=0, kind='linear', bounds_error=False, fill_value=0)
+    interp_xx  = interp1d(sample_times, xx, axis=0, kind='linear', bounds_error=False, fill_value=0)
+    interp_ex  = interp1d(sample_times, ex, axis=0, kind='linear', bounds_error=False, fill_value=0) if ne > 0 else 0
+    interp_mut = interp1d(sample_times, p_mut_k, axis=0, kind='linear', bounds_error=False, fill_value=0) if ne > 0 else 0
+    interp_r   = interp1d(sample_times, r_rates, kind='linear', bounds_error=False, fill_value=0)
+    
+    single_freq = interp_x(interp_times)
+    double_freq = interp_xx(interp_times)
+    epitope_freq = interp_ex(interp_times) if ne > 0 else 0
+    p_mut_k     = interp_mut(interp_times) if ne > 0 else 0
+    r_rate      = interp_r(interp_times)
+
+    # get mutation flux at sampled time points
+    flux_mut = cal_mut_flux(single_freq, epitope_freq, muVec)
+
+    change_tv = 0
+    change_const = 0
+    change_null = 0
+    for ti in range(len(interp_times)-1):
+
+        x_t, xx_t = single_freq[ti], double_freq[ti]
+        sc_tv_t = sc_tv[ti] # Time-varying selection coefficient at time ti
+        
+        dx = single_freq[ti+1] - single_freq[ti]
+        dt = interp_times[ti+1] - interp_times[ti]
+
+        # calculate C(t)
+        C_raw = diffusion_matrix_at_t(x_t, xx_t) # covariance matrix
+
+        # calculate flux(t) = flux_mut(t) + flux_rec(t)
+        flux_total = flux_mut[ti]
+        flux_rec = get_rec_flux_at_t(r_rate[ti], x_t[x_length-ne:], p_mut_k[ti], trait_dis) if ne > 0 else 0
+        for n in range(ne): # recombination only for binary trait part
+            flux_total[x_length-ne+n] += flux_rec[n]
+
+        d_const = C_raw @ sc_const + flux_total - dx/dt
+        d_tv    = C_raw @ sc_tv_t + flux_total - dx/dt
+        d_null  = flux_total - dx/dt
+
+        change_const += np.sqrt(np.sum(d_const * d_const))* dt     # d_const^T d_const * dt
+        change_tv    += np.sqrt(np.sum(d_tv * d_tv))* dt           # d_tv^T C^-1 d_tv * dt
+        change_null  += np.sqrt(np.sum(d_null * d_null))* dt       # d_null^T C^-1 d_null * dt
+
+    actions = [change_const, change_tv, change_null]
+    min_id  = np.argmin(actions)
+    action_str = ['constant', 'time-varying', 'null'] 
+    print(f'CH{tag[-5:]}|{change_const:.4f}|{change_tv:.4f}|{change_null:.4f}|{action_str[min_id]}')
+
+# def cal_loocv(tag, gamma_1=10, gamma_2tv=50, gamma_2c=100000, HIV_DIR = 'data/HIV'):
+#     """
+#     Calculate the posterior probability of inferred constant selection coefficients
+#     """
+#     # calculate recombination flux term at time t
+#     def get_rec_flux_at_t(r_rates, x_trait, p_mut_k, trait_dis):
+#         flux = np.zeros(ne)
+#         for n in range(ne):
+#             fluxIn  = 0
+#             fluxOut = 0
+
+#             for nn in range(len(escape_group[n])-1):
+#                 fluxIn  += trait_dis[n][nn] * (1 - x_trait[n]) *p_mut_k[n][nn][0]
+#                 fluxOut += trait_dis[n][nn] * p_mut_k[n][nn][1]*p_mut_k[n][nn][2]
+            
+#             flux[n] = r_rates * (fluxIn - fluxOut)
+
+#         return flux
+
+#     # calculate diffusion matrix C at time t
+#     def diffusion_matrix_at_t(x_0, x_1,xx_0, xx_1):
+#         x_length = len(x_0)
+#         C = np.zeros([x_length,x_length])
+#         for i in range(x_length):
+#             C[i,i] = ((3 - (2 * x_1[i])) * (x_0[i] + x_1[i]) - 2 * x_0[i] * x_0[i]) / 6
+#             for j in range(int(i+1) ,x_length):
+#                 dcov1 = - (2 * x_0[i] * x_0[j] + 2 * x_1[i] * x_1[j] + x_0[i] * x_1[j] + x_1[i] * x_0[j]) / 6 
+#                 dcov2 = (xx_0[i,j] + xx_1[i,j]) / 2
+#                 dcov = dcov1 + dcov2 if abs(dcov1 + dcov2) > 1e-10 else 0
+#                 C[i,j] = dcov
+#                 C[j,i] = dcov
+#         return C
+  
+
+#     # calculate mutation flux term at sampled time
+#     def cal_mut_flux(x,ex,muVec):
+#         flux = np.zeros((len(x),x_length))
+#         for t in range(len(x)):
+#             for i in range(seq_length):
+#                 for a in range(q):
+#                     aa = int(muVec[i][a])
+#                     if aa != -1:
+#                         for b in range(q):
+#                             bb = int(muVec[i][b])
+#                             if b != a:
+#                                 if bb != -1:
+#                                     flux[t,aa] +=  muMatrix[b][a] * x[t,bb] - muMatrix[a][b] * x[t,aa]
+#                                 else:
+#                                     flux[t,aa] += -muMatrix[a][b] * x[t,aa]
+#             for n in range(ne):
+#                 for nn in range(len(escape_group[n])):
+#                     for a in range(q):
+#                         WT = escape_TF[n][nn]
+#                         index = escape_group[n][nn]
+#                         if a not in WT:
+#                             for b in WT:
+#                                 flux[t, x_length-ne+n] += muMatrix[b][a] * (1 - x[t,x_length-ne+n]) - muMatrix[a][b] * ex[t,index,a]
+#         return flux
+    
+#     # calculate the frequency change at all times
+#     def cal_delta_s(single_freq,times):
+
+#         delta_x  = np.zeros((len(single_freq),x_length))   # difference between the frequency at time t and time t-1s
+#         # calculate manually
+#         for t in range(len(single_freq)-1):
+#             delta_x[t] = (single_freq[t+1] - single_freq[t])/(times[t+1]-times[t])
+
+#         # dt for the last time point, make sure the expected x[t+1] is less than 1
+#         for ii in range(x_length):
+#             if single_freq[-1,ii] == 1 and delta_x[-2,ii] > 0:
+#                 delta_x[-1,ii] = 0
+#             elif single_freq[-1,ii] == 0 and delta_x[-2,ii] < 0:
+#                 delta_x[-1,ii] = 0
+#             else:
+#                 delta_x[-1,ii] = delta_x[-2,ii]
+
+#         return delta_x
+
+#     # regularization value gamma_1 and gamma_2
+#     # gamma_1: time-independent, gamma_2: time-dependent    
+#     def get_gamma2(times):
+#         # Use a time-varying gamma_prime, gamma_2tv is the middle value, 
+#         # boundary value is 4 times larger, decrese/increase exponentially within 10% generation.
+#         gamma_t = np.ones(len(times))
+#         tv_range = max(int(round(times[-1]*0.1/10)*10),1)
+#         beta   = 4
+#         alpha  = np.log(beta) / tv_range
+#         for ti, t in enumerate(times): # loop over all time points, ti: index, t: time
+#             if t <= tv_range:
+#                 gamma_t[ti] = beta * np.exp(-alpha * t)
+#             elif t > times[-1] - tv_range:
+#                 gamma_t[ti] = 1 * np.exp(alpha * (t - times[-1] + tv_range))
+        
+#         gamma2 = np.ones((x_length,len(times)))* gamma_2c
+#         # special site
+#         for p_site in p_sites:
+#             for qq in range(len(NUC)):
+#                 index = int (muVec[p_site][qq]) 
+#                 if index != -1:
+#                     gamma2[index] = gamma_t * gamma_2tv
+#         # binary trait
+#         for n in range(ne):
+#             gamma2[x_length-ne+n] = gamma_t * gamma_2tv
+
+#         return gamma2.T
+
+#     def get_sc_common(sc_all, muVec):
+#         sc_const = np.zeros(x_length)
+#         for i in range(seq_length):
+#             for a in range(q):
+#                 aa = int(muVec[i][a])
+#                 if aa != -1:
+#                     sc_const[aa] = sc_all[aa]
+#         for n in range(ne):
+#             sc_const[x_length-ne+n] = sc_all[seq_length*q + n]
+#         return sc_const
+
+#     # Load data
+#     rawdata  = np.load('%s/rawdata/rawdata_%s-%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+#     muMatrix = np.loadtxt("%s/input/Zanini-extended.dat"%HIV_DIR)
+
+#     # information for individual sites
+#     x            = rawdata['single_freq']
+#     xx           = rawdata['double_freq']
+#     ex           = rawdata['escape_freq']
+#     muVec        = rawdata['muVec']
+#     sample_times = rawdata['sample_times']
+#     seq_length   = rawdata['seq_length']
+#     r_rates      = rawdata['r_rates']
+
+#     # information for escape group
+#     p_mut_k      = rawdata['p_mut_k_freq']
+#     p_sites      = rawdata['special_sites']
+#     escape_group = rawdata['escape_group'].tolist()
+#     escape_TF    = rawdata['escape_TF'].tolist()
+#     trait_dis    = rawdata['trait_dis'].tolist()
+#     ne           = len(escape_group)
+#     x_length     = len(x[0])
+
+#     # get dx
+#     flux_mut = cal_mut_flux(x, ex, muVec)
+
+    
+#     q = len(NUC)
+#     action_tv = 0
+#     action_const = 0
+
+#     for cutt in sample_times:
+#         # Get sc for common mutation and wild-type
+#         sc_const_all = np.loadtxt('%s/constant/output/cut/sc-%s-%s.dat'%(HIV_DIR,tag,cutt))
+#         sc_const = get_sc_common(sc_const_all, muVec)
+
+#         times_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+#         sc_all = np.load('%s/output/cut/sc_%s-%s.npz'%(HIV_DIR,tag,cutt), allow_pickle=True)['selection'].T
+#         index = list(times_all).index(cutt)
+#         sc_tv_t = sc_all[index]
+
+#         # calculate likelihood for each left-out time point
+
+    
+    
+    
+
+#     # Get matrix A and vector b
+    
+#     for ti in range(len(sample_times)-1):
+#         x_t0, x_t1 = x[ti], x[ti+1]
+#         xx_t0, xx_t1 = xx[ti], xx[ti+1]
+
+#         sc_t = sc_tv[ti]
+#         sc_dot_t = sc_dot_tv[ti]
+
+#         dt = sample_times[ti+1]-sample_times[ti]
+
+#         # calculate flux(t) = x'(t) - flux_mut(t) - flux_rec(t)
+#         flux_rec0 = get_rec_flux_at_t(r_rates[ti],   x_t0[x_length-ne:], p_mut_k[ti],   trait_dis) if ne > 0 else 0
+#         flux_rec1 = get_rec_flux_at_t(r_rates[ti+1], x_t1[x_length-ne:], p_mut_k[ti+1], trait_dis) if ne > 0 else 0
+#         flux_t   = (x_t1 - x_t0) / dt - (flux_mut[ti] + flux_mut[ti+1]) / 2
+#         for n in range(ne): # recombination only for binary trait part
+#             flux_t[x_length-ne+n] -= (flux_rec0[n] + flux_rec1[n]) / 2
+
+#         # calculate C(t)
+#         C_t= diffusion_matrix_at_t(x_t0, x_t1,xx_t0, xx_t1) # covariance matrix
+
+#         action_t = (flux_t @ C_t @ flux_t) * dt
+#         action_const += action_t
+#         action_tv    += action_t + (np.dot(gamma_tv * sc_t, sc_t) + np.dot(gamma_2[ti] * sc_dot_t, sc_dot_t)) * dt
+
+#     action_const +=  np.dot(gamma_const * sc_const, sc_const)
+
+#     return action_const, action_tv
+
+def modify_seq(tag, HIV_DIR='data/HIV'):
+    '''
+    Remove one time pooint for each patient to calculate LOO-CV
+    '''
+
+    seq = np.loadtxt('%s/input/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
+    L   = len(seq[0])-2
+    time_points = np.unique(seq[:,0])
+
+    for time in time_points:
+        with open('%s/input/sequence/cut/%s-%d-poly-seq2state.dat'%(HIV_DIR,tag,time), "w") as f:
+            for k in range(len(seq)):
+                if seq[k][0] != time:
+                    f.write('%s\n'%'\t'.join([str(int(i)) for i in seq[k]]))
+
+    return time_points
+
+def modify_r(tag, time_points):
+    '''
+    Modify recombination rates file for LOO-CV
+    '''
+
+    r_rates = np.loadtxt('data/HIV/input/r_rates/r-%s.dat'%tag)
+
+    for i in range(len(time_points)):
+        r_cut = [r_rates[j] for j in range(len(r_rates)) if j != i]
+        np.savetxt('data/HIV/input/r_rates/cut/r-%s-%d.dat'%(tag,time_points[i]), r_cut)
+        
+    return

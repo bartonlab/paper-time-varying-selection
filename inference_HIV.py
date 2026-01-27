@@ -135,7 +135,6 @@ def main(args):
     parser.add_argument('--pt',          action='store_false', default=True,        help='whether or not to print the execution time')
     parser.add_argument('--add',         action='store_true', default=False,        help='whether or not to add time to the input data')
 
-    
     arg_list  = parser.parse_args(args)
 
     tag        = arg_list.tag
@@ -151,7 +150,7 @@ def main(args):
     cr         = arg_list.cr
     add_time   = arg_list.add
     print_time = arg_list.pt
-    
+
     ############################################################################
     ################################# function #################################
     # loading data from dat file
@@ -505,9 +504,9 @@ def main(args):
     if raw_save:
         # obtain raw sequence data
         if add_time:
-            data     = np.loadtxt('%s/input/sequence/%s-poly-seq2state-add.dat'%(HIV_DIR,tag))
+            data = np.loadtxt('%s/input/sequence/%s-poly-seq2state-add.dat'%(HIV_DIR,tag))
         else:
-            data     = np.loadtxt('%s/input/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
+            data = np.loadtxt('%s/input/sequence/%s-poly-seq2state.dat'%(HIV_DIR,tag))
 
         # information for escape group
         if add_time:
@@ -547,6 +546,7 @@ def main(args):
             f = open('%s/rawdata/rawdata_%s-add.npz'%(HIV_DIR,tag), mode='w+b')
         else:
             f = open('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), mode='w+b')
+
         escape_group = np.array(escape_group, dtype=object)
         escape_TF    = np.array(escape_TF , dtype=object)
         trait_dis    = np.array(trait_dis , dtype=object)
@@ -566,6 +566,7 @@ def main(args):
     
     # load processed data from rawdata file
     try:
+
         if add_time:
             rawdata  = np.load('%s/rawdata/rawdata_%s-add.npz'%(HIV_DIR,tag), allow_pickle=True)
         else:
@@ -607,11 +608,12 @@ def main(args):
     time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
 
     # get dx
-    delta_x_raw = cal_delta_x(x, sample_times)
-    flux_mu_raw = cal_mut_flux(x, ex, muVec)
+    dx_raw = cal_delta_x(x, sample_times)
+    mu_raw = cal_mut_flux(x, ex, muVec)
     
     # get gamma_1 and gamma_2
-    gamma_1s = round(gamma_1/sample_times[-1],3) # constant MPL gamma value / max time
+    full_time = sample_times[-1] - sample_times[0]
+    gamma_1s = round(gamma_1/full_time,3) # constant MPL gamma value / max time
     gamma_1e = gamma_1s/10
     gamma_1e_original = gamma_1e * np.ones(ne)
     gamma_1   = np.ones(x_length)*gamma_1s # set gamma_1 for traits at ODE part
@@ -634,8 +636,8 @@ def main(args):
     interp_x   = interp1d(sample_times, x, axis=0, kind='linear', bounds_error=False, fill_value=0)
     interp_xx  = interp1d(sample_times, xx, axis=0, kind='linear', bounds_error=False, fill_value=0)
     interp_mut = interp1d(sample_times, p_mut_k, axis=0, kind='linear', bounds_error=False, fill_value=0) if ne > 0 else 0
-    interp_dx  = interp1d(sample_times, delta_x_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
-    interp_mu  = interp1d(sample_times, flux_mu_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+    interp_dx  = interp1d(sample_times, dx_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+    interp_mu  = interp1d(sample_times, mu_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
     interp_r   = interp1d(sample_times, r_rates, kind='linear', bounds_error=False, fill_value=0)
     
     single_freq = interp_x(time_all)
@@ -687,9 +689,9 @@ def main(args):
                 else:
                     gamma_1[x_length-ne+n] = gamma_1e_original[n]
 
-            if t < 0 or t > sample_times[-1]:
+            if t < sample_times[0] or t > sample_times[-1]:
                 # get gamma2 for extrapolated time points
-                if t < 0:
+                if t < sample_times[0]:
                     gamma2_t = gamma_2[0]
                 else:
                     gamma2_t = gamma_2[-1]
@@ -704,7 +706,7 @@ def main(args):
 
             else:
                 # get A(t), b(t) and gamma2(t)
-                time_index = round(t)
+                time_index = int(round(t) - sample_times[0])
                 A_t      = A_all[time_index]                
                 b_t      = b_all[time_index]
                 gamma2_t = gamma_2[time_index]
@@ -747,7 +749,7 @@ def main(args):
     if print_time:
         end_time = time_module.time()
         print(f"CH{tag[6:]}---------{end_time - start_time} seconds")
-
+        
     # save the solution with constant_time-varying selection coefficient
     if add_time:
         g = open('%s/%s/sc_%s-add.npz'%(HIV_DIR, output_dir, tag), mode='w+b')
