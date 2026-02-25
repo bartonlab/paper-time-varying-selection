@@ -1,0 +1,18 @@
+#!/bin/bash
+cd ..
+python inference_HIV_nosp.py -tag 700010470-5 -g1 10 -g2c 100000 -name _10_1e5 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 10 -g2c 500000 -name _10_5e5 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 10 -g2c 1000000 -name _10_1e6 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 10 -g2c 5000000 -name _10_5e6 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 5 -g2c 100000 -name _5_1e5 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 5 -g2c 500000 -name _5_5e5 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 5 -g2c 1000000 -name _5_1e6 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 5 -g2c 5000000 -name _5_5e6 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 1 -g2c 100000 -name _1_1e5 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 1 -g2c 500000 -name _1_5e5 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 1 -g2c 1000000 -name _1_1e6 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 1 -g2c 5000000 -name _1_5e6 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 20 -g2c 100000 -name _20_1e5 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 20 -g2c 500000 -name _20_5e5 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 20 -g2c 1000000 -name _20_1e6 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 
+python inference_HIV_nosp.py -tag 700010470-5 -g1 20 -g2c 5000000 -name _20_5e6 -output output_nosp || echo "CH470-5 failed, continuing with next script..." 

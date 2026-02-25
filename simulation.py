@@ -405,37 +405,37 @@ def getSequence_trait(history,escape_group,sample_times):
 
     return sVec,nVec,eVec
 
-# calculate frequencies for recombination part
-def get_p_k(sVec,nVec,seq_length,escape_group,escape_TF):
-    p_mut_k   = np.zeros((len(nVec),seq_length,3)) # 0: time, 1: all k point, 2: p_k, p_k-, p_k+
-    for t in range(len(nVec)):
-        pop_size_t = np.sum([nVec[t]])
+# # calculate frequencies for recombination part
+# def get_p_k(sVec,nVec,seq_length,escape_group,escape_TF):
+#     p_mut_k   = np.zeros((len(nVec),seq_length,3)) # 0: time, 1: all k point, 2: p_k, p_k-, p_k+
+#     for t in range(len(nVec)):
+#         pop_size_t = np.sum([nVec[t]])
         
-        for n in range(len(escape_group)):
-            escape_group_n = escape_group[n]
-            sWT_n     = [int(i) for i in escape_TF[n]]
+#         for n in range(len(escape_group)):
+#             escape_group_n = escape_group[n]
+#             sWT_n     = [int(i) for i in escape_TF[n]]
 
-            for k in range(len(sVec[t])): # different sequences at time t
-                sVec_n = [int(sVec[t][k][i]) for i in escape_group_n]
+#             for k in range(len(sVec[t])): # different sequences at time t
+#                 sVec_n = [int(sVec[t][k][i]) for i in escape_group_n]
 
-                for nn in range(len(escape_group_n)-1):
-                    k_bp = nn + 1
+#                 for nn in range(len(escape_group_n)-1):
+#                     k_bp = nn + 1
                     
-                    # containing mutation before and after break point k,p_k
-                    if sWT_n[:k_bp] != sVec_n[:k_bp] and sWT_n[k_bp:] != sVec_n[k_bp:]:
-                        p_mut_k[t][escape_group_n[0]+nn][0] += nVec[t][k]
+#                     # containing mutation before and after break point k,p_k
+#                     if sWT_n[:k_bp] != sVec_n[:k_bp] and sWT_n[k_bp:] != sVec_n[k_bp:]:
+#                         p_mut_k[t][escape_group_n[0]+nn][0] += nVec[t][k]
                     
-                    # MT before break point k and WT after break point k,p_k-
-                    if sWT_n[:k_bp] != sVec_n[:k_bp] and sWT_n[k_bp:] == sVec_n[k_bp:]:
-                        p_mut_k[t][escape_group_n[0]+nn][1] += nVec[t][k]
+#                     # MT before break point k and WT after break point k,p_k-
+#                     if sWT_n[:k_bp] != sVec_n[:k_bp] and sWT_n[k_bp:] == sVec_n[k_bp:]:
+#                         p_mut_k[t][escape_group_n[0]+nn][1] += nVec[t][k]
                     
-                    # WT before break point k and MT after break point k,p_k+
-                    if sWT_n[:k_bp] == sVec_n[:k_bp] and sWT_n[k_bp:] != sVec_n[k_bp:]:
-                        p_mut_k[t][escape_group_n[0]+nn][2] += nVec[t][k]
+#                     # WT before break point k and MT after break point k,p_k+
+#                     if sWT_n[:k_bp] == sVec_n[:k_bp] and sWT_n[k_bp:] != sVec_n[k_bp:]:
+#                         p_mut_k[t][escape_group_n[0]+nn][2] += nVec[t][k]
 
-        p_mut_k[t] = p_mut_k[t] / pop_size_t
+#         p_mut_k[t] = p_mut_k[t] / pop_size_t
 
-    return p_mut_k
+#     return p_mut_k
  
 # calculate diffusion matrix C at any t
 def diffusion_matrix_at_t(x,xx):
@@ -475,544 +475,544 @@ def getMutantS(seq_length):
         x_length += 1
     return x_length,muVec
     
-def infer_simple(**pdata):
-    """
-    Infer time-varying example (binary case)
-    """
+# def infer_simple(**pdata):
+#     """
+#     Infer time-varying example (binary case)
+#     """
 
-    # unpack passed data
-    sim_dir       = pdata['dir']            # 'simple'
-    input_dir     = pdata['input_dir']      # 'sequences'
-    xfile         = pdata['xfile']          # index of the simulation
-    output_dir    = pdata['output_dir']     # 'output'
+#     # unpack passed data
+#     sim_dir       = pdata['dir']            # 'simple'
+#     input_dir     = pdata['input_dir']      # 'sequences'
+#     xfile         = pdata['xfile']          # index of the simulation
+#     output_dir    = pdata['output_dir']     # 'output'
 
-    seq_length    = pdata['seq_length']     # 10
-    totalT        = pdata['generations']    # 1000
-    mut_rate      = pdata['mut_rate']       # 1e-3
+#     seq_length    = pdata['seq_length']     # 10
+#     totalT        = pdata['generations']    # 1000
+#     mut_rate      = pdata['mut_rate']       # 1e-3
 
-    p_1           = pdata['p_1']            # [6,7]
-    p_2           = pdata['p_2']            # [8,9]
+#     p_1           = pdata['p_1']            # [6,7]
+#     p_2           = pdata['p_2']            # [8,9]
 
-    gamma_1s      = pdata['gamma_s']/totalT # gamma_s/time points
-    gamma_2c      = pdata['gamma_2c']       # 1000000
-    gamma_2tv     = pdata['gamma_2tv']      # 200
-    theta         = pdata['theta']          # 0.5
-    beta          = pdata['beta']           # 4
+#     gamma_1s      = pdata['gamma_s']/totalT # gamma_s/time points
+#     gamma_2c      = pdata['gamma_2c']       # 1000000
+#     gamma_2tv     = pdata['gamma_2tv']      # 200
+#     theta         = pdata['theta']          # 0.5
+#     beta          = pdata['beta']           # 4
 
-    p_sites       = p_1+p_2                 # [6,7,8,9] , special sites
-    ############################################################################
-    ############################## Function ####################################
+#     p_sites       = p_1+p_2                 # [6,7,8,9] , special sites
+#     ############################################################################
+#     ############################## Function ####################################
 
-    # calculate single and pair allele frequency (binary case)
-    def get_allele_frequency(sVec,nVec,muVec):
+#     # calculate single and pair allele frequency (binary case)
+#     def get_allele_frequency(sVec,nVec,muVec):
 
-        x  = np.zeros((len(nVec),x_length))           # single allele frequency
-        xx = np.zeros((len(nVec),x_length,x_length))  # pair allele frequency
-        for t in range(len(nVec)):
-            pop_size_t = np.sum([nVec[t]])
-            # individual locus part
-            for i in range(seq_length):
-                aa = int(muVec[i])
-                if aa != -1:
-                    x[t,aa] = np.sum([sVec[t][k][i] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-                for j in range(int(i+1), seq_length):
-                    bb = int(muVec[j])
-                    if bb != -1:
-                        xx[t,aa,bb] = np.sum([sVec[t][k][i] * sVec[t][k][j] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-                        xx[t,aa,bb] = np.sum([sVec[t][k][i] * sVec[t][k][j] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-        return x,xx
+#         x  = np.zeros((len(nVec),x_length))           # single allele frequency
+#         xx = np.zeros((len(nVec),x_length,x_length))  # pair allele frequency
+#         for t in range(len(nVec)):
+#             pop_size_t = np.sum([nVec[t]])
+#             # individual locus part
+#             for i in range(seq_length):
+#                 aa = int(muVec[i])
+#                 if aa != -1:
+#                     x[t,aa] = np.sum([sVec[t][k][i] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#                 for j in range(int(i+1), seq_length):
+#                     bb = int(muVec[j])
+#                     if bb != -1:
+#                         xx[t,aa,bb] = np.sum([sVec[t][k][i] * sVec[t][k][j] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#                         xx[t,aa,bb] = np.sum([sVec[t][k][i] * sVec[t][k][j] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#         return x,xx
     
-    # calculate mutation flux term (binary_case)
-    def get_mut_flux(x,muVec):
-        flux = np.zeros((len(x),x_length))
-        for t in range(len(x)):
-            for i in range(seq_length):
-                aa = int(muVec[i])
-                if aa != -1:
-                    flux[t,aa] = mut_rate * ( 1 - 2 * x[t,aa])
-        return flux
+#     # calculate mutation flux term (binary_case)
+#     def get_mut_flux(x,muVec):
+#         flux = np.zeros((len(x),x_length))
+#         for t in range(len(x)):
+#             for i in range(seq_length):
+#                 aa = int(muVec[i])
+#                 if aa != -1:
+#                     flux[t,aa] = mut_rate * ( 1 - 2 * x[t,aa])
+#         return flux
 
-    def get_gamma2(times, beta):
-        # Use a time-varying gamma_prime, gamma_2tv is the middle value, 
-        # boundary value is beta times larger, decrese/increase exponentially within 10% generation.
-        gamma_t = np.ones(len(times))
-        if beta != 1:
-            tv_range = max(int(round(times[-1]*0.1/10)*10),1)
-            alpha  = np.log(beta) / tv_range
-            for ti, t in enumerate(times): # loop over all time points, ti: index, t: time
-                if t <= tv_range:
-                    gamma_t[ti] = beta * np.exp(-alpha * t)
-                elif t > times[-1] - tv_range:
-                    gamma_t[ti] = 1 * np.exp(alpha * (t - times[-1] + tv_range))
+#     def get_gamma2(times, beta):
+#         # Use a time-varying gamma_prime, gamma_2tv is the middle value, 
+#         # boundary value is beta times larger, decrese/increase exponentially within 10% generation.
+#         gamma_t = np.ones(len(times))
+#         if beta != 1:
+#             tv_range = max(int(round(times[-1]*0.1/10)*10),1)
+#             alpha  = np.log(beta) / tv_range
+#             for ti, t in enumerate(times): # loop over all time points, ti: index, t: time
+#                 if t <= tv_range:
+#                     gamma_t[ti] = beta * np.exp(-alpha * t)
+#                 elif t > times[-1] - tv_range:
+#                     gamma_t[ti] = 1 * np.exp(alpha * (t - times[-1] + tv_range))
 
-        # individual site: gamma_2c, escape group and special site: gamma_2tv
-        gamma_2 = np.ones((x_length,len(times))) * gamma_2c
-        for p_site in p_sites: # special site - time varying
-            index = int (muVec[p_site]) 
-            if index != -1:
-                gamma_2[index] = gamma_t * gamma_2tv
+#         # individual site: gamma_2c, escape group and special site: gamma_2tv
+#         gamma_2 = np.ones((x_length,len(times))) * gamma_2c
+#         for p_site in p_sites: # special site - time varying
+#             index = int (muVec[p_site]) 
+#             if index != -1:
+#                 gamma_2[index] = gamma_t * gamma_2tv
         
-        return gamma_2.T
+#         return gamma_2.T
 
-    # solve the bounadry condition ODE to infer selections
-    def fun_simple(time,s):
-        """ Function defining the right-hand side of the system of ODE's"""
+#     # solve the bounadry condition ODE to infer selections
+#     def fun_simple(time,s):
+#         """ Function defining the right-hand side of the system of ODE's"""
 
-        t = np.asarray(time, dtype=float)
+#         t = np.asarray(time, dtype=float)
 
-        s1 = s[:x_length,:]   # the actual selection coefficients s1 = s
-        s2 = s[x_length:,:]   # the derivatives of the selection coefficients, s2 = s'
+#         s1 = s[:x_length,:]   # the actual selection coefficients s1 = s
+#         s2 = s[x_length:,:]   # the derivatives of the selection coefficients, s2 = s'
 
-        # s' = s2
-        dsdt = np.empty_like(s)  # the RHS of the system of ODE's
-        dsdt[:x_length, :] = s2
+#         # s' = s2
+#         dsdt = np.empty_like(s)  # the RHS of the system of ODE's
+#         dsdt[:x_length, :] = s2
 
-        # s2'(t) = A(t)s1(t) + b(t)
-        ds2 = np.empty_like(s1)  # s2'
-        mask_left = t < 0
-        mask_right = t > sample_times[-1]
-        mask_mid = (~mask_left) & (~mask_right)
+#         # s2'(t) = A(t)s1(t) + b(t)
+#         ds2 = np.empty_like(s1)  # s2'
+#         mask_left = t < 0
+#         mask_right = t > sample_times[-1]
+#         mask_mid = (~mask_left) & (~mask_right)
 
-        # left : s'' = gamma1 * s / gamma2_left
-        gamma2_left = gamma_2[0, :]
-        if np.any(mask_left):
-            idx = np.where(mask_left)[0]
-            ds2[:, idx] = (gamma_1[:, None] * s1[:, idx]) / gamma2_left[:, None]
+#         # left : s'' = gamma1 * s / gamma2_left
+#         gamma2_left = gamma_2[0, :]
+#         if np.any(mask_left):
+#             idx = np.where(mask_left)[0]
+#             ds2[:, idx] = (gamma_1[:, None] * s1[:, idx]) / gamma2_left[:, None]
 
-        # right : s'' = gamma1 * s / gamma2_right
-        gamma2_right = gamma_2[-1, :]
-        if np.any(mask_right):
-            idx = np.where(mask_right)[0]
-            ds2[:, idx] = (gamma_1[:, None] * s1[:, idx]) / gamma2_right[:, None]
+#         # right : s'' = gamma1 * s / gamma2_right
+#         gamma2_right = gamma_2[-1, :]
+#         if np.any(mask_right):
+#             idx = np.where(mask_right)[0]
+#             ds2[:, idx] = (gamma_1[:, None] * s1[:, idx]) / gamma2_right[:, None]
 
-        # Middle : s''(t) = (A(t) s(t) + b(t)) / gamma2(t)
-        if np.any(mask_mid):
-            idx_mid = np.where(mask_mid)[0]
-            t_mid = t[idx_mid]
-            # round to get integer time index
-            k_mid = np.rint(t_mid).astype(int)
-            # make sure the index is within range [0, n_time]
-            k_mid = np.clip(k_mid, 0, sample_times[-1])
+#         # Middle : s''(t) = (A(t) s(t) + b(t)) / gamma2(t)
+#         if np.any(mask_mid):
+#             idx_mid = np.where(mask_mid)[0]
+#             t_mid = t[idx_mid]
+#             # round to get integer time index
+#             k_mid = np.rint(t_mid).astype(int)
+#             # make sure the index is within range [0, n_time]
+#             k_mid = np.clip(k_mid, 0, sample_times[-1])
 
-            for pos in range(len(k_mid)):
-                j = idx_mid[pos]    # index in the original time array
-                k = int(k_mid[pos]) # integer time, also the index for A_all, b_all and gamma_2
-                # A_all[k] shape (L, L), s1[:, j] shape (L,)
-                num = A_all[k] @ s1[:, j] + b_all[k]      # (L,)
-                ds2[:, j] = num / gamma_2[k]
+#             for pos in range(len(k_mid)):
+#                 j = idx_mid[pos]    # index in the original time array
+#                 k = int(k_mid[pos]) # integer time, also the index for A_all, b_all and gamma_2
+#                 # A_all[k] shape (L, L), s1[:, j] shape (L,)
+#                 num = A_all[k] @ s1[:, j] + b_all[k]      # (L,)
+#                 ds2[:, j] = num / gamma_2[k]
 
-        dsdt[x_length:, :] = ds2
+#         dsdt[x_length:, :] = ds2
 
-        return dsdt
+#         return dsdt
 
-    # boundary condition
-    def bc(b1,b2):
-        # if using Neumann boundary condition
-        return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
+#     # boundary condition
+#     def bc(b1,b2):
+#         # if using Neumann boundary condition
+#         return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
 
-    ############################################################################
-    ####################### Inference (binary case) ############################
-    # get the name of the output file and check if it exists
-    name_dir = xfile.split('-')[0]
-    name     = xfile.replace(name_dir+'-','')
-    out_file = '%s/%s/%s/c_%s.npz'%(SIM_DIR,sim_dir,output_dir,name)
-    if os.path.exists(out_file):
-        return
+#     ############################################################################
+#     ####################### Inference (binary case) ############################
+#     # get the name of the output file and check if it exists
+#     name_dir = xfile.split('-')[0]
+#     name     = xfile.replace(name_dir+'-','')
+#     out_file = '%s/%s/%s/c_%s.npz'%(SIM_DIR,sim_dir,output_dir,name)
+#     if os.path.exists(out_file):
+#         return
     
-    # obtain raw data and information of traits
-    data         = np.loadtxt("%s/%s/%s/%s.dat"%(SIM_DIR,sim_dir,input_dir,xfile))
+#     # obtain raw data and information of traits
+#     data         = np.loadtxt("%s/%s/%s/%s.dat"%(SIM_DIR,sim_dir,input_dir,xfile))
 
-    # get raw time points
-    times = []
-    for i in range(len(data)):
-        times.append(data[i][0])
-    sample_times = np.unique(times)
-    time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+#     # get raw time points
+#     times = []
+#     for i in range(len(data)):
+#         times.append(data[i][0])
+#     sample_times = np.unique(times)
+#     time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
 
-    # obtain sequence data and frequencies
-    sVec,nVec      = getSequence_simple(data,sample_times)
-    x_length,muVec = getMutantS(seq_length)
+#     # obtain sequence data and frequencies
+#     sVec,nVec      = getSequence_simple(data,sample_times)
+#     x_length,muVec = getMutantS(seq_length)
 
-    # get all frequencies, x_raw: single allele frequency, xx_raw: pair allele frequency
-    x_raw,xx_raw   = get_allele_frequency(sVec,nVec,muVec) 
+#     # get all frequencies, x_raw: single allele frequency, xx_raw: pair allele frequency
+#     x_raw,xx_raw   = get_allele_frequency(sVec,nVec,muVec) 
     
-    # get dx
-    dx_raw = cal_dx_all(x_raw, sample_times, x_length)
-    mu_raw = get_mut_flux(x_raw, muVec)
+#     # get dx
+#     dx_raw = cal_dx_all(x_raw, sample_times, x_length)
+#     mu_raw = get_mut_flux(x_raw, muVec)
 
-    # get gamma_1 and gamma_2
-    gamma_1 = np.ones(x_length)*gamma_1s
-    gamma_2 = get_gamma2(time_all, beta)
+#     # get gamma_1 and gamma_2
+#     gamma_1 = np.ones(x_length)*gamma_1s
+#     gamma_2 = get_gamma2(time_all, beta)
 
-    # get the input arrays at any integer time point
-    if len(sample_times) == len(time_all):
-        # no interpolation is needed
-        x_all  = x_raw
-        xx_all = xx_raw
-        dx_all = dx_raw
-        mu_all = mu_raw
+#     # get the input arrays at any integer time point
+#     if len(sample_times) == len(time_all):
+#         # no interpolation is needed
+#         x_all  = x_raw
+#         xx_all = xx_raw
+#         dx_all = dx_raw
+#         mu_all = mu_raw
 
-    else:
-        # Use linear interpolates to get data
-        interp_x   = interp1d(sample_times,  x_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
-        interp_xx  = interp1d(sample_times, xx_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
-        interp_dx  = interp1d(sample_times, dx_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
-        interp_mu  = interp1d(sample_times, mu_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+#     else:
+#         # Use linear interpolates to get data
+#         interp_x   = interp1d(sample_times,  x_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+#         interp_xx  = interp1d(sample_times, xx_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+#         interp_dx  = interp1d(sample_times, dx_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+#         interp_mu  = interp1d(sample_times, mu_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
         
-        x_all = interp_x(time_all)
-        xx_all = interp_xx(time_all)
-        dx_all = interp_dx(time_all)
-        mu_all = interp_mu(time_all)
+#         x_all = interp_x(time_all)
+#         xx_all = interp_xx(time_all)
+#         dx_all = interp_dx(time_all)
+#         mu_all = interp_mu(time_all)
 
-    t_extend = int(round(time_all[-1]*theta/10.0)*10)
-    etleft   = np.linspace(-t_extend,-10,int(t_extend/10)) # time added before the beginning time (dt=10)
-    etright  = np.linspace(time_all[-1]+10,time_all[-1]+t_extend,int(t_extend/10))
-    ExTimes  = np.concatenate((etleft, time_all, etright))
+#     t_extend = int(round(time_all[-1]*theta/10.0)*10)
+#     etleft   = np.linspace(-t_extend,-10,int(t_extend/10)) # time added before the beginning time (dt=10)
+#     etright  = np.linspace(time_all[-1]+10,time_all[-1]+t_extend,int(t_extend/10))
+#     ExTimes  = np.concatenate((etleft, time_all, etright))
 
-    # Get matrix A and vector b at all time points
-    n_time = len(time_all)
+#     # Get matrix A and vector b at all time points
+#     n_time = len(time_all)
 
-    # Create C at all time points first
-    x_outer = x_all[:, :, None] * x_all[:, None, :]
+#     # Create C at all time points first
+#     x_outer = x_all[:, :, None] * x_all[:, None, :]
 
-    # off-diagonal part
-    C_all = xx_all - x_outer
+#     # off-diagonal part
+#     C_all = xx_all - x_outer
 
-    # use only upper triangle (j > i)
-    iu = np.triu_indices(x_length, k=1)
-    il = (iu[1], iu[0])   # (j,i)
-    C_all[:, il[0], il[1]] = C_all[:, iu[0], iu[1]] # force: C[j,i] = C[i,j]
+#     # use only upper triangle (j > i)
+#     iu = np.triu_indices(x_length, k=1)
+#     il = (iu[1], iu[0])   # (j,i)
+#     C_all[:, il[0], il[1]] = C_all[:, iu[0], iu[1]] # force: C[j,i] = C[i,j]
 
-    # fill diagonal
-    diag_vals = x_all - x_all**2
-    for t_idx in range(n_time):
-        np.fill_diagonal(C_all[t_idx], diag_vals[t_idx])
+#     # fill diagonal
+#     diag_vals = x_all - x_all**2
+#     for t_idx in range(n_time):
+#         np.fill_diagonal(C_all[t_idx], diag_vals[t_idx])
     
-    # A(t) = C(t) + gamma_1 * I
-    A_all = C_all + gamma_1.reshape(1, x_length) * np.eye(x_length)
+#     # A(t) = C(t) + gamma_1 * I
+#     A_all = C_all + gamma_1.reshape(1, x_length) * np.eye(x_length)
 
-    # # b(t) = flux_mu(t) - dx(t)
-    b_all = mu_all - dx_all
+#     # # b(t) = flux_mu(t) - dx(t)
+#     b_all = mu_all - dx_all
 
-    # initial guess for the selection coefficients
-    ss_extend = np.zeros((2*x_length,len(ExTimes)))
+#     # initial guess for the selection coefficients
+#     ss_extend = np.zeros((2*x_length,len(ExTimes)))
     
-    # solve the boundary value problem
-    solution = sp.integrate.solve_bvp(fun_simple, bc, ExTimes, ss_extend, max_nodes=10000, tol=1e-3)
+#     # solve the boundary value problem
+#     solution = sp.integrate.solve_bvp(fun_simple, bc, ExTimes, ss_extend, max_nodes=10000, tol=1e-3)
     
-    # Check if the solution converged
-    if solution.status != 0:
-        print("Error: The BVP solver did not converge for file %s.dat"%(xfile))
-        # return
+#     # Check if the solution converged
+#     if solution.status != 0:
+#         print("Error: The BVP solver did not converge for file %s.dat"%(xfile))
+#         # return
     
-    if np.isnan(solution.y).any():
-        print("Error: solution contains NaN for file %s.dat"%(xfile))
-        # return
+#     if np.isnan(solution.y).any():
+#         print("Error: solution contains NaN for file %s.dat"%(xfile))
+#         # return
 
-    # Get the solution and remove the superfluous part of the array
-    # including the extended time points
-    sc_all         = solution.sol(ExTimes)
-    desired_sc_all = sc_all[:x_length,:]
+#     # Get the solution and remove the superfluous part of the array
+#     # including the extended time points
+#     sc_all         = solution.sol(ExTimes)
+#     desired_sc_all = sc_all[:x_length,:]
 
-    # not include the extended time points
-    sc_sample         = solution.sol(sample_times)
-    desired_sc_sample = sc_sample[:x_length,:]
+#     # not include the extended time points
+#     sc_sample         = solution.sol(sample_times)
+#     desired_sc_sample = sc_sample[:x_length,:]
 
-    # save the solution with constant_time-varying selection coefficients
-    g = open(out_file, mode='w+b')
-    np.savez_compressed(g, all = desired_sc_all, selection=desired_sc_sample, time=sample_times, ExTimes=ExTimes)
-    g.close()
+#     # save the solution with constant_time-varying selection coefficients
+#     g = open(out_file, mode='w+b')
+#     np.savez_compressed(g, all = desired_sc_all, selection=desired_sc_sample, time=sample_times, ExTimes=ExTimes)
+#     g.close()
 
-def infer_trait(**pdata):
-    """
-    Infer time-varying example (binary case) 
-        - add binary trait part
-        - gamma_1 become smaller then s < 0 
-    """
-    # unpack passed data
-    sim_dir       = pdata['dir']            # 'trait'
-    xfile         = pdata['xfile']          # index of the simulation
-    input_dir     = pdata['input_dir']      # 'sequences'
-    output_dir    = pdata['output_dir']     # 'output'
+# def infer_trait(**pdata):
+#     """
+#     Infer time-varying example (binary case) 
+#         - add binary trait part
+#         - gamma_1 become smaller then s < 0 
+#     """
+#     # unpack passed data
+#     sim_dir       = pdata['dir']            # 'trait'
+#     xfile         = pdata['xfile']          # index of the simulation
+#     input_dir     = pdata['input_dir']      # 'sequences'
+#     output_dir    = pdata['output_dir']     # 'output'
 
-    seq_length    = pdata['seq_length']     # 20
-    totalT        = pdata['generations']    # 1000
-    mut_rate      = pdata['mut_rate']       # 1e-3
-    rec_rate      = pdata['rec_rate']
-    p_sites       = pdata['p_sites']        # [13,18] , special sites
-    theta         = pdata['theta']          # 0.5
-    beta          = pdata['beta']           # 4
+#     seq_length    = pdata['seq_length']     # 20
+#     totalT        = pdata['generations']    # 1000
+#     mut_rate      = pdata['mut_rate']       # 1e-3
+#     rec_rate      = pdata['rec_rate']
+#     p_sites       = pdata['p_sites']        # [13,18] , special sites
+#     theta         = pdata['theta']          # 0.5
+#     beta          = pdata['beta']           # 4
 
-    gamma_1s      = pdata['gamma_s']/totalT # gamma_s/time points
-    gamma_1t      = gamma_1s/10
-    gamma_2c      = pdata['gamma_2c']       # 1000000
-    gamma_2tv     = pdata['gamma_2tv']      # 200 
+#     gamma_1s      = pdata['gamma_s']/totalT # gamma_s/time points
+#     gamma_1t      = gamma_1s/10
+#     gamma_2c      = pdata['gamma_2c']       # 1000000
+#     gamma_2tv     = pdata['gamma_2tv']      # 200 
 
-    ############################################################################
-    ############################## Function ####################################
+#     ############################################################################
+#     ############################## Function ####################################
 
-    # calculate single and pair allele frequency (binary case)
-    def get_allele_frequency(sVec,nVec,eVec,muVec):
+#     # calculate single and pair allele frequency (binary case)
+#     def get_allele_frequency(sVec,nVec,eVec,muVec):
 
-        x  = np.zeros((len(nVec),x_length))           # single allele frequency
-        xx = np.zeros((len(nVec),x_length,x_length))  # pair allele frequency
-        for t in range(len(nVec)):
-            pop_size_t = np.sum([nVec[t]])
-            # individual locus part
-            for i in range(seq_length):
-                aa = int(muVec[i])
-                if aa != -1:
-                    x[t,aa] = np.sum([sVec[t][k][i] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-                for j in range(int(i+1), seq_length):
-                    bb = int(muVec[j])
-                    if bb != -1:
-                        xx[t,aa,bb] = np.sum([sVec[t][k][i] * sVec[t][k][j] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-                        xx[t,aa,bb] = np.sum([sVec[t][k][i] * sVec[t][k][j] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-            # escape part
-            for n in range(ne):
-                aa      = x_length-ne+n
-                x[t,aa] = np.sum([eVec[t][k][n] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-                for m in range(int(n+1), ne):
-                    bb          = x_length-ne+m
-                    xx[t,aa,bb] = np.sum([eVec[t][k][n] * eVec[t][k][m] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-                    xx[t,bb,aa] = np.sum([eVec[t][k][n] * eVec[t][k][m] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-                for j in range(seq_length):
-                    bb = int(muVec[j])
-                    if bb != -1:
-                        xx[t,bb,aa] = np.sum([sVec[t][k][j] * eVec[t][k][n] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-                        xx[t,aa,bb] = np.sum([sVec[t][k][j] * eVec[t][k][n] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-        return x,xx
+#         x  = np.zeros((len(nVec),x_length))           # single allele frequency
+#         xx = np.zeros((len(nVec),x_length,x_length))  # pair allele frequency
+#         for t in range(len(nVec)):
+#             pop_size_t = np.sum([nVec[t]])
+#             # individual locus part
+#             for i in range(seq_length):
+#                 aa = int(muVec[i])
+#                 if aa != -1:
+#                     x[t,aa] = np.sum([sVec[t][k][i] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#                 for j in range(int(i+1), seq_length):
+#                     bb = int(muVec[j])
+#                     if bb != -1:
+#                         xx[t,aa,bb] = np.sum([sVec[t][k][i] * sVec[t][k][j] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#                         xx[t,aa,bb] = np.sum([sVec[t][k][i] * sVec[t][k][j] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#             # escape part
+#             for n in range(ne):
+#                 aa      = x_length-ne+n
+#                 x[t,aa] = np.sum([eVec[t][k][n] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#                 for m in range(int(n+1), ne):
+#                     bb          = x_length-ne+m
+#                     xx[t,aa,bb] = np.sum([eVec[t][k][n] * eVec[t][k][m] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#                     xx[t,bb,aa] = np.sum([eVec[t][k][n] * eVec[t][k][m] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#                 for j in range(seq_length):
+#                     bb = int(muVec[j])
+#                     if bb != -1:
+#                         xx[t,bb,aa] = np.sum([sVec[t][k][j] * eVec[t][k][n] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#                         xx[t,aa,bb] = np.sum([sVec[t][k][j] * eVec[t][k][n] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#         return x,xx
 
-    # calculate escape frequency (binary case)
-    def get_escape_fre_term(sVec,nVec):
-        ex  = np.zeros((len(nVec),ne,seq_length))
-        for t in range(len(nVec)):
-            pop_size_t = np.sum([nVec[t]])
-            for k in range(len(sVec[t])):
-                for n in range(ne):
-                    n_mutations = 0
-                    for nn in escape_group[n]:
-                        if sVec[t][k][nn] != 0:
-                            n_mutations += 1
-                            site = nn
-                    if n_mutations == 1:
-                        ex[t,n,site] += nVec[t][k]
-            ex[t,:,:] = ex[t,:,:] / pop_size_t
-        return ex
+#     # calculate escape frequency (binary case)
+#     def get_escape_fre_term(sVec,nVec):
+#         ex  = np.zeros((len(nVec),ne,seq_length))
+#         for t in range(len(nVec)):
+#             pop_size_t = np.sum([nVec[t]])
+#             for k in range(len(sVec[t])):
+#                 for n in range(ne):
+#                     n_mutations = 0
+#                     for nn in escape_group[n]:
+#                         if sVec[t][k][nn] != 0:
+#                             n_mutations += 1
+#                             site = nn
+#                     if n_mutations == 1:
+#                         ex[t,n,site] += nVec[t][k]
+#             ex[t,:,:] = ex[t,:,:] / pop_size_t
+#         return ex
     
-    # calculate mutation flux term (binary_case)
-    def get_mut_flux(x,ex,muVec):
-        flux = np.zeros((len(x),x_length))
-        for t in range(len(x)):
-            # individual locus part
-            for i in range(seq_length):
-                aa = int(muVec[i])
-                if aa != -1:
-                    flux[t,aa] = mut_rate * ( 1 - 2 * x[t,aa])
-            # binary trait part
-            for n in range(ne):
-                for nn in escape_group[n]:
-                    flux[t,x_length-ne+n] += mut_rate * (1 - x[t,x_length-ne+n] - ex[t,n,nn] )
-        return flux
+#     # calculate mutation flux term (binary_case)
+#     def get_mut_flux(x,ex,muVec):
+#         flux = np.zeros((len(x),x_length))
+#         for t in range(len(x)):
+#             # individual locus part
+#             for i in range(seq_length):
+#                 aa = int(muVec[i])
+#                 if aa != -1:
+#                     flux[t,aa] = mut_rate * ( 1 - 2 * x[t,aa])
+#             # binary trait part
+#             for n in range(ne):
+#                 for nn in escape_group[n]:
+#                     flux[t,x_length-ne+n] += mut_rate * (1 - x[t,x_length-ne+n] - ex[t,n,nn] )
+#         return flux
 
-    # calculate recombination flux term (binary_case)
-    def get_rec_flux_at_t(x_trait,p_mut_k,trait_dis):
-        flux = np.zeros(x_length)
+#     # calculate recombination flux term (binary_case)
+#     def get_rec_flux_at_t(x_trait,p_mut_k,trait_dis):
+#         flux = np.zeros(x_length)
 
-        for n in range(ne):
-            fluxIn  = 0
-            fluxOut = 0
+#         for n in range(ne):
+#             fluxIn  = 0
+#             fluxOut = 0
 
-            for nn in range(len(escape_group[n])-1):
-                k_index = escape_group[n][0]+nn
-                fluxIn  += trait_dis[n][nn] * (1-x_trait[n])*p_mut_k[k_index][0]
-                fluxOut += trait_dis[n][nn] * p_mut_k[k_index][1]*p_mut_k[k_index][2]
+#             for nn in range(len(escape_group[n])-1):
+#                 k_index = escape_group[n][0]+nn
+#                 fluxIn  += trait_dis[n][nn] * (1-x_trait[n])*p_mut_k[k_index][0]
+#                 fluxOut += trait_dis[n][nn] * p_mut_k[k_index][1]*p_mut_k[k_index][2]
             
-            flux[x_length-ne+n] = rec_rate * (fluxIn - fluxOut)
+#             flux[x_length-ne+n] = rec_rate * (fluxIn - fluxOut)
 
-        return flux
+#         return flux
     
-    # regularization value gamma_1 and gamma_2
-    # gamma_1: time-independent, gamma_2: time-dependent
-    def get_gamma1():
-        # individual site: gamma_1s, escape group: gamma_1t
-        gamma_1   = np.ones(x_length)*gamma_1s
-        for n in range(ne):
-            gamma_1[x_length-ne+n] = gamma_1t
+#     # regularization value gamma_1 and gamma_2
+#     # gamma_1: time-independent, gamma_2: time-dependent
+#     def get_gamma1():
+#         # individual site: gamma_1s, escape group: gamma_1t
+#         gamma_1   = np.ones(x_length)*gamma_1s
+#         for n in range(ne):
+#             gamma_1[x_length-ne+n] = gamma_1t
         
-        return gamma_1
+#         return gamma_1
 
-    def get_gamma2(times, beta):
-        # Use a time-varying gamma_prime, gamma_2tv is the middle value, 
-        # boundary value is beta times larger, decrese/increase exponentially within 10% generation.
-        gamma_t = np.ones(len(times))
-        tv_range = max(int(round(times[-1]*0.1/10)*10),1)
-        alpha  = np.log(beta) / tv_range
-        for ti, t in enumerate(times): # loop over all time points, ti: index, t: time
-            if t <= tv_range:
-                gamma_t[ti] = beta * np.exp(-alpha * t)
-            elif t > times[-1] - tv_range:
-                gamma_t[ti] = 1 * np.exp(alpha * (t - times[-1] + tv_range))
+#     def get_gamma2(times, beta):
+#         # Use a time-varying gamma_prime, gamma_2tv is the middle value, 
+#         # boundary value is beta times larger, decrese/increase exponentially within 10% generation.
+#         gamma_t = np.ones(len(times))
+#         tv_range = max(int(round(times[-1]*0.1/10)*10),1)
+#         alpha  = np.log(beta) / tv_range
+#         for ti, t in enumerate(times): # loop over all time points, ti: index, t: time
+#             if t <= tv_range:
+#                 gamma_t[ti] = beta * np.exp(-alpha * t)
+#             elif t > times[-1] - tv_range:
+#                 gamma_t[ti] = 1 * np.exp(alpha * (t - times[-1] + tv_range))
 
-        # individual site: gamma_2c, escape group and special site: gamma_2tv
-        gamma_2 = np.ones((x_length,len(times)))*gamma_2c
-        # special site
-        for p_site in p_sites:
-            index = int (muVec[p_site])  
-            if index != -1:
-                gamma_2[index] = gamma_t * gamma_2tv
-        # binary trait
-        for n in range(ne):
-            gamma_2[x_length-ne+n] = gamma_t * gamma_2tv
+#         # individual site: gamma_2c, escape group and special site: gamma_2tv
+#         gamma_2 = np.ones((x_length,len(times)))*gamma_2c
+#         # special site
+#         for p_site in p_sites:
+#             index = int (muVec[p_site])  
+#             if index != -1:
+#                 gamma_2[index] = gamma_t * gamma_2tv
+#         # binary trait
+#         for n in range(ne):
+#             gamma_2[x_length-ne+n] = gamma_t * gamma_2tv
 
-        return gamma_2.T
+#         return gamma_2.T
 
-    ############################################################################
-    ####################### Inference (binary case) ############################
-    name = xfile.split('-',1)[1]
-    out_file = '%s/%s/%s/c_%s.npz'%(SIM_DIR,sim_dir,output_dir,name)
-    # if os.path.exists(out_file):
-    #     return
+#     ############################################################################
+#     ####################### Inference (binary case) ############################
+#     name = xfile.split('-',1)[1]
+#     out_file = '%s/%s/%s/c_%s.npz'%(SIM_DIR,sim_dir,output_dir,name)
+#     # if os.path.exists(out_file):
+#     #     return
     
-    # obtain raw data and information of traits
-    data         = np.loadtxt('%s/%s/%s/%s.dat'%(SIM_DIR,sim_dir,input_dir,xfile))
-    escape_group = read_file('%s/traitsite/traitsite-%s.dat'%(sim_dir,name))
-    trait_dis    = read_file('%s/traitdis/traitdis-%s.dat'%(sim_dir,name))
-    escape_TF    = read_file('%s/traitseq.dat'%(sim_dir))
-    ne           = len(escape_group)
+#     # obtain raw data and information of traits
+#     data         = np.loadtxt('%s/%s/%s/%s.dat'%(SIM_DIR,sim_dir,input_dir,xfile))
+#     escape_group = read_file('%s/traitsite/traitsite-%s.dat'%(sim_dir,name))
+#     trait_dis    = read_file('%s/traitdis/traitdis-%s.dat'%(sim_dir,name))
+#     escape_TF    = read_file('%s/traitseq.dat'%(sim_dir))
+#     ne           = len(escape_group)
 
-    # get raw time points
-    times = []
-    for i in range(len(data)):
-        times.append(data[i][0])
-    sample_times = np.unique(times)
-    time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+#     # get raw time points
+#     times = []
+#     for i in range(len(data)):
+#         times.append(data[i][0])
+#     sample_times = np.unique(times)
+#     time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
 
-    # obtain sequence data and frequencies
-    sVec,nVec,eVec = getSequence_trait(data,escape_group,sample_times)
-    x_length,muVec = getMutantS(seq_length)
-    x_length      += ne
+#     # obtain sequence data and frequencies
+#     sVec,nVec,eVec = getSequence_trait(data,escape_group,sample_times)
+#     x_length,muVec = getMutantS(seq_length)
+#     x_length      += ne
 
-    # get all frequencies, x: single allele frequency, xx: pair allele frequency
-    # ex: escape frequency, p_wt,p_mut_k: frequency related to recombination part
-    x,xx        = get_allele_frequency(sVec,nVec,eVec,muVec) 
-    ex          = get_escape_fre_term(sVec,nVec)
-    p_mut_k_raw = get_p_k(sVec,nVec,seq_length,escape_group,escape_TF)
+#     # get all frequencies, x: single allele frequency, xx: pair allele frequency
+#     # ex: escape frequency, p_wt,p_mut_k: frequency related to recombination part
+#     x,xx        = get_allele_frequency(sVec,nVec,eVec,muVec) 
+#     ex          = get_escape_fre_term(sVec,nVec)
+#     p_mut_k_raw = get_p_k(sVec,nVec,seq_length,escape_group,escape_TF)
 
-    # get dx
-    dx_all_raw = cal_dx_all(x, sample_times, x_length)
-    mu_all_raw = get_mut_flux(x,ex,muVec)
+#     # get dx
+#     dx_all_raw = cal_dx_all(x, sample_times, x_length)
+#     mu_all_raw = get_mut_flux(x,ex,muVec)
     
-    # get gamma_1 and gamma_2
-    gamma_1 = get_gamma1()
-    gamma_2 = get_gamma2(time_all, beta)
+#     # get gamma_1 and gamma_2
+#     gamma_1 = get_gamma1()
+#     gamma_2 = get_gamma2(time_all, beta)
 
-    # get the input arrays at any integer time point
-    if len(sample_times) == len(time_all):
-        # no interpolation is needed
-        x_all = x
-        xx_all = xx
-        p_mut_k     = p_mut_k_raw
-        dx_all     = dx_all_raw
-        mu_all     = mu_all_raw
+#     # get the input arrays at any integer time point
+#     if len(sample_times) == len(time_all):
+#         # no interpolation is needed
+#         x_all = x
+#         xx_all = xx
+#         p_mut_k     = p_mut_k_raw
+#         dx_all     = dx_all_raw
+#         mu_all     = mu_all_raw
 
-    else:
-        # Use linear interpolates to get the input arrays at any integer time point
-        interp_x   = interp1d(sample_times, x, axis=0, kind='linear', bounds_error=False, fill_value=0)
-        interp_xx  = interp1d(sample_times, xx, axis=0, kind='linear', bounds_error=False, fill_value=0)
-        interp_mut = interp1d(sample_times, p_mut_k_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
-        interp_dx  = interp1d(sample_times, dx_all_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
-        interp_mu  = interp1d(sample_times, mu_all_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+#     else:
+#         # Use linear interpolates to get the input arrays at any integer time point
+#         interp_x   = interp1d(sample_times, x, axis=0, kind='linear', bounds_error=False, fill_value=0)
+#         interp_xx  = interp1d(sample_times, xx, axis=0, kind='linear', bounds_error=False, fill_value=0)
+#         interp_mut = interp1d(sample_times, p_mut_k_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+#         interp_dx  = interp1d(sample_times, dx_all_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+#         interp_mu  = interp1d(sample_times, mu_all_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
                 
-        x_all = interp_x(time_all)
-        xx_all = interp_xx(time_all)
-        p_mut_k     = interp_mut(time_all)
-        dx_all     = interp_dx(time_all)
-        mu_all     = interp_mu(time_all)
+#         x_all = interp_x(time_all)
+#         xx_all = interp_xx(time_all)
+#         p_mut_k     = interp_mut(time_all)
+#         dx_all     = interp_dx(time_all)
+#         mu_all     = interp_mu(time_all)
 
-    # extend the time range
-    t_extend = int(round(time_all[-1]*theta/10)*10)
-    etleft   = np.linspace(-t_extend,-10,int(t_extend/10)) # time added before the beginning time (dt=10)
-    etright  = np.linspace(time_all[-1]+10,time_all[-1]+t_extend,int(t_extend/10))
-    ExTimes  = np.concatenate((etleft, time_all, etright))
+#     # extend the time range
+#     t_extend = int(round(time_all[-1]*theta/10)*10)
+#     etleft   = np.linspace(-t_extend,-10,int(t_extend/10)) # time added before the beginning time (dt=10)
+#     etright  = np.linspace(time_all[-1]+10,time_all[-1]+t_extend,int(t_extend/10))
+#     ExTimes  = np.concatenate((etleft, time_all, etright))
 
-    # Get matrix A and vector b
-    A_all = np.zeros((len(time_all),x_length,x_length))
-    b_all = np.zeros((len(time_all),x_length))
+#     # Get matrix A and vector b
+#     A_all = np.zeros((len(time_all),x_length,x_length))
+#     b_all = np.zeros((len(time_all),x_length))
 
-    for ti in range(len(time_all)):
-        # calculate A(t) = C(t), add regularization term at ODE part
-        A_all[ti] = diffusion_matrix_at_t(x_all[ti], xx_all[ti]) # covariance matrix
+#     for ti in range(len(time_all)):
+#         # calculate A(t) = C(t), add regularization term at ODE part
+#         A_all[ti] = diffusion_matrix_at_t(x_all[ti], xx_all[ti]) # covariance matrix
 
-        # calculate b(t)
-        rec_t = get_rec_flux_at_t(x_all[ti,x_length-ne:], p_mut_k[ti], trait_dis)
-        b_all[ti]   = mu_all[ti] + rec_t - dx_all[ti] 
+#         # calculate b(t)
+#         rec_t = get_rec_flux_at_t(x_all[ti,x_length-ne:], p_mut_k[ti], trait_dis)
+#         b_all[ti]   = mu_all[ti] + rec_t - dx_all[ti] 
 
-    def fun_trait(time,s):
-        """ Function defining the right-hand side of the system of ODE's"""
-        s1                 = s[:x_length,:]   # the actual selection coefficients s1 = s
-        s2                 = s[x_length:,:]   # the derivatives of the selection coefficients, s2 = s'
-        dsdt               = np.zeros_like(s)  # the RHS of the system of ODE's
+#     def fun_trait(time,s):
+#         """ Function defining the right-hand side of the system of ODE's"""
+#         s1                 = s[:x_length,:]   # the actual selection coefficients s1 = s
+#         s2                 = s[x_length:,:]   # the derivatives of the selection coefficients, s2 = s'
+#         dsdt               = np.zeros_like(s)  # the RHS of the system of ODE's
 
-        # s' = s2
-        dsdt[:x_length, :] = s2
+#         # s' = s2
+#         dsdt[:x_length, :] = s2
 
-        # s2'(t) = A(t)s1(t) + b(t)
-        for ti, t in enumerate(time): # loop over all time points, ti: index, t: time
-            # set value for gamma_1 of traits part
-            # high covariance with positive part and low covariance with negative part
-            for n in range(ne):
-                if s[x_length-ne+n, ti] < 0:
-                    gamma_1[x_length-ne+n] = gamma_1t*100 # keep a high penalty for negative selection 
-                else:
-                    gamma_1[x_length-ne+n] = gamma_1t
+#         # s2'(t) = A(t)s1(t) + b(t)
+#         for ti, t in enumerate(time): # loop over all time points, ti: index, t: time
+#             # set value for gamma_1 of traits part
+#             # high covariance with positive part and low covariance with negative part
+#             for n in range(ne):
+#                 if s[x_length-ne+n, ti] < 0:
+#                     gamma_1[x_length-ne+n] = gamma_1t*100 # keep a high penalty for negative selection 
+#                 else:
+#                     gamma_1[x_length-ne+n] = gamma_1t
 
-            if t < 0:
-                # s'' = gamma1* s(t)/gamma1(t)
-                gamma2_t = gamma_2[0]
-                dsdt[x_length:, ti] = gamma_1 * s1[:, ti] / gamma2_t
+#             if t < 0:
+#                 # s'' = gamma1* s(t)/gamma1(t)
+#                 gamma2_t = gamma_2[0]
+#                 dsdt[x_length:, ti] = gamma_1 * s1[:, ti] / gamma2_t
 
-            elif t > sample_times[-1]:
-                # s'' = gamma1* s(t)/gamma1(t)
-                gamma2_t = gamma_2[-1]
-                dsdt[x_length:, ti] = gamma_1 * s1[:, ti] / gamma2_t
+#             elif t > sample_times[-1]:
+#                 # s'' = gamma1* s(t)/gamma1(t)
+#                 gamma2_t = gamma_2[-1]
+#                 dsdt[x_length:, ti] = gamma_1 * s1[:, ti] / gamma2_t
 
-            else:
-                # get A(t), b(t) and gamma2(t)
-                time_index = round(t)
-                A_t      = A_all[time_index]  + gamma_1.reshape(x_length,1) * np.eye(x_length)
-                b_t      = b_all[time_index]
-                gamma2_t = gamma_2[time_index]
+#             else:
+#                 # get A(t), b(t) and gamma2(t)
+#                 time_index = round(t)
+#                 A_t      = A_all[time_index]  + gamma_1.reshape(x_length,1) * np.eye(x_length)
+#                 b_t      = b_all[time_index]
+#                 gamma2_t = gamma_2[time_index]
 
-                # s'' = A(t)s(t) + b(t)
-                dsdt[x_length:, ti] = (A_t @ s1[:, ti] + b_t) / gamma2_t
+#                 # s'' = A(t)s(t) + b(t)
+#                 dsdt[x_length:, ti] = (A_t @ s1[:, ti] + b_t) / gamma2_t
 
-        return dsdt
+#         return dsdt
 
-    # Boundary conditions
-    def bc(b1,b2):
-        # Neumann boundary condition
-        return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
+#     # Boundary conditions
+#     def bc(b1,b2):
+#         # Neumann boundary condition
+#         return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
         
-    # initial guess for the selection coefficients
-    ss_extend = np.zeros((2*x_length,len(ExTimes)))
+#     # initial guess for the selection coefficients
+#     ss_extend = np.zeros((2*x_length,len(ExTimes)))
     
-    # solve the boundary value problem
-    solution = sp.integrate.solve_bvp(fun_trait, bc, ExTimes, ss_extend, max_nodes=10000, tol=1e-3)
+#     # solve the boundary value problem
+#     solution = sp.integrate.solve_bvp(fun_trait, bc, ExTimes, ss_extend, max_nodes=10000, tol=1e-3)
     
-    # Get the solution and remove the superfluous part of the array
-    # including the extended time points
-    sc_all         = solution.sol(ExTimes)
-    desired_sc_all = sc_all[:x_length,:]
+#     # Get the solution and remove the superfluous part of the array
+#     # including the extended time points
+#     sc_all         = solution.sol(ExTimes)
+#     desired_sc_all = sc_all[:x_length,:]
 
-    # not include the extended time points
-    sc_sample         = solution.sol(time_all)
-    desired_sc_sample = sc_sample[:x_length,:]
+#     # not include the extended time points
+#     sc_sample         = solution.sol(time_all)
+#     desired_sc_sample = sc_sample[:x_length,:]
 
-    # save the solution with constant_time-varying selection coefficient
-    g = open(out_file, mode='w+b')
-    np.savez_compressed(g, all = desired_sc_all, selection=desired_sc_sample, time=time_all, ExTimes=ExTimes)
-    g.close()
+#     # save the solution with constant_time-varying selection coefficient
+#     g = open(out_file, mode='w+b')
+#     np.savez_compressed(g, all = desired_sc_all, selection=desired_sc_sample, time=time_all, ExTimes=ExTimes)
+#     g.close()
 
 def cut_seq(**pdata):
 
@@ -1119,8 +1119,8 @@ def cut_sequence_nsdt(**pdata):
     for ns in ns_list:
         for j, dt in enumerate(dt_list):
             out_file = f"{SIM_DIR}/{folder}/sequences/nsdt/{xfile}-ns{ns}-dt{dt}.dat"
-            # if os.path.exists(out_file): # skip existing files
-            #     continue
+            if os.path.exists(out_file): # skip existing files
+                continue
 
             if dt == 1:
                 if ns == 1000:
@@ -1240,8 +1240,8 @@ def simulate_sigmoid(**pdata):
     ############################## Simulate ####################################
     # output file
     out_file = '%s/%s/%s/%s.dat'%(SIM_DIR,sim_dir,input_dir,xfile)
-    # if os.path.exists(out_file): # skip if the file already exists
-    #     return
+    if os.path.exists(out_file): # skip if the file already exists
+        return
     
     # Initialize population
     pop = {}
@@ -1276,395 +1276,395 @@ def simulate_sigmoid(**pdata):
             f.write('\n')
     f.close()
 
-def infer_sigmoid(**pdata):
-    """
-    Infer time-varying example (binary case) for sigmoid pattern simulation
-        - used a different regularization for fixed mutaton
-        - use different interpolated time points for different dt
-    """
-    # unpack passed data
-    sim_dir       = pdata['dir']            # 'trait'
-    xfile         = pdata['xfile']          # index of the simulation
-    input_dir     = pdata['input_dir']      # 'sequences'
-    output_dir    = pdata['output_dir']     # 'output'
+# def infer_sigmoid(**pdata):
+#     """
+#     Infer time-varying example (binary case) for sigmoid pattern simulation
+#         - used a different regularization for fixed mutaton
+#         - use different interpolated time points for different dt
+#     """
+#     # unpack passed data
+#     sim_dir       = pdata['dir']            # 'trait'
+#     xfile         = pdata['xfile']          # index of the simulation
+#     input_dir     = pdata['input_dir']      # 'sequences'
+#     output_dir    = pdata['output_dir']     # 'output'
 
-    seq_length    = pdata['seq_length']     # 20
-    totalT        = pdata['generations']    # 1000
-    mut_rate      = pdata['mut_rate']       # 1e-3
-    rec_rate      = pdata['rec_rate']
-    theta         = pdata['theta']          # 0.5
+#     seq_length    = pdata['seq_length']     # 20
+#     totalT        = pdata['generations']    # 1000
+#     mut_rate      = pdata['mut_rate']       # 1e-3
+#     rec_rate      = pdata['rec_rate']
+#     theta         = pdata['theta']          # 0.5
 
-    gamma_1       = pdata['gamma_s']
-    gamma_2c      = pdata['gamma_2c']       # 1000000
-    gamma_2tv     = pdata['gamma_2tv']      # 200 
+#     gamma_1       = pdata['gamma_s']
+#     gamma_2c      = pdata['gamma_2c']       # 1000000
+#     gamma_2tv     = pdata['gamma_2tv']      # 200 
 
-    ############################################################################
-    ############################## Function ####################################
+#     ############################################################################
+#     ############################## Function ####################################
 
-    # calculate single and pair allele frequency (binary case)
-    def get_allele_frequency(sVec,nVec,eVec,muVec):
+#     # calculate single and pair allele frequency (binary case)
+#     def get_allele_frequency(sVec,nVec,eVec,muVec):
 
-        x  = np.zeros((len(nVec),x_length))           # single allele frequency
-        xx = np.zeros((len(nVec),x_length,x_length))  # pair allele frequency
-        for t in range(len(nVec)):
-            pop_size_t = np.sum([nVec[t]])
-            # individual locus part
-            for i in range(seq_length):
-                aa = int(muVec[i])
-                if aa != -1:
-                    x[t,aa] = np.sum([sVec[t][k][i] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-                for j in range(int(i+1), seq_length):
-                    bb = int(muVec[j])
-                    if bb != -1:
-                        xx[t,aa,bb] = np.sum([sVec[t][k][i] * sVec[t][k][j] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-                        xx[t,aa,bb] = np.sum([sVec[t][k][i] * sVec[t][k][j] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-            # escape part
-            for n in range(ne):
-                aa      = x_length-ne+n
-                x[t,aa] = np.sum([eVec[t][k][n] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-                for m in range(int(n+1), ne):
-                    bb          = x_length-ne+m
-                    xx[t,aa,bb] = np.sum([eVec[t][k][n] * eVec[t][k][m] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-                    xx[t,bb,aa] = np.sum([eVec[t][k][n] * eVec[t][k][m] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-                for j in range(seq_length):
-                    bb = int(muVec[j])
-                    if bb != -1:
-                        xx[t,bb,aa] = np.sum([sVec[t][k][j] * eVec[t][k][n] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-                        xx[t,aa,bb] = np.sum([sVec[t][k][j] * eVec[t][k][n] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
-        return x,xx
+#         x  = np.zeros((len(nVec),x_length))           # single allele frequency
+#         xx = np.zeros((len(nVec),x_length,x_length))  # pair allele frequency
+#         for t in range(len(nVec)):
+#             pop_size_t = np.sum([nVec[t]])
+#             # individual locus part
+#             for i in range(seq_length):
+#                 aa = int(muVec[i])
+#                 if aa != -1:
+#                     x[t,aa] = np.sum([sVec[t][k][i] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#                 for j in range(int(i+1), seq_length):
+#                     bb = int(muVec[j])
+#                     if bb != -1:
+#                         xx[t,aa,bb] = np.sum([sVec[t][k][i] * sVec[t][k][j] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#                         xx[t,aa,bb] = np.sum([sVec[t][k][i] * sVec[t][k][j] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#             # escape part
+#             for n in range(ne):
+#                 aa      = x_length-ne+n
+#                 x[t,aa] = np.sum([eVec[t][k][n] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#                 for m in range(int(n+1), ne):
+#                     bb          = x_length-ne+m
+#                     xx[t,aa,bb] = np.sum([eVec[t][k][n] * eVec[t][k][m] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#                     xx[t,bb,aa] = np.sum([eVec[t][k][n] * eVec[t][k][m] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#                 for j in range(seq_length):
+#                     bb = int(muVec[j])
+#                     if bb != -1:
+#                         xx[t,bb,aa] = np.sum([sVec[t][k][j] * eVec[t][k][n] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#                         xx[t,aa,bb] = np.sum([sVec[t][k][j] * eVec[t][k][n] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+#         return x,xx
 
-    # calculate escape frequency (binary case)
-    def get_escape_fre_term(sVec,nVec):
-        ex  = np.zeros((len(nVec),ne,seq_length))
-        for t in range(len(nVec)):
-            pop_size_t = np.sum([nVec[t]])
-            for k in range(len(sVec[t])):
-                for n in range(ne):
-                    n_mutations = 0
-                    for nn in escape_group[n]:
-                        if sVec[t][k][nn] != 0:
-                            n_mutations += 1
-                            site = nn
-                    if n_mutations == 1:
-                        ex[t,n,site] += nVec[t][k]
-            ex[t,:,:] = ex[t,:,:] / pop_size_t
-        return ex
+#     # calculate escape frequency (binary case)
+#     def get_escape_fre_term(sVec,nVec):
+#         ex  = np.zeros((len(nVec),ne,seq_length))
+#         for t in range(len(nVec)):
+#             pop_size_t = np.sum([nVec[t]])
+#             for k in range(len(sVec[t])):
+#                 for n in range(ne):
+#                     n_mutations = 0
+#                     for nn in escape_group[n]:
+#                         if sVec[t][k][nn] != 0:
+#                             n_mutations += 1
+#                             site = nn
+#                     if n_mutations == 1:
+#                         ex[t,n,site] += nVec[t][k]
+#             ex[t,:,:] = ex[t,:,:] / pop_size_t
+#         return ex
     
-    # calculate mutation flux term (binary_case)
-    def get_mut_flux(x,ex,muVec):
-        flux = np.zeros((len(x),x_length))
-        for t in range(len(x)):
-            # individual locus part
-            for i in range(seq_length):
-                aa = int(muVec[i])
-                if aa != -1:
-                    flux[t,aa] = mut_rate * ( 1 - 2 * x[t,aa])
-            # binary trait part
-            for n in range(ne):
-                for nn in escape_group[n]:
-                    flux[t,x_length-ne+n] += mut_rate * (1 - x[t,x_length-ne+n] - ex[t,n,nn] )
-        return flux
+#     # calculate mutation flux term (binary_case)
+#     def get_mut_flux(x,ex,muVec):
+#         flux = np.zeros((len(x),x_length))
+#         for t in range(len(x)):
+#             # individual locus part
+#             for i in range(seq_length):
+#                 aa = int(muVec[i])
+#                 if aa != -1:
+#                     flux[t,aa] = mut_rate * ( 1 - 2 * x[t,aa])
+#             # binary trait part
+#             for n in range(ne):
+#                 for nn in escape_group[n]:
+#                     flux[t,x_length-ne+n] += mut_rate * (1 - x[t,x_length-ne+n] - ex[t,n,nn] )
+#         return flux
 
-    # calculate recombination flux term (binary_case)
-    def get_rec_flux_at_t(x_trait,p_mut_k,trait_dis):
-        flux = np.zeros(x_length)
+#     # calculate recombination flux term (binary_case)
+#     def get_rec_flux_at_t(x_trait,p_mut_k,trait_dis):
+#         flux = np.zeros(x_length)
 
-        for n in range(ne):
-            fluxIn  = 0
-            fluxOut = 0
+#         for n in range(ne):
+#             fluxIn  = 0
+#             fluxOut = 0
 
-            for nn in range(len(escape_group[n])-1):
-                k_index = escape_group[n][0]+nn
-                fluxIn  += trait_dis[n][nn] * (1-x_trait[n])*p_mut_k[k_index][0]
-                fluxOut += trait_dis[n][nn] * p_mut_k[k_index][1]*p_mut_k[k_index][2]
+#             for nn in range(len(escape_group[n])-1):
+#                 k_index = escape_group[n][0]+nn
+#                 fluxIn  += trait_dis[n][nn] * (1-x_trait[n])*p_mut_k[k_index][0]
+#                 fluxOut += trait_dis[n][nn] * p_mut_k[k_index][1]*p_mut_k[k_index][2]
             
-            flux[x_length-ne+n] = rec_rate * (fluxIn - fluxOut)
+#             flux[x_length-ne+n] = rec_rate * (fluxIn - fluxOut)
 
-        return flux
+#         return flux
     
-    def insert_time(arr, allowed_gaps=(7, 8, 9, 10, 11, 12, 13)):
-        """
-        Insert values into an array, ensuring the difference between adjacent values 
-        is within the allowed_gaps range as evenly distributed as possible.
-        """
-        result = []
+#     def insert_time(arr, allowed_gaps=(7, 8, 9, 10, 11, 12, 13)):
+#         """
+#         Insert values into an array, ensuring the difference between adjacent values 
+#         is within the allowed_gaps range as evenly distributed as possible.
+#         """
+#         result = []
 
-        for i in range(len(arr) - 1):
-            result.append(arr[i])  # add current value
-            diff = arr[i+1] - arr[i]
+#         for i in range(len(arr) - 1):
+#             result.append(arr[i])  # add current value
+#             diff = arr[i+1] - arr[i]
             
-            if diff < max(allowed_gaps):
-                continue
+#             if diff < max(allowed_gaps):
+#                 continue
 
-            while diff > max(allowed_gaps):
-                # choose the gap that is closest to 10
-                if diff % 10 == 0:
-                    step = diff/10
-                else:
-                    step = (diff // 10) + 1
-                gap = min(allowed_gaps, key=lambda x: abs(x - diff / step))
-                next_value = result[-1] + gap
-                result.append(next_value)
-                diff = arr[i+1] - next_value  # update the remaining difference
+#             while diff > max(allowed_gaps):
+#                 # choose the gap that is closest to 10
+#                 if diff % 10 == 0:
+#                     step = diff/10
+#                 else:
+#                     step = (diff // 10) + 1
+#                 gap = min(allowed_gaps, key=lambda x: abs(x - diff / step))
+#                 next_value = result[-1] + gap
+#                 result.append(next_value)
+#                 diff = arr[i+1] - next_value  # update the remaining difference
             
-            # check if the last gap is in the allowed_gaps
-            if diff not in allowed_gaps:
-                print(f"Warning: the gap between {result[-1]} and {arr[i+1]} is not in the allowed_gaps range.")
+#             # check if the last gap is in the allowed_gaps
+#             if diff not in allowed_gaps:
+#                 print(f"Warning: the gap between {result[-1]} and {arr[i+1]} is not in the allowed_gaps range.")
             
-        # Add the last value
-        if result[-1] != arr[-1]:
-            result.append(arr[-1])
+#         # Add the last value
+#         if result[-1] != arr[-1]:
+#             result.append(arr[-1])
 
-        return np.array(result)
-
-
-    # regularization value gamma_2 : time-dependent
-    def get_gamma2(times, beta=4):
-        # Use a time-varying gamma_prime, gamma_2tv is the middle value, 
-        # boundary value is beta times larger, decrese/increase exponentially within 10% generation.
-        gamma_t = np.ones(len(times))
-        tv_range = max(int(round(times[-1]*0.1/10)*10),1)
-        alpha  = np.log(beta) / tv_range
-        for ti, t in enumerate(times): # loop over all time points, ti: index, t: time
-            if t <= tv_range:
-                gamma_t[ti] = beta * np.exp(-alpha * t)
-            elif t > times[-1] - tv_range:
-                gamma_t[ti] = 1 * np.exp(alpha * (t - times[-1] + tv_range))
-
-        # individual site: gamma_2c, escape group and special site: gamma_2tv
-        gamma_2 = np.ones((x_length,len(times)))*gamma_2c
-        # binary trait
-        for n in range(ne):
-            gamma_2[x_length-ne+n] = gamma_t * gamma_2tv
-
-        return gamma_2.T
+#         return np.array(result)
 
 
-    def smooth_vector(x, half_window=3):
-        x = np.asarray(x, dtype=float)
-        T = x.shape[0]
+#     # regularization value gamma_2 : time-dependent
+#     def get_gamma2(times, beta=4):
+#         # Use a time-varying gamma_prime, gamma_2tv is the middle value, 
+#         # boundary value is beta times larger, decrese/increase exponentially within 10% generation.
+#         gamma_t = np.ones(len(times))
+#         tv_range = max(int(round(times[-1]*0.1/10)*10),1)
+#         alpha  = np.log(beta) / tv_range
+#         for ti, t in enumerate(times): # loop over all time points, ti: index, t: time
+#             if t <= tv_range:
+#                 gamma_t[ti] = beta * np.exp(-alpha * t)
+#             elif t > times[-1] - tv_range:
+#                 gamma_t[ti] = 1 * np.exp(alpha * (t - times[-1] + tv_range))
 
-        csum = np.vstack([np.zeros((1, x.shape[1])), np.cumsum(x, axis=0)])
+#         # individual site: gamma_2c, escape group and special site: gamma_2tv
+#         gamma_2 = np.ones((x_length,len(times)))*gamma_2c
+#         # binary trait
+#         for n in range(ne):
+#             gamma_2[x_length-ne+n] = gamma_t * gamma_2tv # 
 
-        t = np.arange(T)
-        a = np.maximum(0, t - half_window)
-        b = np.minimum(T, t + half_window + 1)
+#         return gamma_2.T
 
-        return (csum[b] - csum[a]) / (b - a)[:, None]
 
-    def smooth_matrix(x, half_window=3):
-        """
-        Smooth along time axis (axis=0) with a symmetric window.
-        """
+#     def smooth_vector(x, half_window=3):
+#         x = np.asarray(x, dtype=float)
+#         T = x.shape[0]
 
-        x = np.asarray(x)
-        T, M, N = x.shape
-        # prefix sum along time
-        csum = np.zeros((T + 1, M, N))
-        csum[1:] = np.cumsum(x, axis=0)
+#         csum = np.vstack([np.zeros((1, x.shape[1])), np.cumsum(x, axis=0)])
 
-        t = np.arange(T)
-        t_start = np.maximum(0, t - half_window)
-        t_end   = np.minimum(T, t + half_window + 1)  # exclusive
+#         t = np.arange(T)
+#         a = np.maximum(0, t - half_window)
+#         b = np.minimum(T, t + half_window + 1)
 
-        sums = csum[t_end] - csum[t_start]            # (T, M, N)
-        counts = (t_end - t_start)[:, None, None]     # (T, 1, 1)
+#         return (csum[b] - csum[a]) / (b - a)[:, None]
 
-        return sums / counts
+#     def smooth_matrix(x, half_window=3):
+#         """
+#         Smooth along time axis (axis=0) with a symmetric window.
+#         """
 
-    ############################################################################
-    ####################### Inference (binary case) ############################
-    name = xfile.split('-',1)[1]
-    name_id = name.split('-')[0]
-    out_file = '%s/%s/%s/c_%s.npz'%(SIM_DIR,sim_dir,output_dir,name)
-    # if os.path.exists(out_file):
-    #     return
+#         x = np.asarray(x)
+#         T, M, N = x.shape
+#         # prefix sum along time
+#         csum = np.zeros((T + 1, M, N))
+#         csum[1:] = np.cumsum(x, axis=0)
+
+#         t = np.arange(T)
+#         t_start = np.maximum(0, t - half_window)
+#         t_end   = np.minimum(T, t + half_window + 1)  # exclusive
+
+#         sums = csum[t_end] - csum[t_start]            # (T, M, N)
+#         counts = (t_end - t_start)[:, None, None]     # (T, 1, 1)
+
+#         return sums / counts
+
+#     ############################################################################
+#     ####################### Inference (binary case) ############################
+#     name = xfile.split('-',1)[1]
+#     name_id = name.split('-')[0]
+#     out_file = '%s/%s/%s/c_%s.npz'%(SIM_DIR,sim_dir,output_dir,name)
+#     # if os.path.exists(out_file):
+#     #     return
     
-    # obtain raw data and information of traits
-    data         = np.loadtxt('%s/%s/%s/%s.dat'%(SIM_DIR,sim_dir,input_dir,xfile))
-    if 'r' in name_id:
-        escape_group = [[2,8,14]]
-        trait_dis    = [[6, 6]]
-    else:
-        escape_group = read_file('%s/traitsite/traitsite-%s.dat'%(sim_dir,name_id))
-        trait_dis    = read_file('%s/traitdis/traitdis-%s.dat'%(sim_dir,name_id))
-    escape_TF    = read_file('%s/traitseq.dat'%(sim_dir))
-    ne           = len(escape_group)
+#     # obtain raw data and information of traits
+#     data         = np.loadtxt('%s/%s/%s/%s.dat'%(SIM_DIR,sim_dir,input_dir,xfile))
+#     if 'r' in name_id:
+#         escape_group = [[2,8,14]]
+#         trait_dis    = [[6, 6]]
+#     else:
+#         escape_group = read_file('%s/traitsite/traitsite-%s.dat'%(sim_dir,name_id))
+#         trait_dis    = read_file('%s/traitdis/traitdis-%s.dat'%(sim_dir,name_id))
+#     escape_TF    = read_file('%s/traitseq.dat'%(sim_dir))
+#     ne           = len(escape_group)
 
-    # get raw time points
-    times = []
-    for i in range(len(data)):
-        times.append(data[i][0])
-    sample_times = np.unique(times)
-    time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+#     # get raw time points
+#     times = []
+#     for i in range(len(data)):
+#         times.append(data[i][0])
+#     sample_times = np.unique(times)
+#     time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
         
-    # obtain sequence data and frequencies
-    sVec,nVec,eVec = getSequence_trait(data,escape_group,sample_times)
-    x_length,muVec = getMutantS(seq_length)
-    x_length      += ne
+#     # obtain sequence data and frequencies
+#     sVec,nVec,eVec = getSequence_trait(data,escape_group,sample_times)
+#     x_length,muVec = getMutantS(seq_length)
+#     x_length      += ne
 
-    # get all frequencies, x: single allele frequency, xx: pair allele frequency
-    # ex: escape frequency, p_wt,p_mut_k: frequency related to recombination part
-    x,xx        = get_allele_frequency(sVec,nVec,eVec,muVec) 
-    ex          = get_escape_fre_term(sVec,nVec)
-    p_mut_k_raw = get_p_k(sVec,nVec,seq_length,escape_group,escape_TF)
+#     # get all frequencies, x: single allele frequency, xx: pair allele frequency
+#     # ex: escape frequency, p_wt,p_mut_k: frequency related to recombination part
+#     x,xx        = get_allele_frequency(sVec,nVec,eVec,muVec) 
+#     ex          = get_escape_fre_term(sVec,nVec)
+#     p_mut_k_raw = get_p_k(sVec,nVec,seq_length,escape_group,escape_TF)
 
-    # get dx
-    dx_raw = cal_dx_all(x, sample_times, x_length)
-    mu_raw = get_mut_flux(x,ex,muVec)
+#     # get dx
+#     dx_raw = cal_dx_all(x, sample_times, x_length)
+#     mu_raw = get_mut_flux(x,ex,muVec)
     
-    # get gamma_1 and gamma_2
-    # individual site: gamma_1s, escape group: gamma_1t
-    last_time = sample_times[-1]
-    gamma_1s = round(gamma_1/last_time,3) # constant MPL gamma value / max time
-    gamma_1e = gamma_1s/10
-    gamma_1e_original = gamma_1e * np.ones(ne)
-    gamma_1   = np.ones(x_length)*gamma_1s
-    # get gamma_2
-    gamma_2 = get_gamma2(time_all)
+#     # get gamma_1 and gamma_2
+#     # individual site: gamma_1s, escape group: gamma_1t
+#     last_time = sample_times[-1]
+#     gamma_1s = round(gamma_1/last_time,3) # constant MPL gamma value / max time
+#     gamma_1e = gamma_1s/10
+#     gamma_1e_original = gamma_1e * np.ones(ne)
+#     gamma_1   = np.ones(x_length)*gamma_1s
+#     # get gamma_2
+#     gamma_2 = get_gamma2(time_all)
 
-    # Check if mutant epitope fixed and find the fixation time
-    fixation_time = np.ones(ne) * (-1)
-    for n in range(ne):
-        x_epitope = x.T[x_length-ne+n]
+#     # Check if mutant epitope fixed and find the fixation time
+#     fixation_time = np.ones(ne) * (-1)
+#     for n in range(ne):
+#         x_epitope = x.T[x_length-ne+n]
 
-        is_fixed = x_epitope >= 1 # find the data points where the frequency = 1
-        # find the indexes where all the following points are also fixed
-        all_one_suffix = np.ones_like(is_fixed, dtype=bool)
-        all_one_suffix[-1] = is_fixed[-1]
-        for i in range(len(is_fixed) - 2, -1, -1):
-            all_one_suffix[i] = is_fixed[i] and all_one_suffix[i + 1]
+#         is_fixed = x_epitope >= 1 # find the data points where the frequency = 1
+#         # find the indexes where all the following points are also fixed
+#         all_one_suffix = np.ones_like(is_fixed, dtype=bool)
+#         all_one_suffix[-1] = is_fixed[-1]
+#         for i in range(len(is_fixed) - 2, -1, -1):
+#             all_one_suffix[i] = is_fixed[i] and all_one_suffix[i + 1]
 
-        fixation_start = np.where(all_one_suffix)[0]
-        if len(fixation_start) > 0:
-            fixation_time[n] = fixation_start[0]
-        else:
-            fixation_time[n] = -1  # not fixed
+#         fixation_start = np.where(all_one_suffix)[0]
+#         if len(fixation_start) > 0:
+#             fixation_time[n] = fixation_start[0]
+#         else:
+#             fixation_time[n] = -1  # not fixed
 
-    # extend the time range
-    if sample_times[1] - sample_times[0] == 1: # dt = 1, no need to interpolate
-        interp_times = sample_times
-    elif sample_times[1] - sample_times[0] >= 10: # dt = 50 or 10, use uniform 10 dt
-        interp_times = np.linspace(sample_times[0], sample_times[-1], int((sample_times[-1]-sample_times[0])/10+1))
-    else: # random dt, use insert_time function to get interpolated time points
-        interp_times = insert_time(sample_times)
-    t_extend = int(round(interp_times[-1]*theta/10)*10)
-    etleft   = np.linspace(-t_extend,-10,int(t_extend/10)) # time added before the beginning time (dt=10)
-    etright  = np.linspace(interp_times[-1]+10,interp_times[-1]+t_extend,int(t_extend/10))
-    ExTimes  = np.concatenate((etleft, interp_times, etright))
+#     # extend the time range
+#     if sample_times[1] - sample_times[0] == 1: # dt = 1, no need to interpolate
+#         interp_times = sample_times
+#     elif sample_times[1] - sample_times[0] >= 10: # dt = 50 or 10, use uniform 10 dt
+#         interp_times = np.linspace(sample_times[0], sample_times[-1], int((sample_times[-1]-sample_times[0])/10+1))
+#     else: # random dt, use insert_time function to get interpolated time points
+#         interp_times = insert_time(sample_times)
+#     t_extend = int(round(interp_times[-1]*theta/10)*10)
+#     etleft   = np.linspace(-t_extend,-10,int(t_extend/10)) # time added before the beginning time (dt=10)
+#     etright  = np.linspace(interp_times[-1]+10,interp_times[-1]+t_extend,int(t_extend/10))
+#     ExTimes  = np.concatenate((etleft, interp_times, etright))
 
-    # get the input arrays at any integer time point
-    if len(sample_times) == len(time_all):
-        if sample_times[1] - sample_times[0] == 1:
-            # use smooth
-            x_all   = smooth_vector(x)
-            xx_all  = smooth_matrix(xx)
-            p_mut_k = smooth_matrix(p_mut_k_raw)
-            dx_all  = smooth_vector(dx_raw)
-            mu_all  = smooth_vector(mu_raw)
+#     # get the input arrays at any integer time point
+#     if len(sample_times) == len(time_all):
+#         if sample_times[1] - sample_times[0] == 1:
+#             # use smooth
+#             x_all   = smooth_vector(x)
+#             xx_all  = smooth_matrix(xx)
+#             p_mut_k = smooth_matrix(p_mut_k_raw)
+#             dx_all  = smooth_vector(dx_raw)
+#             mu_all  = smooth_vector(mu_raw)
 
-        else:
-            # no interpolation is needed
-            x_all   = x
-            xx_all  = xx
-            p_mut_k = p_mut_k_raw
-            dx_all  = dx_raw
-            mu_all  = mu_raw
+#         else:
+#             # no interpolation is needed
+#             x_all   = x
+#             xx_all  = xx
+#             p_mut_k = p_mut_k_raw
+#             dx_all  = dx_raw
+#             mu_all  = mu_raw
 
-    else:
-        # Use linear interpolates to get the input arrays at any integer time point
-        interp_x   = interp1d(sample_times, x, axis=0, kind='linear', bounds_error=False, fill_value=0)
-        interp_xx  = interp1d(sample_times, xx, axis=0, kind='linear', bounds_error=False, fill_value=0)
-        interp_mut = interp1d(sample_times, p_mut_k_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
-        interp_dx  = interp1d(sample_times, dx_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
-        interp_mu  = interp1d(sample_times, mu_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+#     else:
+#         # Use linear interpolates to get the input arrays at any integer time point
+#         interp_x   = interp1d(sample_times, x, axis=0, kind='linear', bounds_error=False, fill_value=0)
+#         interp_xx  = interp1d(sample_times, xx, axis=0, kind='linear', bounds_error=False, fill_value=0)
+#         interp_mut = interp1d(sample_times, p_mut_k_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+#         interp_dx  = interp1d(sample_times, dx_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+#         interp_mu  = interp1d(sample_times, mu_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
 
-        x_all   = interp_x(time_all)
-        xx_all  = interp_xx(time_all)
-        p_mut_k = interp_mut(time_all)
-        dx_all  = interp_dx(time_all)
-        mu_all  = interp_mu(time_all)
+#         x_all   = interp_x(time_all)
+#         xx_all  = interp_xx(time_all)
+#         p_mut_k = interp_mut(time_all)
+#         dx_all  = interp_dx(time_all)
+#         mu_all  = interp_mu(time_all)
         
-    # Get matrix A and vector b
-    A_all = np.zeros((len(time_all),x_length,x_length))
-    b_all = np.zeros((len(time_all),x_length))
-    for ti in range(len(time_all)):
-        # calculate A(t) = C(t), do not add regularization term at this time
-        A_all[ti] = diffusion_matrix_at_t(x_all[ti], xx_all[ti]) # covariance matrix
+#     # Get matrix A and vector b
+#     A_all = np.zeros((len(time_all),x_length,x_length))
+#     b_all = np.zeros((len(time_all),x_length))
+#     for ti in range(len(time_all)):
+#         # calculate A(t) = C(t), do not add regularization term at this time
+#         A_all[ti] = diffusion_matrix_at_t(x_all[ti], xx_all[ti]) # covariance matrix
         
-        # calculate b(t)
-        rec_t = get_rec_flux_at_t(x_all[ti,x_length-ne:], p_mut_k[ti], trait_dis)
-        b_all[ti]   = mu_all[ti] - dx_all[ti] + rec_t
+#         # calculate b(t)
+#         rec_t = get_rec_flux_at_t(x_all[ti,x_length-ne:], p_mut_k[ti], trait_dis)
+#         b_all[ti]   = mu_all[ti] - dx_all[ti] + rec_t
 
-    def fun_sigmoid(time,s):
-        """ Function defining the right-hand side of the system of ODE's"""
-        s1                 = s[:x_length,:]   # the actual selection coefficients s1 = s
-        # s2                 = s[x_length:,:]   # the derivatives of the selection coefficients, s2 = s'
-        dsdt               = np.zeros_like(s)  # the RHS of the system of ODE's
+#     def fun_sigmoid(time,s):
+#         """ Function defining the right-hand side of the system of ODE's"""
+#         s1                 = s[:x_length,:]   # the actual selection coefficients s1 = s
+#         # s2                 = s[x_length:,:]   # the derivatives of the selection coefficients, s2 = s'
+#         dsdt               = np.zeros_like(s)  # the RHS of the system of ODE's
 
-        # s' = s2
-        dsdt[:x_length, :] = s[x_length:,:]
+#         # s' = s2
+#         dsdt[:x_length, :] = s[x_length:,:]
 
-        # s2'(t) = A(t)s1(t) + b(t)
-        for ti, t in enumerate(time): # loop over all time points, ti: index, t: time
-            # set value for gamma_1 of traits part
-            # high covariance with positive part and low covariance with negative part
-            for n in range(ne):
-                if fixation_time[n] != -1 and t > fixation_time[n]:
-                    gamma_1e_original[n] = gamma_1e/theta 
-                    fixation_time[n] = -1 # skip this judgment in next loops
+#         # s2'(t) = A(t)s1(t) + b(t)
+#         for ti, t in enumerate(time): # loop over all time points, ti: index, t: time
+#             # set value for gamma_1 of traits part
+#             # high covariance with positive part and low covariance with negative part
+#             for n in range(ne):
+#                 if fixation_time[n] != -1 and t > fixation_time[n]:
+#                     gamma_1e_original[n] = gamma_1e/theta 
+#                     fixation_time[n] = -1 # skip this judgment in next loops
 
-                if s[x_length-ne+n, ti] < 0:
-                    gamma_1[x_length-ne+n] = gamma_1e*100 # keep a high penalty for negative selection 
-                else:
-                    gamma_1[x_length-ne+n] = gamma_1e_original[n]
+#                 if s[x_length-ne+n, ti] < 0:
+#                     gamma_1[x_length-ne+n] = gamma_1e*100 # keep a high penalty for negative selection 
+#                 else:
+#                     gamma_1[x_length-ne+n] = gamma_1e_original[n]
 
-            if t < 0:
-                # s'' = gamma1* s(t)/gamma1(t)
-                gamma2_t = gamma_2[0]
-                dsdt[x_length:, ti] = gamma_1 * s1[:, ti] / gamma2_t
+#             if t < 0:
+#                 # s'' = gamma1* s(t)/gamma1(t)
+#                 gamma2_t = gamma_2[0]
+#                 dsdt[x_length:, ti] = gamma_1 * s1[:, ti] / gamma2_t
 
-            elif t > sample_times[-1]:
-                # s'' = gamma1* s(t)/gamma1(t)
-                gamma2_t = gamma_2[-1]
-                dsdt[x_length:, ti] = gamma_1 * s1[:, ti] / gamma2_t
+#             elif t > sample_times[-1]:
+#                 # s'' = gamma1* s(t)/gamma1(t)
+#                 gamma2_t = gamma_2[-1]
+#                 dsdt[x_length:, ti] = gamma_1 * s1[:, ti] / gamma2_t
 
-            else:
-                # get A(t), b(t) and gamma2(t)
-                time_index = round(t)
-                A_t      = A_all[time_index]                
-                b_t      = b_all[time_index]
-                gamma2_t = gamma_2[time_index]
+#             else:
+#                 # get A(t), b(t) and gamma2(t)
+#                 time_index = round(t)
+#                 A_t      = A_all[time_index]                
+#                 b_t      = b_all[time_index]
+#                 gamma2_t = gamma_2[time_index]
 
-                # s'' = A(t)s(t) + b(t)
-                dsdt[x_length:, ti] = ((A_t+np.diag(gamma_1)) @ s1[:, ti] + b_t) / gamma2_t
+#                 # s'' = A(t)s(t) + b(t)
+#                 dsdt[x_length:, ti] = ((A_t+np.diag(gamma_1)) @ s1[:, ti] + b_t) / gamma2_t
         
-        return dsdt
+#         return dsdt
 
-    # Boundary conditions
-    def bc(b1,b2):
-        # Neumann boundary condition
-        return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
+#     # Boundary conditions
+#     def bc(b1,b2):
+#         # Neumann boundary condition
+#         return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
         
-    # initial guess for the selection coefficients
-    ss_extend = np.zeros((2*x_length,len(ExTimes)))
+#     # initial guess for the selection coefficients
+#     ss_extend = np.zeros((2*x_length,len(ExTimes)))
     
-    # solve the boundary value problem
-    solution = sp.integrate.solve_bvp(fun_sigmoid, bc, ExTimes, ss_extend, max_nodes=10000, tol=1e-3)
+#     # solve the boundary value problem
+#     solution = sp.integrate.solve_bvp(fun_sigmoid, bc, ExTimes, ss_extend, max_nodes=10000, tol=1e-3)
     
-    # Get the solution and remove the superfluous part of the array
-    # including the extended time points
-    sc_all         = solution.sol(ExTimes)
-    desired_sc_all = sc_all[:x_length,:]
+#     # Get the solution and remove the superfluous part of the array
+#     # including the extended time points
+#     sc_all         = solution.sol(ExTimes)
+#     desired_sc_all = sc_all[:x_length,:]
 
-    # not include the extended time points
-    sc_sample         = solution.sol(time_all)
-    desired_sc_sample = sc_sample[:x_length,:]
+#     # not include the extended time points
+#     sc_sample         = solution.sol(time_all)
+#     desired_sc_sample = sc_sample[:x_length,:]
 
-    # save the solution with constant_time-varying selection coefficient
-    g = open(out_file, mode='w+b')
-    np.savez_compressed(g, all = desired_sc_all, selection=desired_sc_sample, time=time_all, ExTimes=ExTimes)
-    g.close()
+#     # save the solution with constant_time-varying selection coefficient
+#     g = open(out_file, mode='w+b')
+#     np.savez_compressed(g, all = desired_sc_all, selection=desired_sc_sample, time=time_all, ExTimes=ExTimes)
+#     g.close()
 
 def cal_sim_change(**pdata):
     # Load data
@@ -1771,14 +1771,15 @@ def cal_sim_change(**pdata):
     ############################################################################
     ####################### Action calculation ############################
     name = xfile.split('-',1)[1]
+    idx  = name.split('-', 1)[0]
 
     # obtain raw data and information of traits
     data_seq     = np.loadtxt('%s/%s/%s/%s.dat'%(SIM_DIR,sim_dir,input_dir,xfile))
     sc_const     = np.loadtxt('%s/%s/%s/sc-%s.dat'%(SIM_DIR,sim_dir,out_const,name))
     sc_tv        = np.load('%s/%s/%s/c_%s.npz'%(SIM_DIR,sim_dir,out_tv,name), allow_pickle=True)['selection'].T
 
-    escape_group = read_file('%s/traitsite/traitsite-%s.dat'%(sim_dir,name))
-    trait_dis    = read_file('%s/traitdis/traitdis-%s.dat'%(sim_dir,name))
+    escape_group = read_file('%s/traitsite/traitsite-%s.dat'%(sim_dir,idx))
+    trait_dis    = read_file('%s/traitdis/traitdis-%s.dat'%(sim_dir,idx))
     escape_TF    = read_file('%s/traitseq.dat'%(sim_dir))
     ne           = len(escape_group)
 
@@ -1870,3 +1871,390 @@ def cal_sim_change(**pdata):
     #     print(f'CH{tag[-5:]}|{action_const:.4f}|{action_tv:.4f}|constant{suffix}')
 
     # return action_const, action_tv
+
+def infer_binary(if_epitope=True, theta=0.5, beta=4.0, **pdata):
+    """
+    Infer time-varying selection coefficients from simulated evolutionary trajectory
+    """
+
+    # unpack passed data
+    sim_dir       = pdata['dir']            # 'simple'
+    input_dir     = pdata['input_dir']      # 'sequences'
+    xfile         = pdata['xfile']          # index of the simulation
+    output_dir    = pdata['output_dir']     # 'output'
+
+    seq_length    = pdata['seq_length']     # 10
+    mut_rate      = pdata['mut_rate']       # 1e-3
+
+    gamma_1       = pdata['gamma_s']         # 10
+    gamma_2c      = pdata['gamma_2c']       # 1000000
+    gamma_2tv     = pdata['gamma_2tv']      # 200
+
+    p_sites       = pdata['p_sites']        # special sites
+    if if_epitope:
+        rec_rate  = pdata['rec_rate']       # only epitope part has non-zero recombination contribution
+    ############################################################################
+    ############################## Function ####################################
+
+    # loading data from dat file (trait)
+    def getSequence(history,escape_group,sample_times):
+        sVec      = []
+        nVec      = []
+        eVec      = []
+        for time in sample_times:
+            idx = history.T[0] == time
+            data_t = history[idx]
+            temp_nVec   = []
+            temp_sVec   = []
+            temp_eVec   = []
+            for t in range(len(data_t)):
+                temp_nVec.append(data_t[t][1])
+                temp_sVec.append(data_t[t][2:])
+
+                if if_epitope:
+                    temp_escape = np.zeros(ne, dtype=int)
+                    for n in range(ne):
+                        for nn in range(len(escape_group[n])):
+                            index = escape_group[n][nn] + 2
+                            if data_t[t][index] != 0:
+                                temp_escape[n] = 1
+                                break
+                    temp_eVec.append(temp_escape)
+            nVec.append(temp_nVec)
+            sVec.append(temp_sVec)
+            eVec.append(temp_eVec)
+
+        return sVec,nVec,eVec
+
+    # calculate single and pair allele frequency (binary case)
+    def get_allele_frequency(sVec,nVec):
+
+        x  = np.zeros((len(nVec),x_length))           # single allele frequency
+        xx = np.zeros((len(nVec),x_length,x_length))  # pair allele frequency
+        for t in range(len(nVec)):
+            pop_size_t = np.sum([nVec[t]])
+            # individual locus part
+            for i in range(seq_length):
+                x[t,i] = np.sum([sVec[t][k][i] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+                for j in range(int(i+1), seq_length): # mutation-mutation part
+                    xx[t,i,j] = np.sum([sVec[t][k][i] * sVec[t][k][j] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+                    xx[t,j,i] = xx[t,i,j]
+            # escape part
+            for n in range(ne):
+                aa      = x_length-ne+n
+                x[t,aa] = np.sum([eVec[t][k][n] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+                for j in range(seq_length): # mutation-escape part
+                    xx[t,j,aa] = np.sum([sVec[t][k][j] * eVec[t][k][n] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+                    xx[t,aa,j] = xx[t,j,aa]
+                for m in range(int(n+1), ne): # escape-escape part
+                    bb          = x_length-ne+m
+                    xx[t,aa,bb] = np.sum([eVec[t][k][n] * eVec[t][k][m] * nVec[t][k] for k in range(len(sVec[t]))]) / pop_size_t
+                    xx[t,bb,aa] = xx[t,aa,bb]
+        return x,xx
+    
+    # calculate escape frequency (binary case)
+    def get_escape_fre_term(sVec,nVec):
+        ex  = np.zeros((len(nVec),ne,seq_length))
+        for t in range(len(nVec)):
+            pop_size_t = np.sum([nVec[t]])
+            for k in range(len(sVec[t])):
+                for n in range(ne):
+                    n_mutations = 0
+                    for nn in escape_group[n]:
+                        if sVec[t][k][nn] != 0:
+                            n_mutations += 1
+                            site = nn
+                    if n_mutations == 1:
+                        ex[t,n,site] += nVec[t][k]
+            ex[t,:,:] = ex[t,:,:] / pop_size_t
+        return ex
+    
+    # calculate frequencies for recombination part
+    def get_p_k(sVec,nVec,seq_length,escape_group,escape_TF):
+        p_mut_k   = np.zeros((len(nVec),seq_length,3)) # 0: time, 1: all k point, 2: p_k, p_k-, p_k+
+        for t in range(len(nVec)):
+            pop_size_t = np.sum([nVec[t]])
+            
+            for n in range(len(escape_group)):
+                escape_group_n = escape_group[n]
+                sWT_n     = [int(i) for i in escape_TF[n]]
+
+                for k in range(len(sVec[t])): # different sequences at time t
+                    sVec_n = [int(sVec[t][k][i]) for i in escape_group_n]
+
+                    for nn in range(len(escape_group_n)-1):
+                        k_bp = nn + 1
+                        
+                        # containing mutation before and after break point k,p_k
+                        if sWT_n[:k_bp] != sVec_n[:k_bp] and sWT_n[k_bp:] != sVec_n[k_bp:]:
+                            p_mut_k[t][escape_group_n[0]+nn][0] += nVec[t][k]
+                        
+                        # MT before break point k and WT after break point k,p_k-
+                        if sWT_n[:k_bp] != sVec_n[:k_bp] and sWT_n[k_bp:] == sVec_n[k_bp:]:
+                            p_mut_k[t][escape_group_n[0]+nn][1] += nVec[t][k]
+                        
+                        # WT before break point k and MT after break point k,p_k+
+                        if sWT_n[:k_bp] == sVec_n[:k_bp] and sWT_n[k_bp:] != sVec_n[k_bp:]:
+                            p_mut_k[t][escape_group_n[0]+nn][2] += nVec[t][k]
+
+            p_mut_k[t] = p_mut_k[t] / pop_size_t
+
+        return p_mut_k
+ 
+    # calculate mutation flux term (binary_case)
+    def get_mut_flux(x,ex):
+        flux = np.zeros((len(x),x_length))
+        for t in range(len(x)):
+            # individual locus part
+            for i in range(seq_length):
+                flux[t,i] = mut_rate * ( 1 - 2 * x[t,i])
+            # binary trait part
+            for n in range(ne):
+                for nn in escape_group[n]:
+                    flux[t,x_length-ne+n] += mut_rate * (1 - x[t,x_length-ne+n] - ex[t,n,nn] )
+        return flux
+
+    # calculate dxdt
+    def cal_dx_all(x, sample_times):
+        # mid point method to calculate dxdt, get the velocity at the mid points
+        dt = np.diff(sample_times)[:, None]
+        v = np.diff(x, axis=0) / dt
+        # get the dxdt at the original time points by averaging the neighboring values
+        v_node = np.empty_like(x)
+        v_node[0] = v[0]
+        v_node[-1] = v[-1]
+        v_node[1:-1] = 0.5 * (v[:-1] + v[1:])
+
+        return v, v_node
+
+    # calculate recombination flux term (binary_case)
+    def get_rec_flux_at_t(x_trait,p_mut_k,trait_dis):
+        flux = np.zeros(x_length)
+
+        for n in range(ne):
+            fluxIn  = 0
+            fluxOut = 0
+
+            for nn in range(len(escape_group[n])-1):
+                k_index = escape_group[n][0]+nn
+                fluxIn  += trait_dis[n][nn] * (1-x_trait[n])*p_mut_k[k_index][0]
+                fluxOut += trait_dis[n][nn] * p_mut_k[k_index][1]*p_mut_k[k_index][2]
+            
+            flux[x_length-ne+n] = rec_rate * (fluxIn - fluxOut)
+
+        return flux
+    
+    def get_g2_weight(time, tv_range, beta=beta):
+        # Use a time-varying gamma_prime, gamma_2tv is the middle value, 
+        # boundary value is 4 times larger, decrese/increase exponentially within 10% generation.
+        alpha  = np.log(beta) / tv_range
+        if time <= tv_range:
+            weight_t = np.exp(-alpha * time) * beta
+        elif time > sample_times[-1] - tv_range:
+            weight_t = np.exp(alpha * (time - sample_times[-1] + tv_range))
+        else:
+            weight_t = 1
+        return weight_t
+    
+    # solve the bounadry condition ODE to infer selections
+    def fun(time,s):
+        """ Function defining the right-hand side of the system of ODE's"""
+        
+        dsdt               = np.zeros_like(s)  # the RHS of the system of ODE's
+        s1                 = s[:x_length, :] # (L, n_time)
+        dsdt[:x_length, :] = s[x_length:,:]  # s' = s2, s2:the derivatives of the selection coefficients
+
+        # mask: inside sample range
+        n_time = time.size
+        tmin = sample_times[0]
+        tmax = sample_times[-1]
+        inside = (time >= tmin) & (time <= tmax)
+        outside = ~inside
+
+        # g1 depends on s: compute once for all time columns
+        g1_mat = np.broadcast_to(g1_base[:, None], (x_length, n_time)).copy()
+        if if_epitope: # Only for trait part, give a high penalty for negative selection 
+            g1_mat[trait_idx, :] = np.where(s1[trait_idx, :] < 0.0, gamma_1e * 100.0, gamma_1e)
+
+        # g2 s2'(t) = A(t)*s1(t) + b(t), s1: the actual selection coefficients
+        # A(t) = C(t) + g1, b(t) = - dx(t) + F(t) + R(t)
+        if outside.any(): # s'' = gamma1* s(t)/gamma2(t)
+            # , g2 in outside is 4 times larger than g2 in inside
+            dsdt[x_length:, outside] = (g1_mat[:, outside] * s1[:, outside]) / (g2_vec[:, None] * 4.0)
+        
+        if inside.any(): # s2'(t) = (C(t)s(t) + gamma1 s(t) + b(t)) / gamma2(t)
+            t_in = time[inside]
+            n_in = t_in.size
+
+            ts = time_all
+            
+            # interval indices for interpolation
+            k = np.searchsorted(ts, t_in, side="right") - 1
+            k = np.clip(k, 0, len(ts) - 2)
+
+            t0 = ts[k]
+            t1 = ts[k + 1]
+            a = (t_in - t0) / (t1 - t0)       # (n_in,)
+
+            # Use linear interpolation to get C(t) and flux(t)
+            C0, C1 = C_all[k], C_all[k + 1]
+            f0, f1 = flux_all[k], flux_all[k + 1]
+            C_t_all    = C0 + (C1 - C0) * a[:, None, None]
+            flux_t_all = f0 + (f1 - f0) * a[:, None]
+
+            # dxdt(t): step function on intervals
+            m = np.searchsorted(sample_times, t_in, side="left")
+            ks = np.clip(m - 1, 0, len(sample_times) - 2)
+            dxdt_t_all = dxdt[ks].copy()
+            on_node = (m < len(sample_times)) & (sample_times[m] == t_in)
+            if on_node.any(): # optional: node override when t_in equals sample_times exactly
+                dxdt_t_all[on_node] = dxdt_node[m[on_node]]
+
+            b_t_all = flux_t_all - dxdt_t_all  # b(t) = flux(t) - dxdt(t)
+
+            # g2 weight per inside time point
+            g2w = np.array([get_g2_weight(t, tv_range) for t in t_in], dtype=float)
+            denom = g2_vec[:, None] * g2w
+
+            # compute (C @ s1 + g1*s1 + b) / denom for each inside column
+            s1_in = s1[:, inside]                  # (L, n_in)
+
+            # right hand side: C(t)*s1(t) + g1*s1 + b(t)
+            rhs = np.empty_like(s1_in)             # (L, n_in)
+            for j in range(n_in):
+                rhs[:, j] = C_t_all[j] @ s1_in[:, j]
+            rhs += g1_mat[:, inside] * s1_in
+            rhs += b_t_all.T                       # (L, n_in)
+
+            dsdt[x_length:, inside] = rhs / denom
+
+        return dsdt
+
+    # boundary condition
+    def bc(b1,b2):
+        # if using Neumann boundary condition
+        return np.ravel(np.array([b1[x_length:],b2[x_length:]])) # s' = 0 at the extended endpoints
+
+    ############################################################################
+    ####################### Inference (binary case) ############################
+    # get the name of the output file and check if it exists
+    name = xfile.split('-',1)[1]
+    name_id = name.split('-')[0]
+    out_file = '%s/%s/%s/c_%s.npz'%(SIM_DIR,sim_dir,output_dir,name)
+    if os.path.exists(out_file):
+        return
+    
+    # obtain raw data and information of traits
+    data         = np.loadtxt("%s/%s/%s/%s.dat"%(SIM_DIR,sim_dir,input_dir,xfile))
+    if if_epitope:
+        escape_group = read_file('%s/traitsite/traitsite-%s.dat'%(sim_dir,name_id))
+        trait_dis    = read_file('%s/traitdis/traitdis-%s.dat'%(sim_dir,name_id))
+        escape_TF    = read_file('%s/traitseq.dat'%(sim_dir))
+        ne           = len(escape_group)
+    else:
+        ne = 0
+        escape_group = []
+        trait_dis    = []
+        escape_TF    = []
+
+    # get raw time points
+    sample_times = np.unique([row[0] for row in data])
+    time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+
+    # obtain sequence data and frequencies
+    sVec,nVec,eVec = getSequence(data,escape_group,sample_times)
+    x_length       = seq_length + ne
+
+    # get all frequencies, x_raw: single allele frequency, xx_raw: pair allele frequency
+    # ex: escape frequency, p_mut_k: frequency related to recombination part
+    x_raw,xx_raw = get_allele_frequency(sVec,nVec)
+    if if_epitope:
+        ex_raw       = get_escape_fre_term(sVec,nVec)
+        p_mut_k_raw  = get_p_k(sVec,nVec,seq_length,escape_group,escape_TF)
+        trait_idx    = np.arange(x_length - ne, x_length)
+    else:
+        ex_raw       = np.zeros((len(nVec),ne,seq_length))
+
+    # get dx
+    dxdt, dxdt_node = cal_dx_all(x_raw, sample_times)
+    mu_raw = get_mut_flux(x_raw, ex_raw)
+
+    # get gamma_1
+    gamma_1s  = round(gamma_1/sample_times[-1],3) # g1_tv = g1_const/time range
+    gamma_1e  = gamma_1s/10                       # give a smaller penalty for epitope part
+    g1_vec  = np.ones(x_length)*gamma_1s # set gamma_1 for traits at ODE part
+    if if_epitope:
+        g1_vec[x_length - ne:] = gamma_1e
+    g1_base = g1_vec.copy()
+
+    # get gamma_2
+    tv_range = max(int(round(sample_times[-1]*0.1/10)*10),1)
+    g2_vec = np.ones(x_length)* gamma_2c
+    # special site - large gamma 2
+    for idx in p_sites:
+        g2_vec[idx] = gamma_2tv
+    # binary trait - large gamma 2
+    for n in range(ne):
+        g2_vec[x_length-ne+n] = gamma_2tv
+
+    # get the input arrays at any integer time point
+    if len(sample_times) == len(time_all):
+        # no interpolation is needed
+        x_all   = x_raw
+        xx_all  = xx_raw
+        mu_all  = mu_raw
+        if if_epitope:
+            p_mut_k = p_mut_k_raw
+    else:
+        # Use linear interpolates to get data
+        interp_x   = interp1d(sample_times,  x_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+        interp_xx  = interp1d(sample_times, xx_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+        interp_mu  = interp1d(sample_times, mu_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+        
+        x_all = interp_x(time_all)
+        xx_all = interp_xx(time_all)
+        mu_all = interp_mu(time_all)
+        if if_epitope:
+            interp_mut = interp1d(sample_times, p_mut_k_raw, axis=0, kind='linear', bounds_error=False, fill_value=0)
+            p_mut_k = interp_mut(time_all)
+
+    t_extend = int(round(time_all[-1]*theta/10.0)*10)
+    etleft   = np.linspace(-t_extend,-10,int(t_extend/10)) # time added before the beginning time (dt=10)
+    etright  = np.linspace(time_all[-1]+10,time_all[-1]+t_extend,int(t_extend/10))
+    ExTimes  = np.concatenate((etleft, time_all, etright))
+
+    # Get matrix C and vector flux
+    C_all = np.zeros((len(time_all),x_length,x_length))
+    flux_all = np.zeros((len(time_all),x_length))
+    for ti in range(len(time_all)):
+        # calculate C(t), add regularization term at ODE part
+        C_all[ti] = diffusion_matrix_at_t(x_all[ti], xx_all[ti]) # covariance matrix
+
+        # calculate flux(t)
+        flux_all[ti] = mu_all[ti]
+        if if_epitope: # only epitope part has non-zero recombination contribution
+            flux_all[ti] += get_rec_flux_at_t(x_all[ti,x_length-ne:], p_mut_k[ti], trait_dis)
+
+    # initial guess for the selection coefficients
+    ss_extend = np.zeros((2*x_length,len(ExTimes)))
+    
+    # solve the boundary value problem
+    solution = sp.integrate.solve_bvp(fun, bc, ExTimes, ss_extend, max_nodes=10000, tol=1e-3)
+    
+    # Check if the solution converged
+    if solution.status != 0:
+        print("Error: The BVP solver did not converge for file %s.dat"%(xfile))
+        # return
+    
+    if np.isnan(solution.y).any():
+        print("Error: solution contains NaN for file %s.dat"%(xfile))
+        # return
+
+    # Get the solution and remove the superfluous part of the array
+    sc_all    = solution.sol(time_all)[:x_length,:]
+    sc_sample = solution.sol(sample_times)[:x_length,:]
+
+    # save the solution with constant_time-varying selection coefficients
+    g = open(out_file, mode='w+b')
+    np.savez_compressed(g, sc_all = sc_all, selection=sc_sample, time=sample_times, ExTimes=ExTimes)
+    g.close()

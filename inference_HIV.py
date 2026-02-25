@@ -748,13 +748,13 @@ def main(args):
 
     if print_time:
         end_time = time_module.time()
-        print(f"CH{tag[6:]}---------{end_time - start_time} seconds")
+        print(f"CH{tag[6:]}, g1={arg_list.g1}, g2={gamma_2c}---------{end_time - start_time} seconds")
         
     # save the solution with constant_time-varying selection coefficient
     if add_time:
-        g = open('%s/%s/sc_%s-add.npz'%(HIV_DIR, output_dir, tag), mode='w+b')
+        g = open('%s/%s/sc_%s%s-add.npz'%(HIV_DIR, output_dir, tag, name), mode='w+b')
     else:
-        g = open('%s/%s/sc_%s.npz'%(HIV_DIR, output_dir, tag), mode='w+b')
+        g = open('%s/%s/sc_%s%s.npz'%(HIV_DIR, output_dir, tag, name), mode='w+b')
     np.savez_compressed(g, all = desired_sc_all, selection=desired_sc_sample, time=sample_times, ExTimes=ExTimes)
     g.close()
     

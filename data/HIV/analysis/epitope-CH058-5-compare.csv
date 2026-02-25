@@ -1,0 +1,4 @@
+polymorphic_index,HXB2_index,nucleotide,TF,epitope,escape,if_special,sc_const,sc_avg,sc_std,tc_const,tc_avg
+13,1228,T,A,ISPRTLNAW,True,True,-1.309219e-03,-1.305023e-03,2.363213e-03,-1.309219e-03,-1.305023e-03
+16,1514,A,C,TSTLQEQIGW,True,,2.744216e-02,2.147715e-02,2.568263e-04,8.656727e-02,8.493060e-02
+17,1532,A,G,TSTLQEQIGW,True,,-1.291116e-02,-1.549420e-02,2.850665e-04,8.656727e-02,8.493060e-02

@@ -9,19 +9,24 @@ __pycache__
 */*/.DS_Store
 
 # Large files
+/figures_old
 /figures/trait/
 /figures/simple*/
 
 # Old data
 try.ipynb
 try.py
-/figures/HIV-compare/
-/figures/old
 /data/HIV/output-nofixation
 /data/HIV/output-fixation100
-/data/HIV/constant/output/cut
-/data/HIV/input/*/cut/
-/data/HIV/*/cut/
-
-/data/simulation/simple/*/nsdt
+/data/HIV/rawdata/interdata*
 /data/simulation/trait/
+/data/simulation/sigmoid/output/nsdt/
+/data/simulation/sigmoid/output_const/nsdt/
+/data/simulation/sigmoid/sequences/nsdt/
+
+# reply
+CH470-5-mid.ipynb
+/data/HIV/old
+/data/simulation/*/old
+/data/simulation/trait/cut
+
