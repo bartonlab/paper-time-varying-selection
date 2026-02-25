@@ -2,6 +2,8 @@
 __pycache__
 .ipynb_checkpoints
 */.ipynb_checkpoints
+.vscode/
+.github/
 
 # Mac hidden files
 .DS_Store
@@ -16,10 +18,7 @@ __pycache__
 # Old data
 try.ipynb
 try.py
-/data/HIV/output-nofixation
-/data/HIV/output-fixation100
 /data/HIV/rawdata/interdata*
-/data/simulation/trait/
 /data/simulation/sigmoid/output/nsdt/
 /data/simulation/sigmoid/output_const/nsdt/
 /data/simulation/sigmoid/sequences/nsdt/
@@ -28,5 +27,5 @@ try.py
 CH470-5-mid.ipynb
 /data/HIV/old
 /data/simulation/*/old
-/data/simulation/trait/cut
+/data/simulation/*/*.zip
 
