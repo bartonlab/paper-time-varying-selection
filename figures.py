@@ -1350,12 +1350,12 @@ def plot_trait_his(**pdata):
     if savepdf:
         plt.savefig('%s/%s_his%s.pdf' % (FIG_DIR,sim_dir,output), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
-def plot_HIV_new(**pdata):
+def plot_HIV_example(**pdata):
 
     # unpack passed data
-    FIG_DIR  = pdata['FIG_DIR']
-    file_pre = pdata['file_pre']
-    file_suf = pdata['file_suf']
+    FIG_DIR   = pdata['FIG_DIR']
+    sc_dir     = pdata['sc_dir']
+    if_linear  = pdata['if_linear']
     xtick      = pdata['xtick']
     xminortick = pdata['xminortick']
     ytick      = pdata['ytick']
@@ -1378,8 +1378,12 @@ def plot_HIV_new(**pdata):
     for i in range(len(tags)):
         tag = tags[i]
         epi_index = epi_indexes[i]
-        sc_file = '%s%s%s' % (file_pre, tag[6:], file_suf)
-        FData = GetFigureData(tag, sc_file)
+        if if_linear:
+            sc_file = '%s/sc-CH%s-linear.npz'%(sc_dir,tag[6:])
+            FData = GetFigureData(tag, sc_file, if_linear=True) 
+        else:
+            sc_file = '%s/sc-CH%s.npz'%(sc_dir,tag[6:])
+            FData = GetFigureData(tag, sc_file, if_linear=False) 
         ne = FData.ne
         sample_times_all.append(FData.sample_times)
         times_all.append(FData.times)
@@ -1456,11 +1460,11 @@ def plot_HIV_new(**pdata):
         # plot frequencies for individual escape sites
         for nn in range(len(traj_var_all[n])):
             pprops['plotprops']['alpha'] = 0.4
-            mp.line(ax=ax_tra[n], x=[sample_times_all[n]], y=[traj_var_all[n][nn]], colors=[C_group[n]], **pprops)
+            mp.line(ax=ax_tra[n], x=[times_all[n]], y=[traj_var_all[n][nn]], colors=[C_group[n]], **pprops)
 
         # plot frequencies for individual group
         pprops['plotprops']['alpha'] = 1
-        mp.plot(type='line', ax=ax_tra[n], x=[sample_times_all[n]], y=[traj_group_all[n]], colors=[C_group[n]], **pprops)
+        mp.plot(type='line', ax=ax_tra[n], x=[times_all[n]], y=[traj_group_all[n]], colors=[C_group[n]], **pprops)
     
     # b_x  = (xtick[0][-1] + xtick[0][0])/2
     # ax_tra[0].text(b_x, 1.4, 'Escape mutant\nfrequency', ha='center', va='center', **DEF_LABELPROPS)
@@ -1563,7 +1567,11 @@ def plot_HIV_new(**pdata):
     ax_tc[0].text(legend_x, yy[1], 'Normalized CTL intensity', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
     
     if savepdf:
-        plt.savefig('%s/fig-epitope-new.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+        if if_linear:
+            fig_file = '%s/fig-epitope-linear.pdf' % (FIG_DIR)
+        else:
+            fig_file = '%s/fig-epitope.pdf' % (FIG_DIR)
+        plt.savefig(fig_file, facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
         plt.show()
 
 @dataclass
@@ -1578,11 +1586,14 @@ class FData:
     sc_all:[]
     var_tag:[]
 
-def GetFigureData(tag,sc_file,add_time=False,positive_time=True, HIV_DIR='data/HIV'):
+def GetFigureData(tag,sc_file,if_linear=False, HIV_DIR='data/HIV'):
 
-    ppt = tag.split('-')[0]
     try:
-        with open('%s/rawdata/plotinfo_%s.json'%(HIV_DIR,tag)) as f:
+        if if_linear:
+            info_path = '%s/rawdata/plotinfo_%s_linear.json'%(HIV_DIR,tag)
+        else:
+            info_path = '%s/rawdata/plotinfo_%s.json'%(HIV_DIR,tag)
+        with open(info_path) as f:
             data = json.load(f)
     except FileNotFoundError:
         print(f'CH{tag[-5:]} has no plot info json file')
@@ -1616,9 +1627,8 @@ def plot_all_epitopes(**pdata):
 
     # unpack passed data
     tags     = pdata['tags']
-    file_pre   = pdata['file_pre']
-    file_suf   = pdata['file_suf']
-    HIV_DIR  = pdata['HIV_DIR']
+    sc_dir   = pdata['sc_dir']
+    if_linear   = pdata['if_linear']
 
     ne_all           = []
     sample_times_all = []
@@ -1629,10 +1639,16 @@ def plot_all_epitopes(**pdata):
 
     # information for escape group
     for tag in tags:
-        sc_file = '%s%s%s'%(file_pre,tag[6:],file_suf)
-        FData = GetFigureData(tag, sc_file) 
+        if if_linear:
+            sc_file = '%s/sc-CH%s-linear.npz'%(sc_dir,tag[6:])
+            FData = GetFigureData(tag, sc_file, if_linear=True) 
+        else:
+            sc_file = '%s/sc-CH%s.npz'%(sc_dir,tag[6:])
+            FData = GetFigureData(tag, sc_file, if_linear=False) 
+
         ne    = FData.ne
         if ne > 0:
+
             ne_all.append(ne)
             sample_times_all.append(FData.sample_times)
             traj_group_all.append(FData.traj_group)
@@ -1673,20 +1689,20 @@ def plot_all_epitopes(**pdata):
     
     for n in range(len(sample_times_all)):
         traj_group   = traj_group_all[n]
-        sample_times = [sample_times_all[n] for k in range(len(traj_group))]
-        log_sample_times = [np.log(i+1) for i in sample_times]
+        times_all_tag = [times_all[n] for k in range(len(traj_group))]
+        log_times = [np.log(i+1) for i in times_all_tag]
         color_n      = [C_NEU for k in range(len(traj_group))]
-        mp.plot(type='line', ax=ax_traj, x=log_sample_times, y=traj_group, colors=color_n, **pprops)
+        mp.plot(type='line', ax=ax_traj, x=log_times, y=traj_group, colors=color_n, **pprops)
 
     ax_traj.text( box_traj['left']+dx,  box_traj['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
     # b escape coefficients with extended time (time range:times)
     pprops = {  'xticks':      [ 0,  np.log(11),np.log(51),np.log(101), np.log(201),np.log(401),np.log(801)],
                 'xticklabels': [ 0, 10, 50, 100, 200, 400, 800],
-                'ylim':        [-0.02, 0.32],
-                'yticks':      [ 0,0.1,0.2,0.3],
-                'yminorticks': [ 0.05,0.15,0.25],
-                'yticklabels': [ 0,10,20,30],
+                'ylim':        [-0.02, 0.42],
+                'yticks':      [ 0,0.1,0.2,0.3, 0.4],
+                'yminorticks': [ 0.05,0.15,0.25, 0.35],
+                'yticklabels': [ 0,10,20,30,40],
                 'xlabel':      'Time (days after Fiebig I/II)',
                 'ylabel':      'Inferred escape\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)'}
 
@@ -1712,7 +1728,11 @@ def plot_all_epitopes(**pdata):
 
     ax_tc.text( box_tc['left']+dx,  box_tc['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
-    plt.savefig('%s/fig-tc.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+    if if_linear:
+        fig_file = '%s/fig-tc-linear.pdf' % (FIG_DIR)
+    else:
+        fig_file = '%s/fig-tc.pdf' % (FIG_DIR)
+    plt.savefig(fig_file, facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
 def plot_gamma_prime(**pdata):
 
@@ -2622,10 +2642,15 @@ def plot_epitopes(**pdata):
     ytick      = pdata['ytick']
     yminortick = pdata['yminortick']
     sc_file    = pdata['sc_file']
+    if_linear  = pdata['if_linear']
     
     # ----- read data from json file ----- 
     try:
-        with open('%s/rawdata/plotinfo_%s.json'%(HIV_DIR,tag)) as f:
+        if if_linear:
+            info_file = '%s/rawdata/plotinfo_%s_linear.json'%(HIV_DIR,tag)
+        else:
+            info_file = '%s/rawdata/plotinfo_%s.json'%(HIV_DIR,tag)
+        with open(info_file, "r") as f:
             data = json.load(f)
     except FileNotFoundError:
         print(f'CH{tag[-5:]} has no plot info json file')
@@ -2736,11 +2761,11 @@ def plot_epitopes(**pdata):
         # plot frequencies for individual escape sites
         for nn in range(len(x_escape_mut[n])):
             pprops['plotprops']['alpha'] = 0.4
-            mp.line(ax=ax_tra[n], x=[sample_times], y=[x_escape_mut[n][nn]], colors=[C_group[n]], **pprops)
+            mp.line(ax=ax_tra[n], x=[time_all], y=[x_escape_mut[n][nn]], colors=[C_group[n]], **pprops)
 
         # plot frequencies for individual group
         pprops['plotprops']['alpha'] = 1
-        mp.plot(type='line', ax=ax_tra[n], x=[sample_times], y=[x_epitops[n]], colors=[C_group[n]], **pprops)
+        mp.plot(type='line', ax=ax_tra[n], x=[time_all], y=[x_epitops[n]], colors=[C_group[n]], **pprops)
 
     legend_x = (xtick[0] + xtick[-1])/2
     ax_tra[0].text(legend_x, 1.1, 'Escape mutant frequency', ha='center', va='center', clip_on=False, **DEF_LABELPROPS)
@@ -2814,195 +2839,207 @@ def plot_epitopes(**pdata):
 
     ax_tc[0].text(box_tc['left']+dx,  box_tc['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
     
-    plt.savefig('%s/sc-CH%s.jpg' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
-
-def plot_special_site(**pdata):
-
-    # ----- unpack passed data ----- 
-    tag      = pdata['tag']
-    HIV_DIR  = pdata['HIV_DIR']
-    FIG_DIR  = pdata['FIG_DIR']
-    xtick      = pdata['xtick']
-    xminortick = pdata['xminortick']
-    ytick      = pdata['ytick']
-    yminortick = pdata['yminortick']
-    sc_file    = pdata['sc_file']
-
-    ppt = tag.split('-')[0]
-
-    # ----- read data  ----- 
-    data_pro = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle="True")
-    muVec    = data_pro['muVec']
-    sample_times = data_pro['sample_times']
-    special_sites    = data_pro['special_sites']
-    if len(special_sites) == 0:
-        print(f'CH{tag[6:]} has no special site')
-        return
-
-    # import data with extended time
-    try:
-        data_sc = np.load('%s/%s'%(HIV_DIR,sc_file), allow_pickle=True)
-    except FileNotFoundError:
-        print(f'No data for CH{tag[-5:]}')
-        return
-
-    sc_all  = data_sc['sc_all']# time range:times
-    time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
-
-    df_sc   = pd.read_csv('%s/constant/analysis/%s-analyze.csv'%(HIV_DIR,tag), comment='#', memory_map=True)
-
-    index_s =  [] # variants name
-    HXB2_variants = [] # variant name with HXB2 index
-    for i in special_sites:
-        df_i  = df_sc[(df_sc.polymorphic_index==i) & (df_sc.nucleotide!=df_sc.TF ) & (df_sc.nucleotide!= '-')]
-        for df_iter, df_entry in df_i.iterrows():
-            # get variant name
-            site    = int(df_entry.polymorphic_index)
-            variant = str(site)+df_entry.nucleotide
-            index_s.append(variant)
-            HXB2_variant = str(df_entry.HXB2_index)+df_entry.nucleotide
-            HXB2_variants.append(HXB2_variant)
-
-    '''get selection coefficient for time-varying case'''
-    sc_old  =  np.zeros(len(index_s))                 # selection coefficient for constant case
-    sc_a    =  np.zeros((len(index_s),len(time_all)))    # time varying sc (time range:times)
-    traj_sp =  [] # frequencies for special sites
-    for i in range(len(index_s)):
-        site_i = int(index_s[i][:-1])
-        nuc_i  = str(index_s[i][-1])
-        df_sp  = df_sc[(df_sc.polymorphic_index==site_i) & (df_sc.nucleotide == nuc_i)]
-
-        if len(df_sp) != 1:
-            print(f'error for variant {index_s[i]}')
-
-        df_i   = df_sp.iloc[0]
-        # get selection coefficient for constant case
-        sc_old[i] = df_i.sc_MPL
-
-        q_index  = NUC.index(df_i.nucleotide)
-        TF_index = NUC.index(df_i.TF)
-        traj_sp.append([df_i['f_at_%d' % t] for t in sample_times])
-
-        # use muVec to get the real position of this variant
-        index_mu    = muVec[site_i,q_index]
-        index_TF    = muVec[site_i,TF_index]
-        if index_mu == -1 or index_TF == -1:
-            print('CH%s error, %d'%(tag[-5:],site))
-        else:
-            sc_a[i] = sc_all[int(index_mu)] - sc_all[int(index_TF)]
-
-    sc_s  = np.zeros((len(index_s),len(sample_times)))
-    # selection coefficients for sampled time points
-    index = 0
-    for ti, t in enumerate(time_all):
-        if t in sample_times:
-            sc_s[:,index] = sc_a[:,ti]
-            index += 1
-
-    # PLOT FIGURE
-    # set up figure grid
-    w     = DOUBLE_COLUMN #SLIDE_WIDTH
-    goldh = w / 3
-    fig   = plt.figure(figsize=(w, goldh),dpi=1000)
-    gs  = gridspec.GridSpec(1, 3, width_ratios=[1,0.5,1],wspace = 0.3,)
-    gs.update(left=0.1, right=0.9, bottom=0.20, top=0.95)
-    ax  = [plt.subplot(gs[0, 0]), plt.subplot(gs[0, 1]), plt.subplot(gs[0, 2])]
-
-    if len(xtick) == 0:
-        xtick = [int(i) for i in sample_times]
-
-    # frequencies
-    pprops = { 'xticks':      xtick,
-               'xminorticks': xminortick,
-               'yticks':      [0, 1.0],
-               'yminorticks': [0.25, 0.5, 0.75],
-               'nudgey':      1.1,
-               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0 },
-               'axoffset':    0.1,
-               'theme':       'open',
-               'combine'     : True,
-               'xlabel':      'Days after Fiebig I/II',
-               'ylabel':      'Frequencies'}
-
-    for i in range(len(index_s)):
-        pprops['plotprops']['alpha'] = 0.8
-        # plot frequencies for special sites
-        if i == len(index_s) - 1:
-            mp.plot(type='line',ax=ax[0], x=[sample_times], y=[traj_sp[i]], colors=[C_group[i]], **pprops)
-        else:
-            mp.line(ax=ax[0], x=[sample_times], y=[traj_sp[i]], colors=[C_group[i]], **pprops)
-
-    # label for different special variants
-    n_sp = len(index_s)
-    pprops = { 'xlim': [0,  5],
-               'ylim': [0,  n_sp],
-               'xticks': [],
-               'yticks': [],
-               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0 },
-               'theme': 'open',
-               'hide' : ['top', 'bottom', 'left', 'right'] }
-
-    traj_legend_x  =  1.5
-    traj_legend_y  = [0.5+i for i in range(n_sp)]
-
-    for k in range(len(traj_legend_y)):
-        x1 = traj_legend_x-2.0
-        x2 = traj_legend_x-0.5
-        yy = traj_legend_y[k]
-        ax[1].text(traj_legend_x, traj_legend_y[k], HXB2_variants[k], ha='left', va='center', **DEF_LABELPROPS)
-        mp.plot(type='line',ax=ax[1], x=[[x1, x2]], y=[[yy, yy]], colors=[C_group[k]], **pprops)
-
-    # escape coefficients with extended time (time range:times)
-    pprops = { 'xlim':        [ 0,    max(sample_times)+5],
-               'xticks':      xtick,
-               'xminorticks': xminortick,
-               'xlabel':      'Days after Fiebig I/II',
-               'ylabel':      'Inferred selection coefficient, ' + r'$\hat{s}$' + ' (%)'}
-
-    if len(ytick) == 0:
-        ymax = max(max(max(sc_old), sc_a.max()) * 1.25, 0.02)
-        ymin = min(min(min(sc_old), sc_a.min()) * 1.25,-0.02)
-        pprops['ylim']        = [ymin, ymax]
-        pprops['yticks']      = [round(ymin/0.01)*0.01,  0, round(ymax/0.01)*0.01]
-        pprops['yticklabels'] = [round(ymin/0.01)     ,  0, round(ymax/0.01)*1]
+    if if_linear:
+        fig_file = '%s/sc-CH%s-linear.jpg' % (FIG_DIR,tag[-5:])
     else:
-        pprops['yticks'] = ytick
-        pprops['yticklabels'] = [int(i*100) for i in ytick]
-        pprops['yminorticks'] = yminortick
+        fig_file = '%s/sc-CH%s.jpg' % (FIG_DIR,tag[-5:])
 
-    lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0 }
+    plt.savefig(fig_file, facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
 
-    for i in range(len(index_s)):
-        # 0 and previous result
-        ax[2].axhline(y=sc_old[i], ls=':', lw=SIZELINE, color=C_group[i])
-        ax[2].axhline(y=0, ls='--', lw=SIZELINE/2, color=BKCOLOR)
+# def plot_special_site(**pdata):
 
-        # sc-time (time range:times)
-        mp.line(ax=ax[2], x=[time_all], y=[sc_a[i]], colors=[C_group[i]],plotprops=lprops, **pprops)
+#     # ----- unpack passed data ----- 
+#     tag      = pdata['tag']
+#     HIV_DIR  = pdata['HIV_DIR']
+#     FIG_DIR  = pdata['FIG_DIR']
+#     xtick      = pdata['xtick']
+#     xminortick = pdata['xminortick']
+#     ytick      = pdata['ytick']
+#     yminortick = pdata['yminortick']
+#     sc_file    = pdata['sc_file']
 
-        # sc-time(time range:sample_times)
-        if i == len(index_s) - 1:
-            sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':1}
-            mp.plot(type='scatter', ax=ax[2], x=[sample_times], y=[sc_s[i]], colors=[C_group[i]],plotprops=sprops, **pprops)
-        else:
-            sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':1}
-            mp.scatter(ax=ax[2], x=[sample_times], y=[sc_s[i]], colors=[C_group[i]],plotprops=sprops, **pprops)
+#     ppt = tag.split('-')[0]
 
-    plt.savefig('%s/sp-CH%s.jpg' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+#     # ----- read data  ----- 
+#     data_pro = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle="True")
+#     muVec    = data_pro['muVec']
+#     sample_times = data_pro['sample_times']
+#     special_sites    = data_pro['special_sites']
+#     if len(special_sites) == 0:
+#         print(f'CH{tag[6:]} has no special site')
+#         return
+
+#     # import data with extended time
+#     try:
+#         data_sc = np.load('%s/%s'%(HIV_DIR,sc_file), allow_pickle=True)
+#     except FileNotFoundError:
+#         print(f'No data for CH{tag[-5:]}')
+#         return
+
+#     sc_all  = data_sc['sc_all']# time range:times
+#     time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+
+#     df_sc   = pd.read_csv('%s/constant/analysis/%s-analyze.csv'%(HIV_DIR,tag), comment='#', memory_map=True)
+
+#     index_s =  [] # variants name
+#     HXB2_variants = [] # variant name with HXB2 index
+#     for i in special_sites:
+#         df_i  = df_sc[(df_sc.polymorphic_index==i) & (df_sc.nucleotide!=df_sc.TF ) & (df_sc.nucleotide!= '-')]
+#         for df_iter, df_entry in df_i.iterrows():
+#             # get variant name
+#             site    = int(df_entry.polymorphic_index)
+#             variant = str(site)+df_entry.nucleotide
+#             index_s.append(variant)
+#             HXB2_variant = str(df_entry.HXB2_index)+df_entry.nucleotide
+#             HXB2_variants.append(HXB2_variant)
+
+#     '''get selection coefficient for time-varying case'''
+#     sc_old  =  np.zeros(len(index_s))                 # selection coefficient for constant case
+#     sc_a    =  np.zeros((len(index_s),len(time_all)))    # time varying sc (time range:times)
+#     traj_sp =  [] # frequencies for special sites
+#     for i in range(len(index_s)):
+#         site_i = int(index_s[i][:-1])
+#         nuc_i  = str(index_s[i][-1])
+#         df_sp  = df_sc[(df_sc.polymorphic_index==site_i) & (df_sc.nucleotide == nuc_i)]
+
+#         if len(df_sp) != 1:
+#             print(f'error for variant {index_s[i]}')
+
+#         df_i   = df_sp.iloc[0]
+#         # get selection coefficient for constant case
+#         sc_old[i] = df_i.sc_MPL
+
+#         q_index  = NUC.index(df_i.nucleotide)
+#         TF_index = NUC.index(df_i.TF)
+#         traj_sp.append([df_i['f_at_%d' % t] for t in sample_times])
+
+#         # use muVec to get the real position of this variant
+#         index_mu    = muVec[site_i,q_index]
+#         index_TF    = muVec[site_i,TF_index]
+#         if index_mu == -1 or index_TF == -1:
+#             print('CH%s error, %d'%(tag[-5:],site))
+#         else:
+#             sc_a[i] = sc_all[int(index_mu)] - sc_all[int(index_TF)]
+
+#     sc_s  = np.zeros((len(index_s),len(sample_times)))
+#     # selection coefficients for sampled time points
+#     index = 0
+#     for ti, t in enumerate(time_all):
+#         if t in sample_times:
+#             sc_s[:,index] = sc_a[:,ti]
+#             index += 1
+
+#     # PLOT FIGURE
+#     # set up figure grid
+#     w     = DOUBLE_COLUMN #SLIDE_WIDTH
+#     goldh = w / 3
+#     fig   = plt.figure(figsize=(w, goldh),dpi=1000)
+#     gs  = gridspec.GridSpec(1, 3, width_ratios=[1,0.5,1],wspace = 0.3,)
+#     gs.update(left=0.1, right=0.9, bottom=0.20, top=0.95)
+#     ax  = [plt.subplot(gs[0, 0]), plt.subplot(gs[0, 1]), plt.subplot(gs[0, 2])]
+
+#     if len(xtick) == 0:
+#         xtick = [int(i) for i in sample_times]
+
+#     # frequencies
+#     pprops = { 'xticks':      xtick,
+#                'xminorticks': xminortick,
+#                'yticks':      [0, 1.0],
+#                'yminorticks': [0.25, 0.5, 0.75],
+#                'nudgey':      1.1,
+#                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0 },
+#                'axoffset':    0.1,
+#                'theme':       'open',
+#                'combine'     : True,
+#                'xlabel':      'Days after Fiebig I/II',
+#                'ylabel':      'Frequencies'}
+
+#     for i in range(len(index_s)):
+#         pprops['plotprops']['alpha'] = 0.8
+#         # plot frequencies for special sites
+#         if i == len(index_s) - 1:
+#             mp.plot(type='line',ax=ax[0], x=[sample_times], y=[traj_sp[i]], colors=[C_group[i]], **pprops)
+#         else:
+#             mp.line(ax=ax[0], x=[sample_times], y=[traj_sp[i]], colors=[C_group[i]], **pprops)
+
+#     # label for different special variants
+#     n_sp = len(index_s)
+#     pprops = { 'xlim': [0,  5],
+#                'ylim': [0,  n_sp],
+#                'xticks': [],
+#                'yticks': [],
+#                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0 },
+#                'theme': 'open',
+#                'hide' : ['top', 'bottom', 'left', 'right'] }
+
+#     traj_legend_x  =  1.5
+#     traj_legend_y  = [0.5+i for i in range(n_sp)]
+
+#     for k in range(len(traj_legend_y)):
+#         x1 = traj_legend_x-2.0
+#         x2 = traj_legend_x-0.5
+#         yy = traj_legend_y[k]
+#         ax[1].text(traj_legend_x, traj_legend_y[k], HXB2_variants[k], ha='left', va='center', **DEF_LABELPROPS)
+#         mp.plot(type='line',ax=ax[1], x=[[x1, x2]], y=[[yy, yy]], colors=[C_group[k]], **pprops)
+
+#     # escape coefficients with extended time (time range:times)
+#     pprops = { 'xlim':        [ 0,    max(sample_times)+5],
+#                'xticks':      xtick,
+#                'xminorticks': xminortick,
+#                'xlabel':      'Days after Fiebig I/II',
+#                'ylabel':      'Inferred selection coefficient, ' + r'$\hat{s}$' + ' (%)'}
+
+#     if len(ytick) == 0:
+#         ymax = max(max(max(sc_old), sc_a.max()) * 1.25, 0.02)
+#         ymin = min(min(min(sc_old), sc_a.min()) * 1.25,-0.02)
+#         pprops['ylim']        = [ymin, ymax]
+#         pprops['yticks']      = [round(ymin/0.01)*0.01,  0, round(ymax/0.01)*0.01]
+#         pprops['yticklabels'] = [round(ymin/0.01)     ,  0, round(ymax/0.01)*1]
+#     else:
+#         pprops['yticks'] = ytick
+#         pprops['yticklabels'] = [int(i*100) for i in ytick]
+#         pprops['yminorticks'] = yminortick
+
+#     lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0 }
+
+#     for i in range(len(index_s)):
+#         # 0 and previous result
+#         ax[2].axhline(y=sc_old[i], ls=':', lw=SIZELINE, color=C_group[i])
+#         ax[2].axhline(y=0, ls='--', lw=SIZELINE/2, color=BKCOLOR)
+
+#         # sc-time (time range:times)
+#         mp.line(ax=ax[2], x=[time_all], y=[sc_a[i]], colors=[C_group[i]],plotprops=lprops, **pprops)
+
+#         # sc-time(time range:sample_times)
+#         if i == len(index_s) - 1:
+#             sprops = { 'lw' : 0, 's' : 6, 'marker' : '^','alpha':1}
+#             mp.plot(type='scatter', ax=ax[2], x=[sample_times], y=[sc_s[i]], colors=[C_group[i]],plotprops=sprops, **pprops)
+#         else:
+#             sprops = { 'lw' : 0, 's' : 6, 'marker' : '^','alpha':1}
+#             mp.scatter(ax=ax[2], x=[sample_times], y=[sc_s[i]], colors=[C_group[i]],plotprops=sprops, **pprops)
+
+#     fig.patch.set_alpha(0)
+#     ax[0].patch.set_alpha(0)
+#     ax[1].patch.set_alpha(0)
+#     ax[2].patch.set_alpha(0)
+
+#     # plt.savefig('%s/sp-CH%s.jpg' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+#     # plt.savefig('%s/sp-CH%s-new.jpg' % (FIG_DIR,tag[-5:]), transparent=True)
 
 def plot_epitopes_compare(**pdata):
 
     # unpack passed data
     tag      = pdata['tag']
     HIV_DIR  = pdata['HIV_DIR']
-    out_dir  = pdata['output_dir']
+    FIG_DIR  = pdata['FIG_DIR']
+    fig_file = pdata['fig_file']
     xtick      = pdata['xtick']
     xminortick = pdata['xminortick']
     ytick      = pdata['ytick']
     yminortick = pdata['yminortick']
     sc_file0    = pdata['sc_file0']
     sc_file1    = pdata['sc_file1']
-    sc_file2    = pdata['sc_file2']
+    sig_file    = pdata['sig_file']
     
     try:
         df_escape   = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv'%(HIV_DIR,tag), memory_map=True)
@@ -3015,6 +3052,11 @@ def plot_epitopes_compare(**pdata):
     time_all = np.linspace(sample_times[0], sample_times[-1], int((sample_times[-1] - sample_times[0]) + 1))
     time_index = {t: i for i, t in enumerate(time_all)}
     idx      = [time_index[t] for t in sample_times]
+
+    if sig_file is not None:
+        interp_data = np.load('%s/%s'%(HIV_DIR, sig_file), allow_pickle="True")
+        freq_sigmoid = interp_data['x_all'].T
+        x_epitops_sig = []
 
     epitopes    = df_escape['epitope'].unique()
     ne = len(epitopes)
@@ -3030,18 +3072,16 @@ def plot_epitopes_compare(**pdata):
 
         # get frequencies for escape sites and groups
         x_epitops.append([df_row['xp_at_%d' % t] for t in sample_times])
+        if sig_file is not None:
+            x_epitops_sig.append(freq_sigmoid[-ne+n])
 
     data_tc0 = np.load('%s/%s'%(HIV_DIR,sc_file0), allow_pickle=True)
-    tc_all0  = data_tc0['selection'][-(ne):]
+    tc_all0  = data_tc0['sc_all'][-(ne):]
     tc_sample0 = tc_all0[:, idx]
 
     data_tc1  = np.load('%s/%s'%(HIV_DIR,sc_file1), allow_pickle=True)
     tc_all1   = data_tc1['sc_all'][-(ne):]
     tc_sample1 = tc_all1[:, idx]
-
-    data_tc2  = np.load('%s/%s'%(HIV_DIR,sc_file2), allow_pickle=True)
-    tc_all2   = data_tc2['sc_all'][-(ne):]
-    tc_sample2 = tc_all2[:, idx]
     
     sc_const = np.loadtxt('%s/constant/output/sc-%s.dat'%(HIV_DIR, tag))
     ec_const = sc_const[-ne:]
@@ -3097,7 +3137,7 @@ def plot_epitopes_compare(**pdata):
         ytick    = [[] for n in range(ne)]
         for n in range(ne):
             # epitope
-            max_var = max(max(tc_all0[n]), max(tc_all1[n]), max(tc_all2[n]), ec_const[n])
+            max_var = max(max(tc_all0[n]), max(tc_all1[n]), ec_const[n])
             ymax = max(max_var * 1.25,0.02)
 
             ytick[n] = [-0.02, 0, round(ymax/0.02)/100 ,round(ymax/0.01)*0.01]
@@ -3148,44 +3188,50 @@ def plot_epitopes_compare(**pdata):
             pprops['xticklabels'] = xtick
             pprops['xlabel']      = 'Time (days after Fiebig I/II)'
 
-        # plot frequencies for individual group
-        pprops['plotprops']['alpha'] = 1
+        # plot frequencies for epitope
+        if sig_file is not None:
+            pprops['plotprops']['ls'] = '-'
+            pprops['plotprops']['alpha'] = 0.8
+            mp.line(ax=ax_a[n], x=[time_all], y=[x_epitops_sig[n]], colors=[C_group[n]], **pprops)
+
+        pprops['plotprops']['ls'] = '--'
+        pprops['plotprops']['alpha'] = 0.6
         mp.plot(type='line', ax=ax_a[n], x=[sample_times], y=[x_epitops[n]], colors=[C_group[n]], **pprops)
 
     legend_x = (xtick[0] + xtick[-1])/2
     ax_a[0].text(legend_x, 1.1, 'Escape mutant frequency', ha='center', va='center', clip_on=False, **DEF_LABELPROPS)
 
-    # # b-right -- T cell intensity
-    # pprops = { 'yticks':      [0, 1],
-    #            'yminorticks': [0.25, 0.5, 0.75],
-    #            'ylim':        [-0.1, 1.0],
-    #            'axoffset':    0.1,
-    #            'tickprops':  def_tickprops,
-    #            'plotprops':   {'lw': SIZELINE, 'ls': ':', 'alpha': 0.8 },
-    #            'noaxes':     True,
-    #            'show':       ['right']}
+    # b-right -- T cell intensity
+    pprops = { 'yticks':      [0, 1],
+               'yminorticks': [0.25, 0.5, 0.75],
+               'ylim':        [-0.1, 1.0],
+               'axoffset':    0.1,
+               'tickprops':  def_tickprops,
+               'plotprops':   {'lw': SIZELINE, 'ls': ':', 'alpha': 0.8 },
+               'noaxes':     True,
+               'show':       ['right']}
 
-    # pprops['tickprops']['right'] = True
-    # pprops['tickprops']['left'] = False
-    # pprops['tickprops']['bottom'] = False
+    pprops['tickprops']['right'] = True
+    pprops['tickprops']['left'] = False
+    pprops['tickprops']['bottom'] = False
 
-    # for n in range(ne):
-    #     if len(respon_x[n]) == 0:
-    #         continue
+    for n in range(ne):
+        if len(respon_x[n]) == 0:
+            continue
 
-    #     ax2 = ax_b[n].twinx()
-    #     ax2.set_position(ax_b[n].get_position())
+        ax2 = ax_b[n].twinx()
+        ax2.set_position(ax_b[n].get_position())
 
-    #     pprops['xlim'] = [xtick[0], xtick[-1]*1.015]
-    #     pprops['xtick'] = []
-    #     pprops['ylim'] = [-0.1, 1.0]
+        pprops['xlim'] = [xtick[0], xtick[-1]*1.015]
+        pprops['xtick'] = []
+        pprops['ylim'] = [-0.1, 1.0]
         
-    #     x_dat = respon_x[n]
-    #     y_dat = respon_y[n]/np.max(respon_y[n])
-    #     mp.plot(type='line', ax=ax2, x=[x_dat], y=[y_dat], colors=[C_group[n]], **pprops)
-    #     ax2.spines['right'].set_bounds(0, 1)
+        x_dat = respon_x[n]
+        y_dat = respon_y[n]/np.max(respon_y[n])
+        mp.plot(type='line', ax=ax2, x=[x_dat], y=[y_dat], colors=[BKCOLOR], **pprops)
+        ax2.spines['right'].set_bounds(0, 1)
 
-        # ax2.axhline(y=30/np.max(respon_y[n]), ls='-', lw=SIZELINE, color=C_group[n], alpha=0.2)
+        # ax2.axhline(y=30/np.max(respon_y[n]), ls='-', lw=SIZELINE, color=BKCOLOR, alpha=0.2)
 
     ## b-left -- inferred escape coefficients
     sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':0.7}
@@ -3210,20 +3256,18 @@ def plot_epitopes_compare(**pdata):
 
         # VL-dependent r - left:old vs new result
         lprops['alpha'] = 0.5
-        mp.line(ax=ax_b[n], x=[sample_times], y=[ec_const[n]*np.ones(len(sample_times))], colors=[BKCOLOR], plotprops=lprops, **pprops)
+        mp.line(ax=ax_b[n], x=[sample_times], y=[ec_const[n]*np.ones(len(sample_times))], colors=[C_group[n]], plotprops=lprops, **pprops)
         
-        lprops['alpha'] = 0.7
+        lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.8 }
         mp.line(ax=ax_b[n], x=[time_all], y=[tc_all0[n]],colors=[C_group[n]], plotprops=lprops, **pprops)
+        lprops = {'lw': SIZELINE, 'ls': '--', 'alpha': 0.6 }
         mp.line(ax=ax_b[n], x=[time_all], y=[tc_all1[n]],colors=[C_group[n]], plotprops=lprops, **pprops)
-        mp.line(ax=ax_b[n], x=[time_all], y=[tc_all2[n]],colors=[C_group[n]], plotprops=lprops, **pprops)
 
         # VL-dependent r - right: new result
         sprops['marker'] = 'o'
         mp.scatter(            ax=ax_b[n], x=[sample_times], y=[tc_sample0[n]], colors=[C_group[n]], plotprops=sprops, **pprops)
         sprops['marker'] = '^'
-        mp.scatter(            ax=ax_b[n], x=[sample_times], y=[tc_sample1[n]], colors=[C_group[n]], plotprops=sprops, **pprops)
-        sprops['marker'] = 's'
-        mp.plot(type='scatter',ax=ax_b[n], x=[sample_times], y=[tc_sample2[n]], colors=[C_group[n]], plotprops=sprops, **pprops)
+        mp.plot(type='scatter', ax=ax_b[n], x=[sample_times], y=[tc_sample1[n]], colors=[C_group[n]], plotprops=sprops, **pprops)
 
     # true coefficient label
     legend_x = (xtick[0] + xtick[-1])/2
@@ -3233,8 +3277,208 @@ def plot_epitopes_compare(**pdata):
     ax_a[0].text(box_a['left']+dx,  box_a['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
     ax_b[0].text(box_b['left']+dx,  box_b['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
-    plt.savefig('%s/HIV-compare/CH%s.jpg' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+    plt.savefig('%s/%s' % (FIG_DIR,fig_file), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+
+# def plot_special_site_compare(**pdata):
+
+#     # ----- unpack passed data ----- 
+#     tag      = pdata['tag']
+#     HIV_DIR  = pdata['HIV_DIR']
+#     FIG_DIR  = pdata['FIG_DIR']
+#     xtick      = pdata['xtick']
+#     xminortick = pdata['xminortick']
+#     ytick      = pdata['ytick']
+#     yminortick = pdata['yminortick']
+#     sc_file0    = pdata['sc_file0']
+#     sc_file1    = pdata['sc_file1']
+#     raw_file    = pdata['raw_file']
+#     sig_file    = pdata['sig_file']
+
+#     # ----- read data  ----- 
+#     data_pro = np.load('%s/%s'%(HIV_DIR, raw_file), allow_pickle="True")
+#     muVec    = data_pro['muVec']
+#     sample_times = data_pro['sample_times']
+#     special_sites  = data_pro['special_sites']
+#     freq_raw       = data_pro['single_freq'].T
+#     if len(special_sites) == 0:
+#         print(f'CH{tag[6:]} has no special site')
+#         return
+
+#     if sig_file is not None:
+#         interp_data = np.load('%s/%s'%(HIV_DIR, sig_file), allow_pickle="True")
+#         freq_sigmoid = interp_data['x_all'].T
+#         traj_sp_sigmoid = []
+
+#     # import data with extended time
+#     try:
+#         data_sc0 = np.load('%s/%s'%(HIV_DIR,sc_file0), allow_pickle=True)
+#         data_sc1 = np.load('%s/%s'%(HIV_DIR,sc_file1), allow_pickle=True)
+#     except FileNotFoundError:
+#         print(f'No data for CH{tag[-5:]}')
+#         return
+
+#     sc_all0  = data_sc0['sc_all']# time range:times
+#     sc_all1  = data_sc1['sc_all']# time range:times
+#     time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+
+#     df_sc   = pd.read_csv('%s/constant/analysis/%s-analyze.csv'%(HIV_DIR,tag), comment='#', memory_map=True)
+
+#     index_s =  [] # variants name
+#     HXB2_variants = [] # variant name with HXB2 index
+#     for i in special_sites:
+#         df_i  = df_sc[(df_sc.polymorphic_index==i) & (df_sc.nucleotide!=df_sc.TF ) & (df_sc.nucleotide!= '-')]
+#         for df_iter, df_entry in df_i.iterrows():
+#             # get variant name
+#             site    = int(df_entry.polymorphic_index)
+#             variant = str(site)+df_entry.nucleotide
+#             index_s.append(variant)
+#             HXB2_variant = str(df_entry.HXB2_index)+df_entry.nucleotide
+#             HXB2_variants.append(HXB2_variant)
+
+#     '''get selection coefficient for time-varying case'''
+#     sc_old  =  np.zeros(len(index_s))                 # selection coefficient for constant case
+#     sc_sp0    =  np.zeros((len(index_s),len(time_all)))    # time varying sc (time range:times)
+#     sc_sp1    =  np.zeros((len(index_s),len(time_all)))    # time varying sc (time range:times)
+#     traj_sp =  [] # frequencies for special sites
+#     for i in range(len(index_s)):
+#         site_i = int(index_s[i][:-1])
+#         nuc_i  = str(index_s[i][-1])
+#         df_sp  = df_sc[(df_sc.polymorphic_index==site_i) & (df_sc.nucleotide == nuc_i)]
+
+#         if len(df_sp) != 1:
+#             print(f'error for variant {index_s[i]}')
+
+#         df_i   = df_sp.iloc[0]
+#         # get selection coefficient for constant case
+#         sc_old[i] = df_i.sc_MPL
+
+#         q_index  = NUC.index(df_i.nucleotide)
+#         TF_index = NUC.index(df_i.TF)
+
+#         # use muVec to get the real position of this variant
+#         index_mu    = int(muVec[site_i,q_index])
+#         index_TF    = int(muVec[site_i,TF_index])
+#         if index_mu == -1 or index_TF == -1:
+#             print('CH%s error, %d'%(tag[-5:],site))
+#         else:
+#             sc_sp0[i] = sc_all0[index_mu] - sc_all0[index_TF]
+#             sc_sp1[i] = sc_all1[index_mu] - sc_all1[index_TF]
+
+#         # get frequency
+#         traj_sp.append(freq_raw[index_mu])
+#         if sig_file is not None:
+#             traj_sp_sigmoid.append(freq_sigmoid[index_mu])
+
+#     sc_sp_sample0  = np.zeros((len(index_s),len(sample_times)))
+#     sc_sp_sample1  = np.zeros((len(index_s),len(sample_times)))
+#     # selection coefficients for sampled time points
+#     index = 0
+#     for ti, t in enumerate(time_all):
+#         if t in sample_times:
+#             sc_sp_sample0[:,index] = sc_sp0[:,ti]
+#             sc_sp_sample1[:,index] = sc_sp1[:,ti]
+#             index += 1
+
+#     # PLOT FIGURE
+#     # set up figure grid
+#     w     = DOUBLE_COLUMN #SLIDE_WIDTH
+#     goldh = w / 3
+#     fig   = plt.figure(figsize=(w, goldh),dpi=1000)
+#     gs  = gridspec.GridSpec(1, 3, width_ratios=[1,0.5,1],wspace = 0.3,)
+#     gs.update(left=0.1, right=0.9, bottom=0.20, top=0.95)
+#     ax  = [plt.subplot(gs[0, 0]), plt.subplot(gs[0, 1]), plt.subplot(gs[0, 2])]
+
+#     if len(xtick) == 0:
+#         xtick = [int(i) for i in sample_times]
+
+#     lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0 }
+#     sprops = { 'lw' : 0, 's' : 6, 'marker' : 'o','alpha':1}
     
+#     # frequencies
+#     pprops = { 'xticks':      xtick,
+#                'xminorticks': xminortick,
+#                'yticks':      [0, 1.0],
+#                'yminorticks': [0.25, 0.5, 0.75],
+#                'nudgey':      1.1,
+#                'axoffset':    0.1,
+#                'theme':       'open',
+#                'combine'     : True,
+#                'xlabel':      'Days after Fiebig I/II',
+#                'ylabel':      'Frequencies'}
+
+#     for i in range(len(index_s)):
+#         # plot frequencies for special sites
+#         if sig_file is not None:
+#             lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.8 }
+#             mp.line(ax=ax[0], x=[time_all], y=[traj_sp_sigmoid[i]], colors=[C_group[i]],plotprops=lprops, **pprops)
+        
+#         lprops = {'lw': SIZELINE, 'ls': '--', 'alpha': 0.6 }
+#         if i == len(index_s) - 1:
+#             mp.plot(type='line',ax=ax[0], x=[sample_times], y=[traj_sp[i]], colors=[C_group[i]],plotprops=lprops, **pprops)
+#         else:
+#             mp.line(ax=ax[0], x=[sample_times], y=[traj_sp[i]], colors=[C_group[i]],plotprops=lprops, **pprops)
+
+#     # label for different special variants
+#     n_sp = len(index_s)
+#     pprops = { 'xlim': [0,  5],
+#                'ylim': [0,  n_sp],
+#                'xticks': [],
+#                'yticks': [],
+#                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1.0 },
+#                'theme': 'open',
+#                'hide' : ['top', 'bottom', 'left', 'right'] }
+
+#     traj_legend_x  =  1.5
+#     traj_legend_y  = [0.5+i for i in range(n_sp)]
+
+#     for k in range(len(traj_legend_y)):
+#         x1 = traj_legend_x-2.0
+#         x2 = traj_legend_x-0.5
+#         yy = traj_legend_y[k]
+#         ax[1].text(traj_legend_x, traj_legend_y[k], HXB2_variants[k], ha='left', va='center', **DEF_LABELPROPS)
+#         mp.plot(type='line',ax=ax[1], x=[[x1, x2]], y=[[yy, yy]], colors=[C_group[k]], **pprops)
+
+#     # escape coefficients with extended time (time range:times)
+#     pprops = { 'xlim':        [ 0,    max(sample_times)+5],
+#                'xticks':      xtick,
+#                'xminorticks': xminortick,
+#                'xlabel':      'Days after Fiebig I/II',
+#                'ylabel':      'Inferred selection coefficient, ' + r'$\hat{s}$' + ' (%)'}
+
+#     if len(ytick) == 0:
+#         ymax = max(max(max(sc_old), sc_sp0.max(), sc_sp1.max()) * 1.25, 0.02)
+#         ymin = min(min(min(sc_old), sc_sp0.min(), sc_sp1.min()) * 1.25,-0.02)
+#         pprops['ylim']        = [ymin, ymax]
+#         pprops['yticks']      = [round(ymin/0.01)*0.01,  0, round(ymax/0.01)*0.01]
+#         pprops['yticklabels'] = [round(ymin/0.01)     ,  0, round(ymax/0.01)*1]
+#     else:
+#         pprops['yticks'] = ytick
+#         pprops['yticklabels'] = [int(i*100) for i in ytick]
+#         pprops['yminorticks'] = yminortick
+
+#     for i in range(len(index_s)):
+#         # 0 and previous result
+#         ax[2].axhline(y=sc_old[i], ls=':', lw=SIZELINE, color=C_group[i])
+#         ax[2].axhline(y=0, ls='--', lw=SIZELINE/2, color=BKCOLOR)
+
+#         # sc-time (time range:times)
+#         lprops = {'lw': SIZELINE, 'ls': '--', 'alpha': 0.6 }
+#         mp.line(ax=ax[2], x=[time_all], y=[sc_sp0[i]], colors=[C_group[i]],plotprops=lprops, **pprops)
+#         lprops = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.8 }
+#         mp.line(ax=ax[2], x=[time_all], y=[sc_sp1[i]], colors=[C_group[i]],plotprops=lprops, **pprops)
+
+#         # sc-time(time range:sample_times)
+#         sprops['marker'] = 'o'
+#         mp.scatter(ax=ax[2], x=[sample_times], y=[sc_sp_sample0[i]], colors=[C_group[i]],plotprops=sprops, **pprops)
+#         sprops['marker'] = '^'
+#         if i == len(index_s) - 1:
+#             mp.plot(type='scatter', ax=ax[2], x=[sample_times], y=[sc_sp_sample1[i]], colors=[C_group[i]],plotprops=sprops, **pprops)
+#         else:
+#             mp.scatter(ax=ax[2], x=[sample_times], y=[sc_sp_sample1[i]], colors=[C_group[i]],plotprops=sprops, **pprops)
+
+#     plt.savefig('%s/sigmoid-sp-CH%s.jpg' % (FIG_DIR,tag[-5:]), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+
+
 @dataclass
 class EData:
     sample_times: list
@@ -3248,7 +3492,7 @@ class EData:
     respon_x: list
     respon_y: list
 
-def get_epitopes_date(ppts, file_pre, file_suf, HIV_DIR='data/HIV'):
+def get_epitopes_date(ppts, sc_dir, if_linear, HIV_DIR='data/HIV'):
     n = len(ppts)
     res = EData(
         sample_times = [[] for _ in range(n)],
@@ -3266,13 +3510,18 @@ def get_epitopes_date(ppts, file_pre, file_suf, HIV_DIR='data/HIV'):
     for id_ppt, ppt in enumerate(ppts):
         for i in range(2):# 5' half-sequences and 3' half-sequences
             tag   = ppt + '-' + str(int(5-2*i))
-            sc_file = file_pre + tag[6:] + file_suf
+            if if_linear:
+                sc_file = '%s/sc-CH%s-linear.npz'%(sc_dir,tag[6:])
+                info_file = '%s/rawdata/plotinfo_%s_linear.json'%(HIV_DIR,tag)
+            else:
+                sc_file = '%s/sc-CH%s.npz'%(sc_dir,tag[6:])
+                info_file = '%s/rawdata/plotinfo_%s.json'%(HIV_DIR,tag)
 
             try:
-                with open('%s/rawdata/plotinfo_%s.json'%(HIV_DIR,tag)) as f:
+                with open(info_file) as f:
                     data = json.load(f)
             except FileNotFoundError:
-                print(f'CH{tag[-5:]} has no time-varying single mutations or epitopes')
+                print(f'CH{tag[-5:]} has no epitopes')
                 continue
 
             ne           = data["ne"]
@@ -3317,15 +3566,15 @@ def plot_all_epitopes_1(**pdata):
     # unpack passed data
     ppts       = pdata['ppts']
     FIG_DIR    = pdata['FIG_DIR']
-    file_pre   = pdata['file_pre']
-    file_suf   = pdata['file_suf']
+    sc_dir     = pdata['sc_dir']
+    if_linear  = pdata['if_linear']
     xtick      = pdata['xtick']
     xminortick = pdata['xminortick']
     yminortick = pdata['yminortick']
     ytick      = pdata['ytick']
     savepdf    = pdata['savepdf']
     
-    results = get_epitopes_date(ppts, file_pre, file_suf)
+    results = get_epitopes_date(ppts, sc_dir, if_linear)
     # information for escape group
     sample_times = results.sample_times
     time_all     = results.time_all
@@ -3396,11 +3645,11 @@ def plot_all_epitopes_1(**pdata):
             # plot frequencies for individual escape sites
             for nn in range(len(traj_var[idx][n])):
                 pprops['plotprops']['alpha'] = 0.4
-                mp.line(ax=ax[n][0], x=[sample_times[idx][n]], y=[traj_var[idx][n][nn]], colors=[C_group[n]], **pprops)
+                mp.line(ax=ax[n][0], x=[time_all[idx][n]], y=[traj_var[idx][n][nn]], colors=[C_group[n]], **pprops)
 
             # plot frequencies for individual group
             pprops['plotprops']['alpha'] = 1
-            mp.plot(type='line', ax=ax[n][0], x=[sample_times[idx][n]], y=[traj_group[idx][n]], colors=[C_group[n]], **pprops)
+            mp.plot(type='line', ax=ax[n][0], x=[time_all[idx][n]], y=[traj_group[idx][n]], colors=[C_group[n]], **pprops)
 
     # left 2 -- T cell intensity
     pprops = { 'xticklabels': [],
@@ -3521,7 +3770,12 @@ def plot_all_epitopes_1(**pdata):
     ax_a[0][1].text(legend_x, yy[1], 'Normalized CTL intensity', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
 
     if savepdf:
-        plt.savefig('%s/fig-epitopes-1.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+        if if_linear:
+            fig_file = '%s/fig-epitopes-1-linear.pdf' % (FIG_DIR)
+        else:
+            fig_file = '%s/fig-epitopes-1.pdf' % (FIG_DIR)
+
+        plt.savefig(fig_file, facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
         plt.show()
 
 def plot_all_epitopes_2(**pdata):
@@ -3529,15 +3783,16 @@ def plot_all_epitopes_2(**pdata):
     # unpack passed data
     ppts       = pdata['ppts']
     FIG_DIR    = pdata['FIG_DIR']
-    file_pre   = pdata['file_pre']
-    file_suf   = pdata['file_suf']
+    sc_dir     = pdata['sc_dir']
+    if_linear  = pdata['if_linear']
     xtick      = pdata['xtick']
     xminortick = pdata['xminortick']
     yminortick = pdata['yminortick']
     ytick      = pdata['ytick']
     savepdf    = pdata['savepdf']
     
-    results = get_epitopes_date(ppts, file_pre, file_suf)
+    results = get_epitopes_date(ppts, sc_dir, if_linear)
+
     # information for escape group
     sample_times = results.sample_times
     time_all     = results.time_all
@@ -3625,11 +3880,11 @@ def plot_all_epitopes_2(**pdata):
             # plot frequencies for individual escape sites
             for nn in range(len(traj_var[idx][n])):
                 pprops['plotprops']['alpha'] = 0.4
-                mp.line(ax=ax[n][0], x=[sample_times[idx][n]], y=[traj_var[idx][n][nn]], colors=[C_group[n]], **pprops)
+                mp.line(ax=ax[n][0], x=[time_all[idx][n]], y=[traj_var[idx][n][nn]], colors=[C_group[n]], **pprops)
 
             # plot frequencies for individual group
             pprops['plotprops']['alpha'] = 1
-            mp.plot(type='line', ax=ax[n][0], x=[sample_times[idx][n]], y=[traj_group[idx][n]], colors=[C_group[n]], **pprops)
+            mp.plot(type='line', ax=ax[n][0], x=[time_all[idx][n]], y=[traj_group[idx][n]], colors=[C_group[n]], **pprops)
 
     # left 2 -- T cell intensity
     pprops = { 'xticklabels': [],
@@ -3757,7 +4012,11 @@ def plot_all_epitopes_2(**pdata):
     ax_a[0][1].text(legend_x, yy[1], 'Normalized CTL intensity', ha='left', va='center', clip_on=False, **DEF_LABELPROPS)
 
     if savepdf:
-        plt.savefig('%s/fig-epitopes-2.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+        if if_linear:
+            fig_file = '%s/fig-epitopes-2-linear.pdf' % (FIG_DIR)
+        else:
+            fig_file = '%s/fig-epitopes-2.pdf' % (FIG_DIR)
+        plt.savefig(fig_file, facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
         plt.show()
 
 def plot_CH040(**pdata):
@@ -3999,8 +4258,6 @@ def plot_compare_sc(**pdata):
 
     sc_const = [] # selection coefficients in constant case
     sc_avg   = [] # averaged selection coefficients in time-varying case
-    sc_const_sp = []
-    sc_avg_sp   = []
     sc_const_epi = []
     sc_avg_epi   = []
 
@@ -4013,12 +4270,8 @@ def plot_compare_sc(**pdata):
     for ii in range(len(df_base)):
 
         if df_base.iloc[ii]['escape'] == True:
-            if df_base.iloc[ii]['if_special'] == True:
-                sc_const_sp.append(df_base.iloc[ii]['sc_const'])
-                sc_avg_sp.append(df_base.iloc[ii]['sc_avg'])
-            else:
-                sc_const_epi.append(df_base.iloc[ii]['sc_const'])
-                sc_avg_epi.append(df_base.iloc[ii]['sc_avg'])
+            sc_const_epi.append(df_base.iloc[ii]['sc_const'])
+            sc_avg_epi.append(df_base.iloc[ii]['sc_avg'])
 
         sc_const.append(df_base.iloc[ii]['sc_const'])
         sc_avg.append(df_base.iloc[ii]['sc_avg'])
@@ -4053,7 +4306,6 @@ def plot_compare_sc(**pdata):
                'yticklabels':  [int(i*100) for i in sticks],
                'theme':        'boxed'}
     
-    
     # legend
     legend_x = sticks[-1]* 0.2
     legend_y = sticks[0] * 0.7
@@ -4061,19 +4313,13 @@ def plot_compare_sc(**pdata):
     legend_dy = legend_y/10
     mp.scatter(ax=ax, x=[legend_x], y=[legend_y], colors=[BKCOLOR],plotprops=scatterprops, **pprops)
     mp.scatter(ax=ax, x=[legend_x], y=[legend_y+legend_dy], colors=[C_BEN],plotprops=scatterprops, **pprops)
-    mp.scatter(ax=ax, x=[legend_x], y=[legend_y+2*legend_dy], colors=[C_DEL],plotprops=scatterprops, **pprops)
 
     tprops = dict(ha='left', va='center', family=FONTFAMILY, size=SIZELABEL, clip_on=False)
 
     ax.text(text_x, legend_y, 'Normal mutation', color=BKCOLOR, **tprops)
     ax.text(text_x, legend_y+legend_dy, 'Escape mutation', color=C_BEN, **tprops)
-    ax.text(text_x, legend_y+2*legend_dy, 'Time-varying mutation', color=C_DEL, **tprops)
 
     mp.scatter(ax=ax, x=[sc_const], y=[sc_avg], colors=[BKCOLOR],plotprops=scatterprops, **pprops)
-    # with special sites
-    if len(sc_const_sp) > 0:
-        scatterprops['alpha'] = 1.0
-        mp.scatter(ax=ax, x=[sc_const_sp], y=[sc_avg_sp], colors=[C_DEL],plotprops=scatterprops, **pprops)
 
     # with escape mutations
     if len(sc_const_epi) > 0:
@@ -4086,17 +4332,12 @@ def plot_compare_sc(**pdata):
     label_x = 0
     label_y = sticks[-1]*0.80
 
-    if len(sc_const_sp) > 0:
-        sp_suffix = '%d special mutation' % len(sc_const_sp)
-    else:
-        sp_suffix = 'no special mutation'
-
     if len(sc_const_epi) > 0:
         epi_suffix = '%d escape mutation' % len(sc_const_epi)
     else:
         epi_suffix = 'no escape mutation'
 
-    txt_str = 'CH = %s, r = %.4f \n %s, %s' % (tag_name, corr_coef, epi_suffix, sp_suffix)
+    txt_str = 'CH = %s, r = %.4f \n %s' % (tag_name, corr_coef, epi_suffix)
     ax.text(label_x, label_y, txt_str, ha='center', va='center', **DEF_LABELPROPS)
 
     plt.savefig(f'{fig_dir}/{fig_file}', facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
@@ -4105,36 +4346,34 @@ def plot_compare_sc_all(**pdata):
 
     # unpack data
     tags       = pdata['tags']
-    csv_pre  = pdata['csv_pre']
-    csv_suf  = pdata['csv_suf']
+    csv_dir  = pdata['csv_dir']
+    if_linear = pdata['if_linear']
     fig_dir    = pdata['fig_dir']
     fig_file   = pdata['fig_file']
 
     # process stored data
     sc_const = [] # selection coefficients in constant case
     sc_avg   = [] # averaged selection coefficients in time-varying case
-    # sc_const_sp = []
-    # sc_avg_sp   = []
     sc_const_epi = []
     sc_avg_epi   = []
 
     for tag in tags:
-        input_csv = f'{csv_pre}{tag[6:]}{csv_suf}'
+        if if_linear:
+            input_csv = f'{csv_dir}/mutation-CH{tag[6:]}-linear.csv'
+        else:
+            input_csv = f'{csv_dir}/mutation-CH{tag[6:]}.csv'
+        
         # Read the CSV file
         if not os.path.exists(input_csv):
-            print(f'File not found for {tag} - no time-varying nucleotides.')
+            print(f'File {input_csv} not found.')
             continue
-        
+
         df_base = pd.read_csv(input_csv, comment='#', memory_map=True)
         for ii in range(len(df_base)):
             if df_base.iloc[ii]['escape'] == True:
-                if df_base.iloc[ii]['if_special'] != True:
+                if pd.isna(df_base.iloc[ii]['epitope_tv']) == False:
                     sc_const_epi.append(df_base.iloc[ii]['sc_const'])
                     sc_avg_epi.append(df_base.iloc[ii]['sc_avg'])
-                else:
-                    continue
-                    # sc_const_sp.append(df_base.iloc[ii]['sc_const'])
-                    # sc_avg_sp.append(df_base.iloc[ii]['sc_avg'])
 
             sc_const.append(df_base.iloc[ii]['sc_const'])
             sc_avg.append(df_base.iloc[ii]['sc_avg'])
@@ -4174,22 +4413,16 @@ def plot_compare_sc_all(**pdata):
     legend_x = sticks[-1]* 0.2
     legend_y = sticks[0] * 0.7
     text_x   = legend_x + (sticks[-1] - sticks[0]) * 0.05
-    legend_dy = legend_y/10
+    legend_dy = legend_y/8
     mp.scatter(ax=ax, x=[legend_x], y=[legend_y], colors=[BKCOLOR],plotprops=scatterprops, **pprops)
     mp.scatter(ax=ax, x=[legend_x], y=[legend_y+legend_dy], colors=[C_BEN],plotprops=scatterprops, **pprops)
-    # mp.scatter(ax=ax, x=[legend_x], y=[legend_y+2*legend_dy], colors=[C_DEL],plotprops=scatterprops, **pprops)
 
     tprops = dict(ha='left', va='center', family=FONTFAMILY, size=SIZELABEL, clip_on=False)
 
     ax.text(text_x, legend_y, 'Normal mutation', color=BKCOLOR, **tprops)
     ax.text(text_x, legend_y+legend_dy, 'Escape mutation', color=C_BEN, **tprops)
-    # ax.text(text_x, legend_y+2*legend_dy, 'Time-varying mutation', color=C_DEL, **tprops)
 
     mp.scatter(ax=ax, x=[sc_const], y=[sc_avg], colors=[BKCOLOR],plotprops=scatterprops, **pprops)
-    # # with special sites
-    # if len(sc_const_sp) > 0:
-    #     scatterprops['alpha'] = 1.0
-    #     mp.scatter(ax=ax, x=[sc_const_sp], y=[sc_avg_sp], colors=[C_DEL],plotprops=scatterprops, **pprops)
 
     # with escape mutations
     if len(sc_const_epi) > 0:
@@ -4211,47 +4444,31 @@ def plot_compare_ec_all(**pdata):
 
     # unpack data
     tags       = pdata['tags']
-    csv_pre  = pdata['csv_pre']
-    csv_suf  = pdata['csv_suf']
+    csv_dir  = pdata['csv_dir']
+    if_linear  = pdata['if_linear']
     fig_dir    = pdata['fig_dir']
     fig_file   = pdata['fig_file']
 
     # process stored data
     ec_const = [] # selection coefficients in constant case
     ec_avg   = [] # averaged selection coefficients in time-varying case
-    ec_const_sp = []
-    ec_avg_sp   = []
 
     for tag in tags:
-        input_csv = f'{csv_pre}{tag[6:]}{csv_suf}'
+        if if_linear:
+            input_csv = f'{csv_dir}/epitope-CH{tag[6:]}-linear.csv'
+        else:
+            input_csv = f'{csv_dir}/epitope-CH{tag[6:]}.csv'
         # Read the CSV file
         if not os.path.exists(input_csv):
-            print(f'File not found for {tag} - no time-varying nucleotides.')
+            print(f'File {input_csv} not found.')
             continue
         
-        df = pd.read_csv(input_csv, comment='#', memory_map=True)
-
-        # special sites
-        sp = df["if_special"] == True
-        if sp.any():
-            sp_const = df.loc[sp, "tc_const"].to_numpy()
-            sp_avg   = df.loc[sp, "tc_avg"].to_numpy()
-
-            ec_const_sp.extend(sp_const.tolist())
-            ec_avg_sp.extend(sp_avg.tolist())
-
-            # also added to total ec
-            ec_const.extend(sp_const.tolist())
-            ec_avg.extend(sp_avg.tolist())
-
-        # epitopes
-        ep = ~sp
-        if ep.any():
-            df_ep = df.loc[ep, ["epitope", "tc_const", "tc_avg"]].drop_duplicates(
-                subset=["epitope"], keep="first"
-            )
-            ec_const.extend(df_ep["tc_const"].to_numpy().tolist())
-            ec_avg.extend(df_ep["tc_avg"].to_numpy().tolist())
+        df = pd.read_csv(input_csv, comment='#', memory_map=True, usecols=["epitope", "tc_const", "tc_avg"])
+        df_ep = df.drop_duplicates(subset=["epitope"], keep="first")
+        ec_const.extend(df_ep["tc_const"].to_numpy().tolist())
+        ec_avg.extend(df_ep["tc_avg"].to_numpy().tolist())
+    
+    print(f'There are {len(ec_const)} epitopes.')
 
     corr_matrix = np.corrcoef(ec_const, ec_avg)
     corr_coef = corr_matrix[0, 1]
@@ -4273,6 +4490,8 @@ def plot_compare_ec_all(**pdata):
     ## Inferred selection coefficients
     scatterprops = dict(lw=0, s=SMALLSIZEDOT*0.6, marker='o', alpha=0.8)
     lsprops = {'lw': SIZELINE, 'ls': '--', 'alpha': 0.5 }
+    tprops = dict(ha='left', va='center', family=FONTFAMILY, size=SIZELABEL, clip_on=False)
+
     pprops = { 'xlim':         [sticks[0], sticks[-1]],
                'ylim':         [sticks[0], sticks[-1]],
                'xticks':       sticks,
@@ -4283,26 +4502,14 @@ def plot_compare_ec_all(**pdata):
                'yticklabels':  [int(i*100) for i in sticks],
                'theme':        'boxed'}
     
-    
     # legend
     legend_x = sticks[-1] * 0.6
     legend_y = sticks[-1] * 0.1
     text_x   = legend_x + (sticks[-1] - sticks[0]) * 0.05
-    legend_dy = legend_y/2
     mp.scatter(ax=ax, x=[legend_x], y=[legend_y], colors=[BKCOLOR],plotprops=scatterprops, **pprops)
-    mp.scatter(ax=ax, x=[legend_x], y=[legend_y-legend_dy], colors=[C_DEL],plotprops=scatterprops, **pprops)
-
-    tprops = dict(ha='left', va='center', family=FONTFAMILY, size=SIZELABEL, clip_on=False)
-
     ax.text(text_x, legend_y, 'Epitopes', color=BKCOLOR, **tprops)
-    ax.text(text_x, legend_y-legend_dy, 'Special mutation', color=C_DEL, **tprops)
 
     mp.scatter(ax=ax, x=[ec_const], y=[ec_avg], colors=[BKCOLOR],plotprops=scatterprops, **pprops)
-    # with special sites
-    if len(ec_const_sp) > 0:
-        scatterprops['alpha'] = 1.0
-        mp.scatter(ax=ax, x=[ec_const_sp], y=[ec_avg_sp], colors=[C_DEL],plotprops=scatterprops, **pprops)
-
     mp.plot(type='line', ax=ax, x=[sticks], y=[sticks], colors=[BKCOLOR], plotprops=lsprops, **pprops)
 
     # Label
@@ -4344,208 +4551,6 @@ def plot_compare_values(**pdata):
     mp.scatter(ax=ax, x=[x_data], y=[y_data], colors=[BKCOLOR],plotprops=scatterprops, **pprops)
     mp.plot(type='line', ax=ax, x=[sticks], y=[sticks], colors=[BKCOLOR], plotprops=lsprops, **pprops)
 
-def plot_sigmoid_nsdt(**pdata):
-
-    """
-    histogram of selection coefficients and trait coefficients
-    """
-
-    # unpack passed data
-    sim_dir       = pdata['sim_dir']        # 'simple'
-    out_dir       = pdata['out_dir']        # 'output/nsdt'
-    
-    ns_list       = pdata['ns_list']        # [ 1000, 100, 10]
-    dt_list       = pdata['dt_list']        # [ 1, 10, 100, random]
-    n_sim         = pdata['n_sim']          # 100
-    ytick_t       = pdata['ytick_t']
-    yminorticks_t = pdata['yminorticks_t']
-
-    fn            = pdata['fn']             # time-varying selection coefficient for binary trait (sigmoid)
-    times_fi      = pdata['times_fi']
-
-    savepdf       = pdata['savepdf']        # True
-
-    # Function
-    def get_sc_time(ns, dt):
-        # 
-        """
-        Get time-varying selection coefficients over time
-        Returns:
-            time      -- time vector
-            tc_ave  -- average sc curves for binary trait (shape: T)
-            
-            tc_all  -- all simulations for p_1  (n_sim, T)
-        """
-        tc_all = [] # all selection coefficients from simulations
-        time   = None
-        for k in range(n_sim):
-            if dt == 'random':
-                nsdt_path = '%s/%s/%s/c_%d-ns%d-rt.npz'%(SIM_DIR,sim_dir,out_dir,k, ns)
-            else:
-                nsdt_path = '%s/%s/%s/c_%d-ns%d-dt%s.npz'%(SIM_DIR,sim_dir,out_dir,k, ns, dt)
-            data_full = np.load(nsdt_path, allow_pickle="True")
-            sc_full   = data_full['selection']
-            if time is None: # get time vector once
-                time = data_full["time"]
-            tc_all.append(sc_full[-1])
-
-        tc_all = np.array(tc_all) # convert to array for easier indexing
-
-        # compute average over simulations
-        tc_ave = tc_all.mean(axis=0)   # shape = (T)
-    
-        return time, tc_all, tc_ave
-
-    # PLOT FIGURE
-    ## set up figure grid
-    w     = DOUBLE_COLUMN #SLIDE_WIDTH
-    goldh = w / 1.2
-    fig   = plt.figure(figsize=(w, goldh),dpi=1000)
-
-    box = dict(left=0.12, right=0.98, bottom=0.08, top=0.95)
-    gs = gridspec.GridSpec(4, 3, width_ratios=[1,1,1],wspace=0.2,hspace=0.25,**box)
-    ax  = [[plt.subplot(gs[n, 0]), plt.subplot(gs[n, 1]), plt.subplot(gs[n, 2])] for n in range(4)]
-
-    dx =  0.04
-    dy =  0.03
-
-    c_trait = C_group[0]
-
-    pprops = { 'xticks':   [0, 200, 400],
-            'ylim':        [ytick_t[0], ytick_t[-1]],
-            'yticks':      ytick_t,
-            'yminorticks': yminorticks_t,
-            'yticklabels': [int(i*100) for i in ytick_t],
-            'nudgey':      1,
-            'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.15 },
-            'axoffset':    0.1,
-            'theme':       'boxed'}
-
-    for i, dt in enumerate(dt_list):
-        for j, ns in enumerate(ns_list):
-            if i == 3:
-                pprops['xlabel'] = 'Time (generations)'
-            else:
-                pprops['xlabel'] = ''
-
-            if j == 0:
-                pprops['ylabel'] = 'Inferred selection\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)'
-            else:
-                pprops['ylabel'] = ''
-
-            # get time-varying selection coefficients
-            times, tc_all, tc_ave = get_sc_time(ns, dt)
-            
-            # sc over time
-            pprops['plotprops']['ls'] = '-'
-            pprops['plotprops']['alpha'] = 0.15
-            pprops['plotprops']['lw'] = SIZELINE
-            for k in range(n_sim):
-                mp.line(ax=ax[i][j], x=[times], y=[tc_all[k]], colors=[c_trait], **pprops)
-            
-            # Average sc over simulations
-            pprops['plotprops']['alpha'] = 1
-            pprops['plotprops']['lw'] = SIZELINE*3
-            mp.line(ax=ax[i][j], x=[times], y=[tc_ave], colors=[c_trait], **pprops)
-            
-            # True sc over time
-            pprops['plotprops']['ls'] = ':'
-            pprops['plotprops']['lw'] = SIZELINE
-            mp.plot(type='line',ax=ax[i][j], x=[times_fi], y=[fn], colors=[c_trait], **pprops)
-
-            # subplot label
-            if dt == 'random':
-                label_ij = 'N=%d, random time' % (ns)
-            else:
-                label_ij = 'N=%d, dt=%s' % (ns, dt)
-            ax[i][j].text(200,  0.09, label_ij, ha='center', va='center', **DEF_LABELPROPS)
-
-    # # SAVE FIGURE
-    # if savepdf:
-    #     plt.savefig('%s/simple_his.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
-
-def plot_nsdt_auroc(**pdata):
-    """
-    histogram of selection coefficients
-    """
-
-    # unpack passed data
-    sim_dir       = pdata['sim_dir']        # 'simple'
-    ns_list       = pdata['ns_list']        # [ 1000, 100, 20]
-    dt_list       = pdata['dt_list']        # [ 1, 10, 50, random]
-
-    # PLOT FIGURE
-    ## set up figure grid
-
-    w     = DOUBLE_COLUMN #SLIDE_WIDTH
-    goldh = w / 2.5
-    fig   = plt.figure(figsize=(w, goldh),dpi=1000)
-
-    box_aur1 = dict(left=0.10, right=0.45, bottom=0.07, top=0.95)
-    box_aur2 = dict(left=0.55, right=0.90, bottom=0.07, top=0.95)
-
-    gs_aur1 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_aur1)
-    gs_aur2 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_aur2)
-
-    ax_aur1 = plt.subplot(gs_aur1[0, 0])
-    ax_aur2 = plt.subplot(gs_aur2[0, 0])
-
-    dx = -0.04
-    dy =  0.03
-
-
-    ## AUCs for inferring beneficial/deleterious mutations and error for trait part
-    df   = pd.read_csv('%s/%s/mpl_nsdt_auroc.csv' % (SIM_DIR, sim_dir), dtype={'dt': str}, memory_map=True)
-
-    AUC_matrix_ben = np.zeros((len(dt_list), len(ns_list)))
-    AUC_matrix_del = np.zeros((len(dt_list), len(ns_list)))
-
-    for i in range(len(dt_list)):
-        for j in range(len(ns_list)):
-            df_AUC = df[(df.dt==str(dt_list[i])) & (df.ns==ns_list[j])]
-            AUC_matrix_ben[i, j] = np.mean(df_AUC.AUROC_ben)
-            AUC_matrix_del[i, j] = np.mean(df_AUC.AUROC_del)
-
-    pprops = { 'xlim'        : [0, len(dt_list)],
-               'xticks'      : np.arange(len(dt_list))+0.5,
-               'xticklabels' : [int(k) for k in dt_list[:-1]] + ['random'],
-               'ylim'        : [0, len(ns_list)],
-               'yticks'      : np.arange(len(ns_list))+0.5,
-               'yticklabels' : [int(k) for k in ns_list],
-               'xlabel'      : 'Time between samples, '+r'$\Delta t$' + ' (generations)',
-               'ylabel'      : 'Number of sequences per time point, '+r'$n_s$',
-               'theme'       : 'boxed' }
-    tprops = dict(ha='center', va='center', family=FONTFAMILY, size=SIZELABEL, clip_on=False)
-
-    ax_aur1.pcolor(AUC_matrix_ben.T, vmin=0.75, vmax=1.0, cmap='GnBu', alpha=0.75)
-    for i in range(len(AUC_matrix_ben)):
-        for j in range(len(AUC_matrix_ben[0])):
-            tc = 'k'
-            if AUC_matrix_ben[i,j]>0.96: tc = 'white'
-            ax_aur1.text(i+0.5, j+0.5, '%.2f' % (AUC_matrix_ben[i,j]), color=tc, **tprops)
-    mp.plot(type='scatter', ax=ax_aur1, x=[[-1]], y=[[-1]], colors=[BKCOLOR], **pprops)
-
-    ax_aur2.pcolor(AUC_matrix_del.T, vmin=0.75, vmax=1.0, cmap='GnBu', alpha=0.75)
-    for i in range(len(AUC_matrix_del)):
-        for j in range(len(AUC_matrix_del[0])):
-            tc = 'k'
-            if AUC_matrix_del[i,j]>0.96: tc = 'white'
-            ax_aur2.text(i+0.5, j+0.5, '%.2f' % (AUC_matrix_del[i,j]), color=tc, **tprops)
-    mp.plot(type='scatter', ax=ax_aur2, x=[[-1]], y=[[-1]], colors=[BKCOLOR], **pprops)
-
-    ## outside text labels
-
-    tprops = dict(color=BKCOLOR, ha='center', va='center', family=FONTFAMILY, size=SIZELABEL,
-                  clip_on=False, transform=fig.transFigure)
-
-    ax_aur1.text((box_aur1['right']-box_aur1['left'])/2+box_aur1['left'], \
-    box_aur1['top']+dy, 'Mean AUROC (beneficial)',  **tprops)
-    ax_aur2.text((box_aur2['right']-box_aur2['left'])/2+box_aur2['left'], \
-    box_aur2['top']+dy, 'Mean AUROC (deleterious)', **tprops)
-    
-    ax_aur1.text(box_aur1['left']+dx, box_aur1['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-    ax_aur2.text(box_aur2['left']+dx, box_aur2['top']+dy, 'd'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-
 def plot_sigmoid(**pdata):
     """
     Example evolutionary trajectory for a binary 16-site system
@@ -4555,6 +4560,7 @@ def plot_sigmoid(**pdata):
     sim_dir       = pdata['sim_dir']        # 'trait'
     seq_dir       = pdata['seq_dir']        # 'sequences'
     output        = pdata['output']         # 'output'
+    fig_dir       = pdata['fig_dir']        # 'figures'
     name          = pdata['name']           # 'sample-1'
 
     seq_length    = pdata['seq_length']     # 16
@@ -4652,8 +4658,6 @@ def plot_sigmoid(**pdata):
 
     dx = -0.04
     dy =  0.02
-
-    C_tv = C_group[2]
 
     ## a,b -- allele frequencies
     pprops = { 'xticks':      [0, 100, 200, 300, 400],
@@ -4808,13 +4812,240 @@ def plot_sigmoid(**pdata):
 
     ax_tc.text(box_tc['left']+dx, box_tc['top']+dy, 'd'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
+    # SAVE FIGURE
+    if savepdf:
+        plt.savefig('%s/fig-%s.pdf' % (fig_dir,sim_dir), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+    else:
+        plt.savefig('%s/%s.jpg' % (fig_dir,name_idx), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+
+def plot_sigmoid_dt(**pdata):
+
+    """
+    histogram of selection coefficients and trait coefficients
+    """
+
+    # unpack passed data
+    sim_dir       = pdata['sim_dir']        # 'sigmoid'
+    out_dir       = pdata['out_dir']        # 'output/nsdt'
+    dt_list       = pdata['dt_list']        # [ 1, 10, 100, random]
+    n_sim         = pdata['n_sim']          # 100
+    ytick_t       = pdata['ytick_t']
+    yminorticks_t = pdata['yminorticks_t']
+
+    fn            = pdata['fn']             # time-varying selection coefficient for binary trait (sigmoid)
+    times         = pdata['times']
+
+    savepdf       = pdata['savepdf']        # True
+
+    # Function
+    def get_sc_time(dt):
+        # 
+        """
+        Get time-varying selection coefficients over time
+        Returns:
+            time      -- time vector
+            tc_ave  -- average sc curves for binary trait (shape: T)
+            
+            tc_all  -- all simulations for p_1  (n_sim, T)
+        """
+        tc_all = [] # all selection coefficients from simulations
+        for k in range(n_sim):
+            if dt == 'random':
+                dt_path = '%s/%s/%s/c_%d-ns1000-rt.npz'%(SIM_DIR,sim_dir,out_dir,k)
+            else:
+                dt_path = '%s/%s/%s/c_%d-ns1000-dt%s.npz'%(SIM_DIR,sim_dir,out_dir,k, dt)
+            data_full = np.load(dt_path, allow_pickle="True")
+            sc_full   = data_full['sc_all']
+            tc_all.append(sc_full[-1])
+
+        tc_all = np.array(tc_all) # convert to array for easier indexing
+
+        # compute average over simulations
+        tc_ave = tc_all.mean(axis=0)   # shape = (T)
+    
+        return tc_all, tc_ave
+
+    # PLOT FIGURE
+    ## set up figure grid
+    w     = DOUBLE_COLUMN #SLIDE_WIDTH
+    goldh = w / 4.5
+    fig   = plt.figure(figsize=(w, goldh),dpi=1000)
+
+    box = dict(left=0.05, right=0.98, bottom=0.08, top=0.95)
+    gs = gridspec.GridSpec(1, 4, width_ratios=[1,1,1,1],wspace=0.2,hspace=0.25,**box)
+    ax  = [plt.subplot(gs[0, 0]), plt.subplot(gs[0, 1]), plt.subplot(gs[0, 2]), plt.subplot(gs[0, 3])]
+
+    dx =  0.04
+    dy =  0.03
+
+    c_trait = C_group[0]
+
+    pprops = { 'xticks':   [0, 200, 400],
+            'ylim':        [ytick_t[0], ytick_t[-1]],
+            'yticks':      ytick_t,
+            'yminorticks': yminorticks_t,
+            'yticklabels': [int(i*100) for i in ytick_t],
+            'xlabel':      'Time (generations)',
+            'nudgey':      1,
+            'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.15 },
+            'axoffset':    0.1,
+            'theme':       'boxed'}
+
+    for i, dt in enumerate(dt_list):
+        if i == 0:
+            pprops['ylabel'] = 'Inferred selection\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)'
+        else:
+            pprops['ylabel'] = ''
+
+        # get time-varying selection coefficients
+        tc_all, tc_ave = get_sc_time(dt)
+        
+        # sc over time
+        pprops['plotprops']['ls'] = '-'
+        pprops['plotprops']['alpha'] = 0.15
+        pprops['plotprops']['lw'] = SIZELINE
+        for k in range(n_sim):
+            mp.line(ax=ax[i], x=[times], y=[tc_all[k]], colors=[c_trait], **pprops)
+        
+        # Average sc over simulations
+        pprops['plotprops']['alpha'] = 1
+        pprops['plotprops']['lw'] = SIZELINE*3
+        mp.line(ax=ax[i], x=[times], y=[tc_ave], colors=[c_trait], **pprops)
+        
+        # True sc over time
+        pprops['plotprops']['ls'] = ':'
+        pprops['plotprops']['lw'] = SIZELINE
+        mp.plot(type='line',ax=ax[i], x=[times], y=[fn], colors=[c_trait], **pprops)
+
+        # subplot label
+        if dt == 'random':
+            label_ij = 'random time'
+        else:
+            label_ij = 'dt=%s' % (dt)
+        ax[i].text(200,  0.10, label_ij, ha='center', va='center', **DEF_LABELPROPS)
+
+    # # SAVE FIGURE
     # if savepdf:
-    #     plt.savefig('%s/fig-%s.pdf' % (FIG_DIR,sim_dir), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
-    #     plt.show()
-    # else:
-    #     plt.savefig('%s/%s/%s.jpg' % (FIG_DIR,sim_dir,name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
- 
-def plot_sigmoid_vertical(**pdata):
+    #     plt.savefig('%s/simple_his.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+
+def plot_sigmoid_nsdt(**pdata):
+
+    """
+    histogram of selection coefficients and trait coefficients
+    """
+
+    # unpack passed data
+    sim_dir       = pdata['sim_dir']        # 'simple'
+    out_dir       = pdata['out_dir']        # 'output/nsdt'
+    
+    ns_list       = pdata['ns_list']        # [ 1000, 100, 10]
+    dt_list       = pdata['dt_list']        # [ 1, 10, 100, random]
+    n_sim         = pdata['n_sim']          # 100
+    ytick_t       = pdata['ytick_t']
+    yminorticks_t = pdata['yminorticks_t']
+
+    fn            = pdata['fn']             # time-varying selection coefficient for binary trait (sigmoid)
+    times         = pdata['times']
+
+    savepdf       = pdata['savepdf']        # True
+
+    # Function
+    def get_sc_time(ns, dt):
+        # 
+        """
+        Get time-varying selection coefficients over time
+        Returns:
+            time      -- time vector
+            tc_ave  -- average sc curves for binary trait (shape: T)
+            
+            tc_all  -- all simulations for p_1  (n_sim, T)
+        """
+        tc_all = [] # all selection coefficients from simulations
+        for k in range(n_sim):
+            if dt == 'random':
+                nsdt_path = '%s/%s/%s/c_%d-ns%d-rt.npz'%(SIM_DIR,sim_dir,out_dir,k, ns)
+            else:
+                nsdt_path = '%s/%s/%s/c_%d-ns%d-dt%s.npz'%(SIM_DIR,sim_dir,out_dir,k, ns, dt)
+            data_full = np.load(nsdt_path, allow_pickle="True")
+            sc_full   = data_full['sc_all']
+            tc_all.append(sc_full[-1])
+
+        tc_all = np.array(tc_all) # convert to array for easier indexing
+
+        # compute average over simulations
+        tc_ave = tc_all.mean(axis=0)   # shape = (T)
+    
+        return tc_all, tc_ave
+
+    # PLOT FIGURE
+    ## set up figure grid
+    w     = DOUBLE_COLUMN #SLIDE_WIDTH
+    goldh = w / 1.2
+    fig   = plt.figure(figsize=(w, goldh),dpi=1000)
+
+    box = dict(left=0.05, right=0.98, bottom=0.08, top=0.95)
+    gs = gridspec.GridSpec(3, 4, width_ratios=[1,1,1,1],wspace=0.2,hspace=0.25,**box)
+    ax  = [[plt.subplot(gs[n, 0]), plt.subplot(gs[n, 1]), plt.subplot(gs[n, 2]), plt.subplot(gs[n, 3])] for n in range(3)]
+
+    dx =  0.04
+    dy =  0.03
+
+    c_trait = C_group[0]
+
+    pprops = { 'xticks':   [0, 200, 400],
+            'ylim':        [ytick_t[0], ytick_t[-1]],
+            'yticks':      ytick_t,
+            'yminorticks': yminorticks_t,
+            'yticklabels': [int(i*100) for i in ytick_t],
+            'nudgey':      1,
+            'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.15 },
+            'axoffset':    0.1,
+            'theme':       'boxed'}
+
+    for i, ns in enumerate(ns_list):
+        for j, dt in enumerate(dt_list):
+            if i == 2:
+                pprops['xlabel'] = 'Time (generations)'
+            else:
+                pprops['xlabel'] = ''
+
+            if j == 0:
+                pprops['ylabel'] = 'Inferred selection\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)'
+            else:
+                pprops['ylabel'] = ''
+
+            # get time-varying selection coefficients
+            tc_all, tc_ave = get_sc_time(ns, dt)
+            
+            # sc over time
+            pprops['plotprops']['ls'] = '-'
+            pprops['plotprops']['alpha'] = 0.15
+            pprops['plotprops']['lw'] = SIZELINE
+            for k in range(n_sim):
+                mp.line(ax=ax[i][j], x=[times], y=[tc_all[k]], colors=[c_trait], **pprops)
+            
+            # Average sc over simulations
+            pprops['plotprops']['alpha'] = 1
+            pprops['plotprops']['lw'] = SIZELINE*3
+            mp.line(ax=ax[i][j], x=[times], y=[tc_ave], colors=[c_trait], **pprops)
+            
+            # True sc over time
+            pprops['plotprops']['ls'] = ':'
+            pprops['plotprops']['lw'] = SIZELINE
+            mp.plot(type='line',ax=ax[i][j], x=[times], y=[fn], colors=[c_trait], **pprops)
+
+            # subplot label
+            if dt == 'random':
+                label_ij = 'N=%d, random time' % (ns)
+            else:
+                label_ij = 'N=%d, dt=%s' % (ns, dt)
+            ax[i][j].text(200,  0.09, label_ij, ha='center', va='center', **DEF_LABELPROPS)
+
+    # # SAVE FIGURE
+    # if savepdf:
+    #     plt.savefig('%s/simple_his.pdf' % (FIG_DIR), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+
+def plot_sigmoid_example_dt(**pdata):
     """
     Example evolutionary trajectory for a binary 20-site system
     """
@@ -4822,9 +5053,9 @@ def plot_sigmoid_vertical(**pdata):
     # unpack passed data
     sim_dir       = pdata['sim_dir']        # 'trait'
     seq_dir       = pdata['seq_dir']        # 'sequences'
-    output        = pdata['output']         # 'output'
-    name          = pdata['name']           # 'sample-1'
-
+    out_dir        = pdata['out_dir']         # 'output'
+    names         = pdata['names']           # ['sample-1-dt1', 'sample-1-dt10', 'sample-1-dt20', 'sample-1-rt']
+    labels        = pdata['labels']          # ['dt=1', 'dt=10', 'dt=100', 'random time']
     seq_length    = pdata['seq_length']     # 16
     ytick_e       = pdata['ytick_e']
     yminorticks_e = pdata['yminorticks_e']
@@ -4834,89 +5065,89 @@ def plot_sigmoid_vertical(**pdata):
     dele          = pdata['dele']           # [12,13,14,15]
     fB            = pdata['s_ben']          # 0.02
     fD            = pdata['s_del']          # -0.02
+    times         = pdata['times']
     fn            = pdata['fn']             # time-varying escape coefficient
 
     savepdf       = pdata['savepdf']         # True
 
     # get data
-    name_idx = name.split('-',1)[1]
-    data     = np.loadtxt("%s/%s/%s/%s.dat"%(SIM_DIR,sim_dir,seq_dir,name))
-    ne       = len(escape_group)
+    def load_data(name):
+        name_suf = name.split('-',1)[1]
+        data     = np.loadtxt("%s/%s/%s/%s.dat"%(SIM_DIR,sim_dir,seq_dir,name))
+        ne       = len(escape_group)
 
-    # get raw time points
-    times = []
-    for i in range(len(data)):
-        times.append(data[i][0])
-    sample_times = np.unique(times)
-    timepoints   = len(sample_times)
+        # get raw time points
+        times = []
+        for i in range(len(data)):
+            times.append(data[i][0])
+        sample_times = np.unique(times)
+        timepoints   = len(sample_times)
 
-    time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+        data_full   = np.load('%s/%s/%s/c_%s.npz'%(SIM_DIR,sim_dir,out_dir,name_suf), allow_pickle="True")
+        sc_full     = data_full['sc_all']
+        TimeVaryingSC = [np.average(sc_full[i]) for i in range(seq_length)]
+        TimeVaryingTC = sc_full[-ne:]
 
-    data_full   = np.load('%s/%s/%s/c_%s.npz'%(SIM_DIR,sim_dir,output,name_idx), allow_pickle="True")
-    sc_full     = data_full['selection']
-    TimeVaryingSC = [np.average(sc_full[i]) for i in range(seq_length)]
-    TimeVaryingTC = sc_full[-ne:]
+        # Allele frequency x
+        x     = []
+        for t in range(timepoints):
+            idx    = data.T[0]==sample_times[t]
+            t_data = data[idx].T[2:].T
+            t_num  = data[idx].T[1].T
+            t_freq = np.einsum('i,ij->j', t_num, t_data) / float(np.sum(t_num))
+            x.append(t_freq)
+        x = np.array(x).T # get allele frequency (binary case)
 
+        # Escape group frequency y
+        y    = []
+        for t in range(timepoints):
+            idx    = data.T[0]==sample_times[t]
+            t_num  = data[idx].T[1].T
+            t_fre     = []
+            for n in range(len(escape_group)):
+                t_data_n  = t_num*0
+                for nn in escape_group[n]:
+                    t_data_n += data[idx].T[nn+2]
+                for k in range(len(t_data_n)):
+                    if t_data_n[k] != 0:
+                        t_data_n[k] = 1
+                t_freq_n = np.einsum('i,i', t_num, t_data_n) / float(np.sum(t_num))
+                t_fre.append(t_freq_n)
+            y.append(t_fre)
+        y = np.array(y).T # get polygenic frequency
+
+        return x, y, sample_times, TimeVaryingSC, TimeVaryingTC
+
+    ne = len(escape_group)
     nB        = len(bene)
     nD        = len(dele)
     nN        = seq_length-nB-nD
 
-    # Allele frequency x
-    x     = []
-    for t in range(timepoints):
-        idx    = data.T[0]==sample_times[t]
-        t_data = data[idx].T[2:].T
-        t_num  = data[idx].T[1].T
-        t_freq = np.einsum('i,ij->j', t_num, t_data) / float(np.sum(t_num))
-        x.append(t_freq)
-    x = np.array(x).T # get allele frequency (binary case)
+    # get the information for escape mutation
+    founds = [False] * seq_length
+    groups = [None] * seq_length
+    for n, group_n in enumerate(escape_group):
+        for site in group_n:
+            founds[site] = True
+            groups[site] = n
 
-    # Escape group frequency y
-    y    = []
-    for t in range(timepoints):
-        idx    = data.T[0]==sample_times[t]
-        t_num  = data[idx].T[1].T
-        t_fre     = []
-        for n in range(len(escape_group)):
-            t_data_n  = t_num*0
-            for nn in escape_group[n]:
-                t_data_n += data[idx].T[nn+2]
-            for k in range(len(t_data_n)):
-                if t_data_n[k] != 0:
-                    t_data_n[k] = 1
-            t_freq_n = np.einsum('i,i', t_num, t_data_n) / float(np.sum(t_num))
-            t_fre.append(t_freq_n)
-        y.append(t_fre)
-    y = np.array(y).T # get polygenic frequency
+    # get colors for different sites
+    colors_all = ([C_BEN] * nB +[C_NEU] * nN +[C_DEL] * nD)
 
-    def find_in_nested_list(a, i):
-        for index, sublist in enumerate(a):
-            if i in sublist:
-                return True, index
-        return False, None
+    # get x for selection coefficients
+    x_ben = np.random.normal(1, 0.08, nB)
+    x_neu = np.random.normal(3, 0.16, nN)
+    x_del = np.random.normal(5, 0.08, nD)
+    x_bar = np.hstack([x_ben,x_neu,x_del])
 
     # set up figure grid
-    w     = SINGLE_COLUMN 
-    goldh = SINGLE_COLUMN * 2
+    w     = DOUBLE_COLUMN #SLIDE_WIDTH
+    goldh = w / 1.6
     fig   = plt.figure(figsize=(w, goldh),dpi=1000)
 
-    box_tra1 = dict(left=0.10, right=0.95, bottom=0.79, top=0.95)
-    box_tra2 = dict(left=0.10, right=0.95, bottom=0.56, top=0.72)
-    box_lab  = dict(left=0.05, right=0.30, bottom=0.33, top=0.49)
-    box_sc   = dict(left=0.40, right=0.95, bottom=0.33, top=0.49)
-    box_tc   = dict(left=0.10, right=0.95, bottom=0.12, top=0.28)
-
-    gs_tra1 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tra1)
-    gs_tra2 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tra2)
-    gs_lab  = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_lab)
-    gs_sc   = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_sc)
-    gs_tc   = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_tc)
-
-    ax_tra1 = plt.subplot(gs_tra1[0, 0])
-    ax_tra2 = plt.subplot(gs_tra2[0, 0])
-    ax_lab  = plt.subplot(gs_lab[0, 0])
-    ax_sc   = plt.subplot(gs_sc[0, 0])
-    ax_tc   = plt.subplot(gs_tc[0, 0])
+    box = dict(left=0.05, right=0.98, bottom=0.08, top=0.95)
+    gs = gridspec.GridSpec(4, 4, width_ratios=[1,1,1,1], wspace=0.2,hspace=0.2,**box)
+    ax  = [[plt.subplot(gs[n, 0]), plt.subplot(gs[n, 1]), plt.subplot(gs[n, 2]), plt.subplot(gs[n, 3])] for n in range(4)]
 
     dx = -0.04
     dy =  0.02
@@ -4924,163 +5155,231 @@ def plot_sigmoid_vertical(**pdata):
     C_tv = C_group[2]
 
     ## a,b -- allele frequencies
-    pprops = { 'xticks':      [0, 200, 400, 600, 800, 1000],
-               'ylim':        [0, 1.10],
-               'yticks':      [0, 1.00],
-               'yticklabels' :[0, 1],
-               'yminorticks': [0.25, 0.5, 0.75,1],
-               'nudgey':      1,
-               'xlabel':      'Time (generations)',
-               'ylabel':      'Mutant\nfrequency, ' + r'$x(t)$',
-               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.8 },
-               'axoffset':    0.1,
-               'theme':       'open'}
-
-    # all individual sites
-    for i in range(seq_length):
-        if i < len(bene):
-            mp.line(ax=ax_tra1, x=[sample_times], y=[x[i]], colors=[C_BEN], **pprops)
-        elif i >= seq_length-len(dele):
-            mp.line(ax=ax_tra1, x=[sample_times], y=[x[i]], colors=[C_DEL], **pprops)
-        else:
-            mp.line(ax=ax_tra1, x=[sample_times], y=[x[i]], colors = [C_NEU], **pprops)
-
-    pprops['plotprops'] = {'lw': SIZELINE, 'ls': '-', 'alpha': 0 }
-    pprops['ylabel'] = 'Mutant frequency\n(constant fitness effect), ' + r'$x(t)$'
-    mp.plot(type='line',ax=ax_tra1, x=[[0,1000]], y=[[1,1]], colors=[C_NEU], **pprops)
-
-    ax_tra1.text( box_tra1['left']+dx,  box_tra1['top']+dy, 'a'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    pprops_mut = { 'xticks':      [0, 200, 400],
+                   'yticks':      [0, 1.00],
+                   'yticklabels' :[0, 1],
+                   'yminorticks': [0.25, 0.5, 0.75,1],
+                    'nudgey':      1,
+                    'xlabel':      '',
+                    'axoffset':    0.1,
+                    'theme':       'open'}
     
-    ## b -- allele frequencies - binary trait and its alleles
-    pprops = { 'xticks':      [0, 200, 400, 600, 800, 1000],
-               'ylim':        [0, 1.10],
-               'yticks':      [0, 1.00],
-               'yticklabels' :[0, 1],
-               'yminorticks': [0.25, 0.5, 0.75,1],
-               'nudgey':      1,
-               'xlabel':      'Time (generations)',
-               'ylabel':      'Mutant\nfrequency, ' + r'$x(t)$',
-               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
-               'axoffset':    0.1,
-               'theme':       'open'}
+    pprops_sc = {'xlim':        [ -0.3,    6],
+                'yticks':      [-0.04, 0, 0.04],
+                'yminorticks': [-0.02, 0.02],
+                'yticklabels': [-4, 0, 4],
+                'xticks':      [],
+                'theme':       'open',
+                'hide':        ['bottom']}
+    
+    pprops_trait = { 'xticks':      [0, 200, 400],
+                    'yticks':      [0, 1.00],
+                    'yticklabels' :[0, 1],
+                    'yminorticks': [0.25, 0.5, 0.75,1],
+                    'nudgey':      1,
+                    'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
+                    'axoffset':    0.1,
+                    'theme':       'open'}
 
-    pprops['plotprops']['alpha'] = 0.4
-    for i in range(seq_length):
-        # if the site is escape site, plot it in figure b
-        found, group = find_in_nested_list(escape_group, i)
-        if found:
-            mp.line(ax=ax_tra2, x=[sample_times], y=[x[i]], colors=[C_group[group]], **pprops)
-
-    # escape group
-    pprops['plotprops']['alpha'] = 1.0
-    for n in range(ne):
-        # mp.line(ax=ax_tra2, x=[sample_times], y=[y[n]], colors=[C_group[n]], **pprops_c)
-        mp.plot(type='line',ax=ax_tra2, x=[sample_times], y=[y[n]], colors=[C_group[n]], **pprops)
-
-    ax_tra2.text( box_tra2['left']+dx,  box_tra2['top']+dy, 'b'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-
-    ##  add legend
+    pprops_ec = { 'xticks':      [0, 200, 400],
+                'yticks':      ytick_e,
+                'yminorticks': yminorticks_e,
+                'yticklabels': [int(i*100) for i in ytick_e],
+                'nudgey':      1,
+                'xlabel':      'Time (generations)',
+                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
+                'axoffset':    0.1,
+                'theme':       'open'}
     sprops = { 'lw' : 0, 's' : 9., 'marker' : 'o' }
-    lprops = { 'lw' : SIZELINE, 'ls' : ':', 'alpha': 1 }
-    pprops = { 'xlim':        [ -1 ,    6],
-               'ylim':        [-0.03, 0.03],
-               'yticks':      [],
-               'xticks':      [],
-               'theme':       'open',
-               'hide':        ['left','bottom'] }
 
-    # individual loci label
-    legend_x  =  0
-    legend_dx = -0.8
-    legend_y  = 0.028 
-    legend_dy = -0.008
-    c_coe1    = [C_BEN, C_NEU, C_DEL]
-    legend_t  = ['Beneficial', 'Neutral', 'Deleterious']
-    for k in range(len(legend_t)):
-        mp.scatter(ax=ax_lab, x=[[legend_x+legend_dx]], y=[[legend_y + (k *legend_dy)]],colors=[c_coe1[k]],plotprops=sprops,**pprops)
-        ax_lab.text(legend_x, legend_y + (k*legend_dy), legend_t[k], ha='left', va='center', **DEF_LABELPROPS)
+    for ii, name in enumerate(names):
+        x, y, sample_times, TimeVaryingSC, TimeVaryingTC = load_data(name)
 
-    # binary traits-related label
-    mp.scatter(ax=ax_lab, x=[[legend_x+legend_dx]], y=[[legend_y + (3 *legend_dy)]],colors=[C_group[0]],plotprops=sprops,**pprops)
-    sprops['alpha'] = 0.6
-    mp.scatter(ax=ax_lab, x=[[legend_x+legend_dx]], y=[[legend_y + (4 *legend_dy)]],colors=[C_group[0]],plotprops=sprops,**pprops)
-    ax_lab.text(legend_x, legend_y + (3*legend_dy), 'Binary trait', ha='left', va='center', **DEF_LABELPROPS)
-    ax_lab.text(legend_x, legend_y + (4*legend_dy), 'Escape site', ha='left', va='center', **DEF_LABELPROPS)
-
-    # true coefficient labels
-    xx = [legend_x+1.5*legend_dx, legend_x+0.5*legend_dx]
-    yy = legend_y + 5.2 * legend_dy
-    mp.plot(type='line',ax=ax_lab, x=[xx], y=[[yy,yy]], colors=[BKCOLOR], plotprops=lprops, **pprops)
-    ax_lab.text(legend_x, yy, 'True \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
-
-    ## c -- individual beneficial/neutral/deleterious selection coefficients
-
-    pprops = { 'xlim':        [ -0.3,    6],
-               'ylim':        [-0.03, 0.03],
-               'yticks':      [-0.03, 0, 0.03],
-               'yminorticks': [-0.02, -0.01, 0.01, 0.02],
-               'yticklabels': [-3, 0, 3],
-               'xticks':      [],
-               'ylabel':      'Inferred selection\ncoefficient (constant), ' + r'$\hat{s}$' + ' (%)',
-               'theme':       'open',
-               'hide':        ['bottom'] }
-    
-    x_ben = np.random.normal(1, 0.08, nB)
-    x_neu = np.random.normal(3, 0.16, nN)
-    x_del = np.random.normal(5, 0.08, nD)
-    x_bar = np.hstack([x_ben,x_neu,x_del])
-    
-    sprops['alpha'] = 1.0
-    for i in range(seq_length):
-        found, group = find_in_nested_list(escape_group, i)
-        xdat = [x_bar[i]]
-        ydat = [TimeVaryingSC[i]]
-        if found:
-            sprops['alpha'] = 0.6
-            mp.scatter(ax=ax_sc, x=[xdat], y=[ydat],colors=[C_group[group]],plotprops=sprops,**pprops)
-            sprops['alpha'] = 1.0
+        if ii == 0:
+            pprops_mut['ylabel'] = 'Frequency for\nmutation, ' + r'$x(t)$'
+            pprops_trait['ylabel'] = 'Frequency for\nbinary trait, ' + r'$x(t)$'
+            pprops_sc['ylabel'] = 'Inferred constant\nselection coefficient, ' + r'$\hat{s}$' + ' (%)'
+            pprops_ec['ylabel'] = 'Inferred time-varying\ntrait coefficient, ' + r'$\hat{s}(t)$' + ' (%)'
         else:
-            if i < nB:
-                mp.scatter(ax=ax_sc, x=[xdat], y=[ydat],colors=[C_BEN],plotprops=sprops,**pprops)
-            elif i >= seq_length-nD:
-                mp.scatter(ax=ax_sc, x=[xdat], y=[ydat],colors=[C_DEL],plotprops=sprops,**pprops)
+            pprops_mut['ylabel'] = ''
+            pprops_trait['ylabel'] = ''
+            pprops_sc['ylabel'] = ''
+            pprops_ec['ylabel'] = ''
+
+        # === frequency for single mutations ===
+        pprops_mut['plotprops'] = {'lw': SIZELINE, 'ls': '-', 'alpha': 0.8 }
+        for i in range(seq_length):
+            mp.line(ax=ax[0][ii], x=[sample_times], y=[x[i]], colors = [colors_all[i]], **pprops_mut)
+
+        pprops_mut['plotprops'] = {'lw': SIZELINE, 'ls': '-', 'alpha': 0 }
+        mp.plot(type='line',ax=ax[0][ii], x=[[0,400]], y=[[1,1]], colors=[C_NEU], **pprops_mut)
+
+        # add legend
+        ax[0][ii].text(200,  1.1, labels[ii], ha='center', va='center', **DEF_LABELPROPS)
+
+        ## === individual beneficial/neutral/deleterious selection coefficients ===
+        sprops['alpha'] = 1.0
+        for i in range(seq_length):
+            xdat = [x_bar[i]]
+            ydat = [TimeVaryingSC[i]]
+            if founds[i]:
+                sprops['alpha'] = 0.6
+                mp.scatter(ax=ax[1][ii], x=[xdat], y=[ydat],colors=[C_group[groups[i]]],plotprops=sprops,**pprops_sc)
+                sprops['alpha'] = 1.0
             else:
-                mp.scatter(ax=ax_sc, x=[xdat], y=[ydat],colors=[C_NEU],plotprops=sprops,**pprops)
+                mp.scatter(ax=ax[1][ii], x=[xdat], y=[ydat],colors=[colors_all[i]],plotprops=sprops,**pprops_sc)
 
-    mp.line(ax=ax_sc, x=[[0.5, 1.5]], y=[[fB,fB]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
-    mp.line(ax=ax_sc, x=[[2, 4]], y=[[0,0]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
-    mp.plot(type ='line',ax=ax_sc,x=[[4.5, 5.5]], y=[[fD,fD]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops)
+        mp.line(ax=ax[1][ii], x=[[0.5, 1.5]], y=[[fB,fB]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops_sc)
+        mp.line(ax=ax[1][ii], x=[[2, 4]], y=[[0,0]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops_sc)
+        mp.plot(type ='line',ax=ax[1][ii],x=[[4.5, 5.5]], y=[[fD,fD]], colors=[BKCOLOR], plotprops=dict(lw=SIZELINE, ls=':'), **pprops_sc)
+        
+        # === frequency for binary trait ===
+        pprops_trait['plotprops']['alpha'] = 0.4
+        for i in range(seq_length):
+            if founds[i]:
+                mp.line(ax=ax[2][ii], x=[sample_times], y=[x[i]], colors=[C_group[groups[i]]], **pprops_trait)
+
+        # escape group
+        pprops_trait['plotprops']['alpha'] = 1.0
+        for n in range(ne):
+            # mp.line(ax=ax_tra2, x=[sample_times], y=[y[n]], colors=[C_group[n]], **pprops_c)
+            mp.plot(type='line',ax=ax[2][ii], x=[sample_times], y=[y[n]], colors=[C_group[n]], **pprops_trait)
+
+        ## === selection coefficients for binary traits ===
+        yy =  0.05
+        for n in range(ne):
+            pprops_ec['plotprops']['ls'] = ':'
+            mp.line(ax=ax[3][ii], x=[times], y=[fn], colors=[C_group[n]], **pprops_ec)
+
+            pprops_ec['plotprops']['ls'] = '-'
+            mp.plot(type='line',ax=ax[3][ii], x=[times], y=[TimeVaryingTC[n]], colors=[C_group[n]], **pprops_ec)
+
+        
+
+
+
+    # ##  add legend
+    # sprops = { 'lw' : 0, 's' : 9., 'marker' : 'o' }
+    # lprops = { 'lw' : SIZELINE, 'ls' : ':', 'alpha': 1 }
+    # pprops = { 'xlim':        [ -1 ,    6],
+    #            'ylim':        [-0.03, 0.03],
+    #            'yticks':      [],
+    #            'xticks':      [],
+    #            'theme':       'open',
+    #            'hide':        ['left','bottom'] }
+
+    # # individual loci label
+    # legend_x  =  0
+    # legend_dx = -0.8
+    # legend_y  = 0.028 
+    # legend_dy = -0.008
+    # c_coe1    = [C_BEN, C_NEU, C_DEL]
+    # legend_t  = ['Beneficial', 'Neutral', 'Deleterious']
+    # for k in range(len(legend_t)):
+    #     mp.scatter(ax=ax_lab, x=[[legend_x+legend_dx]], y=[[legend_y + (k *legend_dy)]],colors=[c_coe1[k]],plotprops=sprops,**pprops)
+    #     ax_lab.text(legend_x, legend_y + (k*legend_dy), legend_t[k], ha='left', va='center', **DEF_LABELPROPS)
+
+    # # binary traits-related label
+    # mp.scatter(ax=ax_lab, x=[[legend_x+legend_dx]], y=[[legend_y + (3 *legend_dy)]],colors=[C_group[0]],plotprops=sprops,**pprops)
+    # sprops['alpha'] = 0.6
+    # mp.scatter(ax=ax_lab, x=[[legend_x+legend_dx]], y=[[legend_y + (4 *legend_dy)]],colors=[C_group[0]],plotprops=sprops,**pprops)
+    # ax_lab.text(legend_x, legend_y + (3*legend_dy), 'Binary trait', ha='left', va='center', **DEF_LABELPROPS)
+    # ax_lab.text(legend_x, legend_y + (4*legend_dy), 'Escape site', ha='left', va='center', **DEF_LABELPROPS)
+
+    # # true coefficient labels
+    # xx = [legend_x+1.5*legend_dx, legend_x+0.5*legend_dx]
+    # yy = legend_y + 5.2 * legend_dy
+    # mp.plot(type='line',ax=ax_lab, x=[xx], y=[[yy,yy]], colors=[BKCOLOR], plotprops=lprops, **pprops)
+    # ax_lab.text(legend_x, yy, 'True \ncoefficient', ha='left', va='center', **DEF_LABELPROPS)
+
     
-    ax_sc.text(box_lab['left']+dx, box_lab['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-
-    ## d -- trait coefficients
-    pprops = { 'xticks':      [0, 200, 400, 600, 800, 1000],
-               'ylim':        [ytick_e[0], ytick_e[-1]],
-               'yticks':      ytick_e,
-               'yminorticks': yminorticks_e,
-               'yticklabels': [int(i*100) for i in ytick_e],
-               'nudgey':      1,
-               'xlabel':      'Time (generations)',
-               'ylabel':      'Inferred trait\ncoefficient (varying), ' + r'$\hat{s}(t)$' + ' (%)',
-               'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 1 },
-               'axoffset':    0.1,
-               'theme':       'open'}
-
-    yy =  0.05
-    for n in range(ne):
-        pprops['plotprops']['ls'] = ':'
-        mp.line(ax=ax_tc, x=[time_all], y=[fn], colors=[C_group[n]], **pprops)
-
-        pprops['plotprops']['ls'] = '-'
-        mp.plot(type='line',ax=ax_tc, x=[time_all], y=[TimeVaryingTC[n]], colors=[C_group[n]], **pprops)
-
-    ax_tc.text(box_tc['left']+dx, box_tc['top']+dy, 'd'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
-
     # if savepdf:
     #     plt.savefig('%s/fig-%s.pdf' % (FIG_DIR,sim_dir), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
     #     plt.show()
     # else:
     #     plt.savefig('%s/%s/%s.jpg' % (FIG_DIR,sim_dir,name), facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+
+def plot_nsdt_auroc(**pdata):
+    """
+    histogram of selection coefficients
+    """
+
+    # unpack passed data
+    sim_dir       = pdata['sim_dir']        # 'simple'
+    ns_list       = pdata['ns_list']        # [ 1000, 100, 20]
+    dt_list       = pdata['dt_list']        # [ 1, 10, 50, random]
+
+    # PLOT FIGURE
+    ## set up figure grid
+
+    w     = DOUBLE_COLUMN #SLIDE_WIDTH
+    goldh = w / 2.5
+    fig   = plt.figure(figsize=(w, goldh),dpi=1000)
+
+    box_aur1 = dict(left=0.10, right=0.45, bottom=0.07, top=0.95)
+    box_aur2 = dict(left=0.55, right=0.90, bottom=0.07, top=0.95)
+
+    gs_aur1 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_aur1)
+    gs_aur2 = gridspec.GridSpec(1, 1, width_ratios=[1.0], height_ratios=[1.0], **box_aur2)
+
+    ax_aur1 = plt.subplot(gs_aur1[0, 0])
+    ax_aur2 = plt.subplot(gs_aur2[0, 0])
+
+    dx = -0.04
+    dy =  0.03
+
+
+    ## AUCs for inferring beneficial/deleterious mutations and error for trait part
+    df   = pd.read_csv('%s/%s/mpl_nsdt_auroc.csv' % (SIM_DIR, sim_dir), dtype={'dt': str}, memory_map=True)
+
+    AUC_matrix_ben = np.zeros((len(dt_list), len(ns_list)))
+    AUC_matrix_del = np.zeros((len(dt_list), len(ns_list)))
+
+    for i in range(len(dt_list)):
+        for j in range(len(ns_list)):
+            df_AUC = df[(df.dt==str(dt_list[i])) & (df.ns==ns_list[j])]
+            AUC_matrix_ben[i, j] = np.mean(df_AUC.AUROC_ben)
+            AUC_matrix_del[i, j] = np.mean(df_AUC.AUROC_del)
+
+    pprops = { 'xlim'        : [0, len(dt_list)],
+               'xticks'      : np.arange(len(dt_list))+0.5,
+               'xticklabels' : [int(k) for k in dt_list[:-1]] + ['random'],
+               'ylim'        : [0, len(ns_list)],
+               'yticks'      : np.arange(len(ns_list))+0.5,
+               'yticklabels' : [int(k) for k in ns_list],
+               'xlabel'      : 'Time between samples, '+r'$\Delta t$' + ' (generations)',
+               'ylabel'      : 'Number of sequences per time point, '+r'$n_s$',
+               'theme'       : 'boxed' }
+    tprops = dict(ha='center', va='center', family=FONTFAMILY, size=SIZELABEL, clip_on=False)
+
+    ax_aur1.pcolor(AUC_matrix_ben.T, vmin=0.75, vmax=1.0, cmap='GnBu', alpha=0.75)
+    for i in range(len(AUC_matrix_ben)):
+        for j in range(len(AUC_matrix_ben[0])):
+            tc = 'k'
+            if AUC_matrix_ben[i,j]>0.96: tc = 'white'
+            ax_aur1.text(i+0.5, j+0.5, '%.2f' % (AUC_matrix_ben[i,j]), color=tc, **tprops)
+    mp.plot(type='scatter', ax=ax_aur1, x=[[-1]], y=[[-1]], colors=[BKCOLOR], **pprops)
+
+    ax_aur2.pcolor(AUC_matrix_del.T, vmin=0.75, vmax=1.0, cmap='GnBu', alpha=0.75)
+    for i in range(len(AUC_matrix_del)):
+        for j in range(len(AUC_matrix_del[0])):
+            tc = 'k'
+            if AUC_matrix_del[i,j]>0.96: tc = 'white'
+            ax_aur2.text(i+0.5, j+0.5, '%.2f' % (AUC_matrix_del[i,j]), color=tc, **tprops)
+    mp.plot(type='scatter', ax=ax_aur2, x=[[-1]], y=[[-1]], colors=[BKCOLOR], **pprops)
+
+    ## outside text labels
+
+    tprops = dict(color=BKCOLOR, ha='center', va='center', family=FONTFAMILY, size=SIZELABEL,
+                  clip_on=False, transform=fig.transFigure)
+
+    ax_aur1.text((box_aur1['right']-box_aur1['left'])/2+box_aur1['left'], \
+    box_aur1['top']+dy, 'Mean AUROC (beneficial)',  **tprops)
+    ax_aur2.text((box_aur2['right']-box_aur2['left'])/2+box_aur2['left'], \
+    box_aur2['top']+dy, 'Mean AUROC (deleterious)', **tprops)
+    
+    ax_aur1.text(box_aur1['left']+dx, box_aur1['top']+dy, 'c'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
+    ax_aur2.text(box_aur2['left']+dx, box_aur2['top']+dy, 'd'.lower(), transform=fig.transFigure, **DEF_SUBLABELPROPS)
 
 
 def plot_compare_const_tv(**pdata):
@@ -5195,3 +5494,149 @@ def plot_compare_const_tv(**pdata):
     ax.text((sticks[-1]+sticks[0])/2, sticks[-1]*0.8, 'CH%s' % tag[6:], ha='left', va='center', **DEF_LABELPROPS)
 
     plt.savefig(f'{fig_dir}/{fig_file}', facecolor = fig.get_facecolor(), edgecolor=None, **FIGPROPS)
+
+def plot_epistasis_effects(**pdata):
+
+    """
+    histogram of selection coefficients and trait coefficients
+    """
+
+    # unpack passed data
+    sim_dir       = pdata['sim_dir']        # 'sigmoid'
+    out_dirs      = pdata['out_dirs']        # 'output/nsdt'
+    n_sim         = pdata['n_sim']          # 100
+    ytick_sc      = pdata['ytick_sc']
+    ytick_t       = pdata['ytick_t']
+    yminorticks_t = pdata['yminorticks_t']
+    labels        = pdata['labels']          # ['alpha = 0', 'alpha = 0.01', 'alpha = 0.05', 'alpha = 0.1']
+
+    fn            = pdata['fn']             # time-varying selection coefficient for binary trait (sigmoid)
+    times         = pdata['times']
+
+    savepdf       = pdata['savepdf']        # True
+
+    # Function
+    def get_sc_time(out_dir):
+        # 
+        """
+        Get time-varying selection coefficients over time
+        Returns:
+            time      -- time vector
+            tc_ave  -- average sc curves for binary trait (shape: T)
+            
+            tc_all  -- all simulations for p_1  (n_sim, T)
+        """
+        sc_all = []
+        tc_all = [] # all selection coefficients from simulations
+        for k in range(n_sim):
+            dt_path = '%s/%s/%s/c_%d.npz'%(SIM_DIR,sim_dir,out_dir,k)
+            data_full = np.load(dt_path, allow_pickle="True")
+            sc_full   = data_full['sc_all']
+            sc_all.append([np.average(sc_full[i]) for i in range(16)])
+
+            tc_all.append(sc_full[-1])
+
+        tc_all = np.array(tc_all) # convert to array for easier indexing
+
+        # compute average over simulations
+        tc_ave = tc_all.mean(axis=0)   # shape = (T)
+    
+        return tc_all, tc_ave, sc_all
+
+    # PLOT FIGURE
+    ## set up figure grid
+    w     = DOUBLE_COLUMN #SLIDE_WIDTH
+    goldh = w / 2.5
+    fig   = plt.figure(figsize=(w, goldh),dpi=1000)
+
+    box = dict(left=0.05, right=0.98, bottom=0.08, top=0.95)
+    gs = gridspec.GridSpec(2, 4, width_ratios=[1,1,1,1],height_ratios=[1,1],wspace=0.2,hspace=0.15,**box)
+    ax  = [[plt.subplot(gs[n, m]) for m in range(4)] for n in range(2)]
+
+    c_trait = C_group[0]
+
+    pprops_sc = { 'xlim':       [0, 4],
+                  'xticks':     [],
+                  'ylim':       [ytick_sc[0], ytick_sc[-1]],
+                  'yticks':     ytick_sc,
+                  'yticklabels': [int(i*100) for i in ytick_sc],
+                  'nudgey':      1,
+                  'plotprops':   {'lw': SIZELINE, 'ls': ':', 'alpha': 1 , 'zorder': 10},
+                  'axoffset':    0.1,
+                  'theme':       'boxed'}
+
+    pprops = { 'xticks':   [0, 200, 400],
+                'ylim':        [ytick_t[0], ytick_t[-1]],
+                'yticks':      ytick_t,
+                'yminorticks': yminorticks_t,
+                'yticklabels': [int(i*100) for i in ytick_t],
+                'xlabel':      'Time (generations)',
+                'nudgey':      1,
+                'plotprops':   {'lw': SIZELINE, 'ls': '-', 'alpha': 0.15 },
+                'axoffset':    0.1,
+                'theme':       'boxed'}
+
+    for i, out_dir in enumerate(out_dirs):
+        if i == 0:
+            pprops['ylabel'] = 'Inferred selection\ncoefficient, ' + r'$\hat{s}(t)$' + ' (%)'
+            pprops_sc['ylabel'] = 'Inferred constant\nselection coefficient, ' + r'$\hat{s}$' + ' (%)'
+        else:
+            pprops['ylabel'] = ''
+            pprops_sc['ylabel'] = ''
+
+        # get time-varying selection coefficients
+        tc_all, tc_ave, sc_all = get_sc_time(out_dir)
+        
+        # sc
+        sc_ben = np.array([sc_all[n][0:4] for n in range(n_sim)]).flatten()
+        sc_neu = np.array([sc_all[n][4:12] for n in range(n_sim)]).flatten()
+        sc_del = np.array([sc_all[n][12:16] for n in range(n_sim)]).flatten()
+
+        boxplot(ax=ax[0][i], data=[sc_ben], positions=[1], widths=[0.6], c1=[C_BEN_LT], c2=[C_BEN], **pprops_sc)
+        boxplot(ax=ax[0][i], data=[sc_neu], positions=[2], widths=[0.6], c1=[C_NEU_LT], c2=[C_NEU], **pprops_sc)
+        boxplot(ax=ax[0][i], data=[sc_del], positions=[3], widths=[0.6], c1=[C_DEL_LT], c2=[C_DEL], **pprops_sc)
+
+        mp.line(ax=ax[0][i], x=[[0.6, 1.4]], y=[[0.02, 0.02]], colors=[BKCOLOR], **pprops_sc)
+        mp.line(ax=ax[0][i], x=[[1.6, 2.4]], y=[[0.00, 0.00]], colors=[BKCOLOR], **pprops_sc)
+        mp.plot(type='line',ax=ax[0][i], x=[[2.6, 3.4]], y=[[-0.02, -0.02]], colors=[BKCOLOR], **pprops_sc)
+        
+        # tc over time
+        pprops['plotprops']['ls'] = '-'
+        pprops['plotprops']['alpha'] = 0.15
+        pprops['plotprops']['lw'] = SIZELINE
+        for k in range(n_sim):
+            mp.line(ax=ax[1][i], x=[times], y=[tc_all[k]], colors=[c_trait], **pprops)
+        
+        # Average tc over simulations
+        pprops['plotprops']['alpha'] = 1
+        pprops['plotprops']['lw'] = SIZELINE*3
+        mp.line(ax=ax[1][i], x=[times], y=[tc_ave], colors=[c_trait], **pprops)
+        
+        # True tc over time
+        pprops['plotprops']['ls'] = ':'
+        pprops['plotprops']['lw'] = SIZELINE
+        mp.plot(type='line',ax=ax[1][i], x=[times], y=[fn], colors=[c_trait], **pprops)
+
+        # subplot label
+        label_ij = '%s' % (labels[i])
+        ax[0][i].text(2,  ytick_sc[-1]*1.1, label_ij, ha='center', va='center', **DEF_LABELPROPS)
+
+
+def boxplot(**pdata):
+    """ Generic boxplot. """
+
+    # Plot data
+
+    for i in range(len(pdata['data'])):
+        c1 = pdata['c1'][i]
+        c2 = pdata['c2'][i]
+        data = pdata['data'][i]
+        position = pdata['positions'][i]
+        widths = pdata['widths'][i]
+
+        pdata['ax'].boxplot(data, positions=[position], widths=widths, whis = 1.5, patch_artist=True, 
+                            boxprops={'facecolor':c1, 'edgecolor':c2, 'lw':SIZELINE}, 
+                            medianprops={'color':c2, 'lw':SIZELINE}, 
+                            whiskerprops={'color':c2, 'lw':SIZELINE}, 
+                            capprops={'color':c2, 'lw':SIZELINE},
+                            flierprops=dict(marker='o',markersize=SMALLSIZEDOT/2,markeredgewidth=SIZELINE/2, markerfacecolor=c1,markeredgecolor=c2))

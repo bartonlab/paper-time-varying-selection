@@ -10,22 +10,27 @@ __pycache__
 */.DS_Store
 */*/.DS_Store
 
-# Large files
-/figures_old
+# Simulation figure files
 /figures/trait/
 /figures/simple*/
+/figures/sigmoid/
+
+# Large files
+/data/HIV/rawdata/interdata_*.npz
+/data/simulation/sigmoid/output/nsdt_sigmoid/
+/data/simulation/sigmoid/output/nsdt_linear/
+/data/simulation/sigmoid/output_const/nsdt/
+/data/simulation/sigmoid/sequences/nsdt/
+/data/simulation/sigmoid/sequences/nsdt_sigmoid/
 
 # Old data
 try.ipynb
-try.py
-/data/HIV/rawdata/interdata*
-/data/simulation/sigmoid/output/nsdt/
-/data/simulation/sigmoid/output_const/nsdt/
-/data/simulation/sigmoid/sequences/nsdt/
+try_boot.py
 
 # reply
-CH470-5-mid.ipynb
-/data/HIV/old
 /data/simulation/*/old
 /data/simulation/*/*.zip
+/data/simulation/sigmoid-epi/
+/data/simulation/sigmoid-r/
+
 

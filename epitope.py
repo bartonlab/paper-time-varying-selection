@@ -3,11 +3,12 @@ from curses import raw
 import json
 import os
 import sys
-from time import time_ns
+from time import time
 import scipy as sp
 from scipy import integrate
 import scipy.linalg as la
 from scipy.interpolate import interp1d
+from collections import defaultdict
 import numpy as np
 import pandas as pd
 import re
@@ -1400,8 +1401,7 @@ def analyze_result(HIV_DIR,tag):
                         g.write(',%f'%xp[i,t])
                     g.write('\n')
 
-
-def prepare_figure_info(tag, HIV_DIR='data/HIV'):
+def prepare_figure_info(tag, if_linear=False, HIV_DIR='data/HIV'):
     ''' 
     Output the information for plotting into npz file
     '''
@@ -1443,6 +1443,14 @@ def prepare_figure_info(tag, HIV_DIR='data/HIV'):
     idx_mut = idx_mut.astype(int)
     idx_tf  = idx_tf.astype(int)
 
+    # file name
+    if if_linear:
+        info_file = '%s/rawdata/plotinfo_%s_linear.json'%(HIV_DIR,tag)
+        interp_file = '%s/rawdata/interdata_%s_linear.npz'%(HIV_DIR,tag)
+    else:
+        info_file = '%s/rawdata/plotinfo_%s.json'%(HIV_DIR,tag)
+        interp_file = '%s/rawdata/interdata_%s.npz'%(HIV_DIR,tag)
+
     # --- basics information ---
     escape_group = rawdata['escape_group']
     sample_times = rawdata['sample_times']
@@ -1454,22 +1462,33 @@ def prepare_figure_info(tag, HIV_DIR='data/HIV'):
             idx_mut = idx_mut.tolist(),idx_tf = idx_tf.tolist(),
             idx_mut_const = idx_mut_const.tolist(),idx_tf_const = idx_tf_const.tolist()
         )
-        with open('%s/rawdata/plotinfo_%s.json'%(HIV_DIR,tag), "w") as f:
+        
+        with open(info_file, "w") as f:
             json.dump(data, f)
 
         return
+    
     # ----- epitope frequency information ----- 
     try:
         df_escape   = pd.read_csv('%s/constant/epitopes/escape_group-%s.csv'%(HIV_DIR,tag), memory_map=True)
     except FileNotFoundError:
         print(f'No constant escape data found for CH{tag[6:]}')
         return 
-    epitopes    = df_escape['epitope'].unique()
 
+    try:
+        x_sigmoid = np.load(interp_file, allow_pickle="True")['x_all'].T
+    except FileNotFoundError:
+        print(f'No interpolated data found for CH{tag[6:]}')
+        return
+    
+    epitopes    = df_escape['epitope'].unique()
+    if len(epitopes) != ne:
+        raise ValueError(f'The number of epitopes in escape group file does not match the number of escape groups for CH{tag[6:]}')
+    
+    epitope_name = [] # name for epitope
     x_escape_mut = [] # frequencies for individual escape sites
     x_epitope    = [] # frequencies for escape groups
-    epitope_name = [] # name for epitope
-    for n in range(len(epitopes)):
+    for n in range(ne):
         df_esc  = df_escape[(df_escape.epitope==epitopes[n])]
 
         # get the name for epitopes
@@ -1477,12 +1496,13 @@ def prepare_figure_info(tag, HIV_DIR='data/HIV'):
         epitope_name.append(epi_nuc[0]+epi_nuc[-1]+str(len(epi_nuc)))
 
         # get frequencies for escape sites and groups
-        x_epitope.append([df_esc.iloc[0]['xp_at_%d' % t] for t in sample_times])
-        var_traj = []
+        x_epitope.append(x_sigmoid[-ne+n].tolist())
+        x_escape_n = []
         for df_iter, df_entry in df_esc.iterrows():
-            var_traj.append([df_entry['f_at_%d' % t] for t in sample_times])
-        x_escape_mut.append(var_traj)
-    
+            escape_idx = int(muVec[df_entry['polymorphic_index'], nuc_to_idx[df_entry['nucleotide']]])
+            x_escape_n.append(x_sigmoid[escape_idx].tolist())
+        x_escape_mut.append(x_escape_n)
+
     # ----- T cell response intensity -----
     try:
         patient = tag.split('-')[0]
@@ -1516,209 +1536,8 @@ def prepare_figure_info(tag, HIV_DIR='data/HIV'):
         intensity_x = intensity_x,intensity_y = intensity_y,
     )
 
-    with open('%s/rawdata/plotinfo_%s.json'%(HIV_DIR,tag), "w") as f:
+    with open(info_file, "w") as f:
         json.dump(data, f)
-
-# def cal_action(tag, eps=1, HIV_DIR = 'data/HIV'):
-#     """
-#     Calculate action between time-varying and constant pattern (only epitope)
-#     """
-#     # calculate recombination flux term at time t
-#     def get_rec_flux_at_t(r_rates, x_trait, p_mut_k, trait_dis):
-#         flux = np.zeros(ne)
-#         for n in range(ne):
-#             fluxIn  = 0
-#             fluxOut = 0
-
-#             for nn in range(len(escape_group[n])-1):
-#                 fluxIn  += trait_dis[n][nn] * (1 - x_trait[n]) *p_mut_k[n][nn][0]
-#                 fluxOut += trait_dis[n][nn] * p_mut_k[n][nn][1]*p_mut_k[n][nn][2]
-            
-#             flux[n] = r_rates * (fluxIn - fluxOut)
-
-#         return flux
-
-#     def diffusion_matrix_at_t(x,xx):
-#         x_length = len(x)
-#         C = np.zeros([x_length,x_length])
-#         for i in range(x_length):
-#             C[i,i] = x[i] - x[i] * x[i]
-#             for j in range(int(i+1) ,x_length):
-#                 C[i,j] = xx[i,j] - x[i] * x[j]
-#                 C[j,i] = xx[i,j] - x[i] * x[j]
-#         return C
-    
-#     # calculate mutation flux term at sampled time
-#     def cal_mut_flux(x,ex,muVec):
-#         flux = np.zeros((len(x),x_length))
-#         for t in range(len(x)):
-#             for i in range(seq_length):
-#                 for a in range(q):
-#                     aa = int(muVec[i][a])
-#                     if aa != -1:
-#                         for b in range(q):
-#                             bb = int(muVec[i][b])
-#                             if b != a:
-#                                 if bb != -1:
-#                                     flux[t,aa] +=  muMatrix[b][a] * x[t,bb] - muMatrix[a][b] * x[t,aa]
-#                                 else:
-#                                     flux[t,aa] += -muMatrix[a][b] * x[t,aa]
-#             for n in range(ne):
-#                 for nn in range(len(escape_group[n])):
-#                     for a in range(q):
-#                         WT = escape_TF[n][nn]
-#                         index = escape_group[n][nn]
-#                         if a not in WT:
-#                             for b in WT:
-#                                 flux[t, x_length-ne+n] += muMatrix[b][a] * (1 - x[t,x_length-ne+n]) - muMatrix[a][b] * ex[t,index,a]
-#         return flux
-
-#     def get_sc_common(sc_all, muVec):
-#         sc_const = np.zeros(x_length)
-#         for i in range(seq_length):
-#             for a in range(q):
-#                 aa = int(muVec[i][a])
-#                 if aa != -1:
-#                     sc_const[aa] = sc_all[i*q + a]
-#         for n in range(ne):
-#             sc_const[x_length-ne+n] = sc_all[seq_length*q + n]
-#         return sc_const
-
-#     def insert_time(arr, allowed_gaps=(7, 8, 9, 10, 11, 12, 13)):
-#         """
-#         Insert values into an array, ensuring the difference between adjacent values 
-#         is within the allowed_gaps range as evenly distributed as possible.
-#         """
-#         result = []
-
-#         for i in range(len(arr) - 1):
-#             result.append(arr[i])  # add current value
-#             diff = arr[i+1] - arr[i]
-            
-#             if diff < max(allowed_gaps):
-#                 continue
-
-#             while diff > max(allowed_gaps):
-#                 # choose the gap that is closest to 10
-#                 if diff % 10 == 0:
-#                     step = diff/10
-#                 else:
-#                     step = (diff // 10) + 1
-#                 gap = min(allowed_gaps, key=lambda x: abs(x - diff / step))
-#                 next_value = result[-1] + gap
-#                 result.append(next_value)
-#                 diff = arr[i+1] - next_value  # update the remaining difference
-            
-#             # check if the last gap is in the allowed_gaps
-#             if diff not in allowed_gaps:
-#                 print(f"Warning: the gap between {result[-1]} and {arr[i+1]} is not in the allowed_gaps range.")
-            
-#         # Add the last value
-#         if result[-1] != arr[-1]:
-#             result.append(arr[-1])
-
-#         return np.array(result)
-
-#     # Load data
-#     rawdata  = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
-#     muMatrix = np.loadtxt("%s/input/Zanini-extended.dat"%HIV_DIR)
-
-#     # information for individual sites
-#     x            = rawdata['single_freq']
-#     xx           = rawdata['double_freq']
-#     ex           = rawdata['escape_freq']
-#     muVec        = rawdata['muVec']
-#     sample_times = rawdata['sample_times']
-#     seq_length   = rawdata['seq_length']
-#     r_rates      = rawdata['r_rates']
-
-#     # information for escape group
-#     p_mut_k      = rawdata['p_mut_k_freq']
-#     escape_group = rawdata['escape_group'].tolist()
-#     escape_TF    = rawdata['escape_TF'].tolist()
-#     trait_dis    = rawdata['trait_dis'].tolist()
-#     ne           = len(escape_group)
-#     x_length     = len(x[0])
-
-#     # Get sc for common mutation and wild-type
-#     q = len(NUC)
-#     sc_const_all = np.loadtxt('%s/constant/output/sc-%s.dat'%(HIV_DIR,tag))
-#     sc_const = get_sc_common(sc_const_all, muVec)
-
-#     # check if the length for constant selection coefficient matches frequency data
-#     if len(sc_const) != x_length:
-#         print(f'Error: length of selection coefficient does not match frequency data for {tag}')
-#         print(f'       length of sc: {len(sc_const)}, length of x: {x_length}')
-#         return None
-    
-#     # extend the time range
-#     if sample_times[-1] > 100:
-#         interp_times = insert_time(sample_times)
-#     else:
-#         interp_times = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
-#     times_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
-#     sc_all = np.load('%s/output/sc_%s.npz'%(HIV_DIR,tag), allow_pickle=True)['selection'].T
-
-#     # selection coefficients for sampled time points
-#     interp_index = {t: i for i, t in enumerate(interp_times)}
-#     sc_tv = np.zeros((len(interp_times), x_length))
-#     for ti, t in enumerate(times_all):
-#         if t in interp_index:
-#             sc_tv[interp_index[t]] = sc_all[ti]
-
-#     # Use linear interpolates to get the input arrays at any integer time point
-#     interp_x   = interp1d(sample_times, x, axis=0, kind='linear', bounds_error=False, fill_value=0)
-#     interp_xx  = interp1d(sample_times, xx, axis=0, kind='linear', bounds_error=False, fill_value=0)
-#     interp_ex  = interp1d(sample_times, ex, axis=0, kind='linear', bounds_error=False, fill_value=0) if ne > 0 else 0
-#     interp_mut = interp1d(sample_times, p_mut_k, axis=0, kind='linear', bounds_error=False, fill_value=0) if ne > 0 else 0
-#     interp_r   = interp1d(sample_times, r_rates, kind='linear', bounds_error=False, fill_value=0)
-    
-#     single_freq = interp_x(interp_times)
-#     double_freq = interp_xx(interp_times)
-#     epitope_freq = interp_ex(interp_times) if ne > 0 else 0
-#     p_mut_k     = interp_mut(interp_times) if ne > 0 else 0
-#     r_rate      = interp_r(interp_times)
-
-#     # get mutation flux at sampled time points
-#     flux_mut = cal_mut_flux(single_freq, epitope_freq, muVec)
-
-#     # Get matrix A and vector b
-#     action_tv = 0
-#     action_const = 0
-#     action_null = 0
-#     for ti in range(len(interp_times)-1):
-#         x_t, xx_t = single_freq[ti], double_freq[ti]
-#         sc_t = sc_tv[ti]
-
-#         dt = interp_times[ti+1] - interp_times[ti]
-#         dx_t = (single_freq[ti+1] - single_freq[ti]) / dt
-
-#         # calculate C(t)
-#         C_raw = diffusion_matrix_at_t(x_t, xx_t) # covariance matrix
-#         C_t   = C_raw + eps * np.eye(C_raw.shape[0])
-
-#         # calculate flux(t) = flux_mut(t) + flux_rec(t)
-#         flux_total = flux_mut[ti]
-#         flux_rec = get_rec_flux_at_t(r_rate[ti], x_t[x_length-ne:], p_mut_k[ti], trait_dis) if ne > 0 else 0
-#         for n in range(ne): # recombination only for binary trait part
-#             flux_total[x_length-ne+n] += flux_rec[n]
-
-#         d_const = dx_t - C_raw @ sc_const - flux_total
-#         d_tv    = dx_t - C_raw @ sc_t - flux_total
-#         d_null  = dx_t - flux_total
-
-#         action_const += (d_const @ np.linalg.solve(C_t, d_const)) * dt # d_const^T C^-1 d_const * dt
-#         action_tv    += (d_tv @ np.linalg.solve(C_t, d_tv)) * dt # d_tv^T C^-1 d_tv * dt
-#         action_null  += (d_null @ np.linalg.solve(C_t, d_null)) * dt # d_null^T C^-1 d_null * dt
-
-#     actions = [action_const, action_tv, action_null]
-#     max_id  = np.argmin(actions)
-#     action_str = ['constant', 'time-varying', 'null']
-#     suffix = '|no epitope' if ne == 0 else ''
-
-#     print(f'CH{tag[-5:]}|{action_const:.4f}|{action_tv:.4f}|{action_null:.4f}|{action_str[max_id]}{suffix}')
-
-#     return action_const, action_tv
 
 # def cal_freq_change(tag, HIV_DIR = 'data/HIV'):
 #     """
@@ -2189,13 +2008,16 @@ def prepare_figure_info(tag, HIV_DIR='data/HIV'):
 
 #     return diff_all, action_all, times_used[:-1]
 
-def cal_diff(tag, sc_file, if_const=False, HIV_DIR = 'data/HIV'):
+def cal_diff(tag, sc_file, if_const=False, if_linear = False, HIV_DIR = 'data/HIV'):
     
     # Get sc for common mutation and wild-type
     q = len(NUC)
     # Load data
     rawdata  = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
-    interp_data  = np.load('%s/rawdata/interdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+    if if_linear:
+        interp_data  = np.load('%s/rawdata/interdata_%s_linear.npz'%(HIV_DIR,tag), allow_pickle=True)
+    else:
+        interp_data  = np.load('%s/rawdata/interdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
 
     # information for individual sites
     seq_length = rawdata['seq_length']
@@ -2262,6 +2084,83 @@ def cal_diff(tag, sc_file, if_const=False, HIV_DIR = 'data/HIV'):
 
     return diff_int#, diff_all
 
+def cal_action(tag, sc_file, if_const=False, if_linear = False, eps=1e-3, HIV_DIR = 'data/HIV'):
+    
+    # Get sc for common mutation and wild-type
+    q = len(NUC)
+    # Load data
+    rawdata  = np.load('%s/rawdata/rawdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+    if if_linear:
+        interp_data  = np.load('%s/rawdata/interdata_%s_linear.npz'%(HIV_DIR,tag), allow_pickle=True)
+    else:
+        interp_data  = np.load('%s/rawdata/interdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+
+    # information for individual sites
+    seq_length = rawdata['seq_length']
+    muVec      = rawdata['muVec']
+    ne         = len(rawdata['escape_group'])
+
+    C_all = interp_data['C_all']
+    flux_all = interp_data['flux_all']
+    dxdt     = interp_data['dxdt']
+    dxdt_node = interp_data['dxdt_node']
+    sample_times = interp_data['sample_times']
+    ExTimes      = interp_data['ExTimes']
+
+    x_length = C_all.shape[1]
+    times_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
+    times_used = times_all
+    # times_used = [int(t) for t in ExTimes if t >= sample_times[0] and t <= sample_times[-1]]
+    # time_index = {t: i for i, t in enumerate(times_all)} # sc used all time points
+
+    alpha = 1e-3
+    # get selection coefficients
+    if if_const:
+        if 'dat' in sc_file:
+            sc_const_raw = np.loadtxt('%s/%s'%(HIV_DIR, sc_file))
+            sc_const = np.zeros(x_length)
+            for i in range(seq_length):
+                for a in range(q):
+                    idx = int(muVec[i, a])
+                    if idx != -1:
+                        sc_const[idx] = sc_const_raw[i*q+a]
+            for n in range(ne):
+                sc_const[x_length - ne + n] = sc_const_raw[seq_length*q + n]
+        else:
+            sc_const_all = np.load('%s/%s'%(HIV_DIR, sc_file), allow_pickle=True)['selection']
+            sc_const = np.mean(sc_const_all, axis=1)
+    else:
+        sc_all = np.load('%s/%s'%(HIV_DIR, sc_file), allow_pickle=True)['sc_all'].T
+    
+    # get dxdt_used at times_used
+    m = np.searchsorted(sample_times, times_used, side="left")
+    ks = np.clip(m - 1, 0, len(sample_times) - 2)
+    dxdt_used = dxdt[ks].copy()
+    on_node = (m < len(sample_times)) & (sample_times[m] == times_used)
+    if on_node.any(): # optional: node override when t_in equals sample_times exactly
+        dxdt_used[on_node] = dxdt_node[m[on_node]]
+
+    action_int = 0
+    # diff_all = np.zeros(len(times_used)-1)
+    for ti in range(len(times_used)-1):
+        
+        time = times_used[ti]
+        t_index = ti # time_index[time]
+        if if_const:
+            sc_t = sc_const
+        else:
+            sc_t = sc_all[t_index] # Time-varying selection coefficient at time ti
+        
+        dt = times_used[ti+1] - time
+        C_t  = C_all[t_index]
+        C_eps   = C_t + eps * np.eye(C_t.shape[0])
+
+        diff = C_t @ sc_t + flux_all[t_index] - dxdt_used[ti]
+
+        action_int += (diff @ np.linalg.solve(C_eps, diff)) * dt # d_const^T C^-1 d_const * dt
+
+    return action_int
+
 def modify_seq(tag, HIV_DIR='data/HIV'):
     '''
     Remove one time pooint for each patient to calculate LOO-CV
@@ -2296,14 +2195,24 @@ def output_const_vs_tv(tag, base_csv, sc_const_file, sc_tv_file, out_csv, HIV_DI
     ''' 
     output the average value for time-varying selection coefficient into csv file
     '''
+    def make_epitope_tv(epitope):
+        if pd.isna(epitope):
+            return ""
+
+        epitope = str(epitope)
+        epi_name = epitope[0] + epitope[-1] + str(len(epitope))
+
+        return epi_name if epi_name in epitope_infer else ""
+    
     # load raw csv file
-    base_cols = ["polymorphic_index", "HXB2_index", "nucleotide", "TF", "epitope", "escape","if_special"]
+    base_cols = ["polymorphic_index", "HXB2_index", "nucleotide", "TF", "epitope", "escape"]
     df = pd.read_csv(base_csv, usecols=base_cols)
     df_mut = df[df['TF'] != df['nucleotide']].copy()
     
    # ----- read data from json file ----- 
+    info_file = '%s/rawdata/plotinfo_%s.json'%(HIV_DIR,tag)
     try:
-        with open('%s/rawdata/plotinfo_%s.json'%(HIV_DIR,tag)) as f:
+        with open(info_file) as f:
             data = json.load(f)
     except FileNotFoundError:
         print(f'CH{tag[-5:]} has no plot info json file')
@@ -2313,7 +2222,11 @@ def output_const_vs_tv(tag, base_csv, sc_const_file, sc_tv_file, out_csv, HIV_DI
     idx_tf  = data['idx_tf']
     idx_mut_const = data['idx_mut_const']
     idx_tf_const  = data['idx_tf_const']
+    epitope_infer =  set(data['epitope_name']) 
 
+    # add epitope_tv
+    df_mut["epitope_tv"] = df_mut["epitope"].apply(make_epitope_tv)
+    
     # load constant selection coefficients
     data_const = np.loadtxt(sc_const_file)
     sc_const = data_const[idx_mut_const] - data_const[idx_tf_const]
@@ -2342,55 +2255,175 @@ def output_tv_results(tag, base_csv, sc_const_file, sc_tv_file, out_csv, HIV_DIR
             raise ValueError("Found NaN/None in column 'epitope'.")
         epi = str(epi)
         return f"{epi[0]}{epi[-1]}{len(epi)}"
-    
+
     # load csv file including special sites information
-    df = pd.read_csv(base_csv)
-    df_escape = df[df['escape'] == True].copy()
-    
+    base_cols = ["polymorphic_index", "HXB2_index", "nucleotide", "TF", "epitope"]
+    df_epitope = pd.read_csv(base_csv, usecols=base_cols)
+
     # add 2 columns 
-    df_escape['tc_const'] = np.nan
-    df_escape['tc_avg'] = np.nan
-    
-    # special sites, use sc columns to represent tc columns
-    special_mask = df_escape["if_special"] == True
-    df_escape.loc[special_mask, "tc_const"] = df_escape.loc[special_mask, "sc_const"].astype(float)
-    df_escape.loc[special_mask, "tc_avg"]   = df_escape.loc[special_mask, "sc_avg"].astype(float)
+    df_epitope['tc_const'] = np.nan
+    df_epitope['tc_avg'] = np.nan
 
-    # ----- read data from json file ----- 
-    with open('%s/rawdata/plotinfo_%s.json'%(HIV_DIR,tag)) as f:
-        data = json.load(f)
+    info_file = '%s/rawdata/plotinfo_%s.json'%(HIV_DIR,tag)
+    try:
+        with open(info_file) as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        print(f'CH{tag[-5:]} has no plot info json file')
+
     ne = data['ne']
-    if ne > 0:
-        epitope_name = data['epitope_name']
-        epi2idx = {name: i for i, name in enumerate(epitope_name)}
+    epitope_name = data['epitope_name']
+    epi2idx = {name: i for i, name in enumerate(epitope_name)}
 
-        # load constant selection coefficients
-        data_const = np.loadtxt(sc_const_file)
-        ec_const = data_const[-ne:] # only escape sites
-        
-        # load selection coefficients
-        data_tc  = np.load(sc_tv_file, allow_pickle=True)
-        sc_all = data_tc["sc_all"]
-        ec_all = sc_all[-ne:, :]
-        ec_all_avg = ec_all.mean(axis=1)
-        
-        
-        # escape sites
-        nonspecial_mask = ~special_mask
-        
-        epi_series = df_escape.loc[nonspecial_mask, "epitope"].map(to_epi_name)
-        epi_idx = epi_series.map(epi2idx)
-        if epi_idx.isna().any(): # if there is any epitope not in epitope_name, raise error
-            missing_names = epi_series[epi_idx.isna()].unique().tolist()
-            raise ValueError(
-                f"epi_name not found in epitope_name list: {missing_names} for CH {tag[-5:]}. "
-            )
+    # load constant selection coefficients
+    data_const = np.loadtxt(sc_const_file)
+    ec_const = data_const[-ne:] # only escape sites
 
-        epi_idx = epi_idx.to_numpy(dtype=int)
-        out_index = df_escape.loc[nonspecial_mask].index
+    # load selection coefficients
+    data_tc  = np.load(sc_tv_file, allow_pickle=True)
+    sc_all = data_tc["sc_all"]
+    ec_all = sc_all[-ne:, :]
+    ec_all_avg = ec_all.mean(axis=1)
 
-        df_escape.loc[out_index, "tc_const"] = ec_const[epi_idx]
-        df_escape.loc[out_index, "tc_avg"] = ec_all_avg[epi_idx]
+    epi_series = df_epitope["epitope"].map(to_epi_name)
+    epi_idx = epi_series.map(epi2idx)
+    if epi_idx.isna().any(): # if there is any epitope not in epitope_name, raise error
+        missing_names = epi_series[epi_idx.isna()].unique().tolist()
+        raise ValueError(
+            f"epi_name not found in epitope_name list: {missing_names} for CH{tag[-5:]}. "
+        )
 
-    df_escape.to_csv(out_csv, index=False, float_format="%.6e")
+    epi_idx = epi_idx.to_numpy(dtype=int)
+    out_index = df_epitope.index
 
+    df_epitope.loc[out_index, "tc_const"] = ec_const[epi_idx]
+    df_epitope.loc[out_index, "tc_avg"] = ec_all_avg[epi_idx]
+
+    df_epitope.to_csv(out_csv, index=False, float_format="%.6e")
+
+def read_dat_loadtxt(path: str):
+    """
+    each row: t count seq...
+    return: dict[t][seq]=count
+    """
+    arr = np.loadtxt(path, dtype=int)
+
+    t = arr[:,0]
+    c = arr[:,1]
+    seq = arr[:,2:]
+
+    data = defaultdict(lambda: defaultdict(int))
+
+    for ti, ci, si in zip(t, c, seq):
+        data[int(ti)][tuple(si.tolist())] += int(ci)
+    return data
+
+def write_dat(path: str, data):
+    """
+    data: dict[t][seq]=count
+    """
+    with open(path, "w") as f:
+        for t in sorted(data.keys()):
+            for seq_key, val in data[t].items():
+                if val <= 0:
+                    continue
+                seq_str = " ".join(map(str, seq_key))  # tuple -> "0 1 0 ..."
+                if isinstance(val, float):
+                    f.write(f"{t} {val:.6f} {seq_str}\n")
+                else:
+                    f.write(f"{t} {val} {seq_str}\n")
+               
+
+def counts_dat_to_freq_dat(raw_dat: str, out_dat: str,
+                           seq_DIR: str = 'data/HIV/input/sequence'):
+
+    raw_path = '%s/%s.dat' % (seq_DIR, raw_dat)
+    out_path = '%s/%s.dat' % (seq_DIR, out_dat)
+    # read raw dat file and store counts in a dict
+    data = read_dat_loadtxt(raw_path)
+
+    data_freq = defaultdict(dict)
+    for t in sorted(data.keys()):
+        total_count = sum(data[t].values())
+        for seq, c in data[t].items():
+            if c > 0:
+                data_freq[t][seq] = c / total_count
+            else:
+                raise ValueError(f"Count for time {t} and sequence {seq} is {c} <= 0, cannot write to file")
+            
+    # output dat files, using frequency instead of count
+    with open(out_path, "w") as f:
+        for t in sorted(data.keys()):
+            total_count = sum(data[t].values())
+            for seq_key, val in data[t].items():
+                if val <= 0:
+                    continue
+                seq_str = " ".join(map(str, seq_key))  # tuple -> "0 1 0 ..."
+                f.write(f"{t} {val/total_count:.6f} {seq_str}\n")
+
+def sigmoid_interp_weights(steps: int, k: float = 10.0) -> np.ndarray:
+    """
+    Return s_j for j=0..steps, where s maps [0,1] -> [0,1] with sigmoid shape.
+    """
+    u = np.linspace(0.0, 1.0, steps + 1)
+    s = 1.0 / (1.0 + np.exp(-k * (u - 0.5)))
+    s = (s - s.min()) / (s.max() - s.min() + 1e-15)
+    return s  # length steps+1
+
+def sigmoid_freq_dat(seq_dat, out_dat, seq_DIR = 'data/HIV/input/sequence'):
+    def write_time_slice(fh, t: int, slice_dict: dict, renormalized=False):
+        if renormalized:
+            ssum = sum(slice_dict.values())
+            if ssum > 0:
+                inv = 1.0 / ssum
+                for key in list(slice_dict.keys()):
+                    slice_dict[key] *= inv
+
+        for seq_key, val in slice_dict.items():
+            if val <= 0:
+                continue
+            seq_str = " ".join(map(str, seq_key))
+            fh.write(f"{t} {val:.6f} {seq_str}\n")
+
+    input_path  = '%s/%s.dat' % (seq_DIR, seq_dat)
+    output_path = '%s/%s.dat' % (seq_DIR, out_dat)
+
+    data = read_dat_loadtxt(input_path)
+    times = sorted(data.keys())
+    data_freq = defaultdict(dict)
+    for t in times:
+        total_count = sum(data[t].values())
+        for seq, c in data[t].items():
+            if c > 0:
+                freq = c / total_count
+                data_freq[t][seq] = freq
+            else:
+                raise ValueError(f"Count for time {t} and sequence {seq} is {c} <= 0, cannot write to file")
+
+    with open(output_path, "w") as fh:
+        for i in range(len(times) - 1):
+            t0, t1 = times[i], times[i + 1]
+            steps = t1 - t0
+
+            seqs0 = data_freq[t0].keys()
+            seqs1 = data_freq[t1].keys()
+            union_seqs = set(seqs0) | set(seqs1)
+
+            s = sigmoid_interp_weights(steps)
+
+            for j in range(steps): # last time points are included
+                tt = t0 + j
+                sj = float(s[j])
+                seq_freqs = {}
+                # interpolate frequency for each sequence
+                for seq in union_seqs:
+                    y0 = data_freq[t0].get(seq, 0.0)
+                    y1 = data_freq[t1].get(seq, 0.0)
+                    freq = y0 + (y1 - y0) * sj
+                    if freq > 0:
+                        seq_freqs[seq] = freq
+                # output the interpolated results
+                write_time_slice(fh, tt, seq_freqs)
+
+        # output for the last time point
+        write_time_slice(fh, times[-1], dict(data_freq[times[-1]]))

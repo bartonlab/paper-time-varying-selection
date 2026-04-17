@@ -616,6 +616,17 @@ def error(**pdata):
         l = pdata['ax'].legend(**pdata['legendprops'])
         for text in l.get_texts(): text.set_color(textcolor)
 
+def boxplot(**pdata):
+    """ Generic boxplot. """
+
+    # Plot data
+
+    for i in range(len(pdata['x'])):
+        c = pdata['colors'][i]
+        x = pdata['x'][i]
+        y = pdata['y'][i]
+
+        pdata['ax'].boxplot(x, positions=[y], widths=0.5, patch_artist=True, boxprops={'facecolor':c, 'edgecolor':c, 'lw':sizeline/2}, medianprops={'color':defcolor, 'lw':sizeline/2}, whiskerprops={'color':c, 'lw':sizeline/2}, capprops={'color':c, 'lw':sizeline/2})
 
 def line(**pdata):
     """ Generic line plot. """

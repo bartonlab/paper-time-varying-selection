@@ -1,4 +1,0 @@
-polymorphic_index,HXB2_index,nucleotide,TF,epitope,escape,if_special,sc_const,sc_avg,sc_std,tc_const,tc_avg
-29,1225,A,G,QMVHQALSP,True,,7.868093e-03,-2.534907e-04,3.544714e-05,1.303411e-01,1.244690e-01
-30,1228,A,C,QMVHQALSP,True,,1.466116e-02,3.906647e-03,8.938494e-05,1.303411e-01,1.244690e-01
-125,2968,T,C,NETPGIRYQ,True,True,-2.511057e-03,-1.361261e-03,1.021297e-03,-2.511057e-03,-1.361261e-03

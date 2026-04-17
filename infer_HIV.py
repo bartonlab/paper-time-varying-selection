@@ -26,10 +26,9 @@ def main(args):
     parser.add_argument('-g2tv',         type=float,  default=50,                   help='regularization restricting the time derivative of the selection coefficients,time varying')
     parser.add_argument('-theta',        type=float,  default=10,                   help='magnification of fixation gamma')
     parser.add_argument('--pt',          action='store_false', default=True,        help='whether or not to print the execution time')
-    parser.add_argument('--add',         action='store_true', default=False,        help='whether or not to add time to the input data')
-    parser.add_argument('--round',       action='store_true', default=False,        help='whether or not to round the time points to the nearest integer')
+    parser.add_argument('--linear',      action='store_true', default=False,        help='whether or not to use linear interpolation data')
     parser.add_argument('--fixation',    action='store_false', default=True,        help='whether or not to add time-varying regularization for fixation')
-    parser.add_argument('--sp',          action='store_false', default=True,        help='whether or not to add time-varying regularization for special sites')
+    parser.add_argument('--sp',          action='store_true', default=False,        help='whether or not to add time-varying regularization for special sites')
 
     arg_list  = parser.parse_args(args)
 
@@ -41,14 +40,16 @@ def main(args):
     gamma_1    = arg_list.g1     # regularization parameter, which will be change according to the time points
     gamma_2c   = arg_list.g2c
     gamma_2tv  = arg_list.g2tv
-    add_time   = arg_list.add
+    if_linear   = arg_list.linear
     print_time = arg_list.pt
-    if_round   = arg_list.round
     if_fixation = arg_list.fixation
     if_sp      = arg_list.sp
 
-    if name == '':
-        name = '-%s'%int(gamma_2tv)
+    if if_linear: # add linear suffix to name if using linear interpolation data
+        if name == '':
+            name = '-linear'
+        else:
+            name = '-%s-linear'%name
 
     ############################################################################
     ################################# function #################################
@@ -93,7 +94,6 @@ def main(args):
 
         # 2) trait part
         if ne > 0:
-            trait_idx = np.arange(L - ne, L)              # (ne,)
             s_trait = s[:L, :][trait_idx, :]              # (ne, n_time)
 
             # gamma_positive: default gamma_1e, but after fixation_time -> gamma_1e/theta
@@ -104,12 +104,6 @@ def main(args):
 
             # negative uses fixed gamma_1e*100 (matches your old code)
             g1_mat[trait_idx, :] = np.where(s_trait < 0.0, gamma_1e * 100.0, gamma_pos)
-
-        # 3) selected positions tv_index (if_sp)
-        if if_sp and len(tv_index) > 0:
-            idx = np.asarray(tv_index, dtype=int)
-            s_sp = s[:L, :][idx, :]
-            g1_mat[idx, :] = np.where(s_sp < 0.0, gamma_1s * 100.0, gamma_1s)
 
         # g2 s2'(t) = A(t)*s1(t) + b(t), s1: the actual selection coefficients
         # A(t) = C(t) + g1, b(t) = - dx(t) + F(t) + R(t)
@@ -122,26 +116,21 @@ def main(args):
             t_in = time[inside]
             n_in = t_in.size
 
-            if if_round:
-                time_index = np.rint(time[inside] - sample_times[0]).astype(int)
-                C_t_all    = C_all[time_index]                
-                flux_t_all = flux_all[time_index]
-            else: # assume C(t) and b(t) linear when dt = 1 (all_times)
-                ts = time_all
-                
-                # interval indices for interpolation
-                k = np.searchsorted(ts, t_in, side="right") - 1
-                k = np.clip(k, 0, len(ts) - 2)
+            ts = time_all
+            
+            # interval indices for interpolation
+            k = np.searchsorted(ts, t_in, side="right") - 1
+            k = np.clip(k, 0, len(ts) - 2)
 
-                t0 = ts[k]
-                t1 = ts[k + 1]
-                a = (t_in - t0) / (t1 - t0)       # (n_in,)
+            t0 = ts[k]
+            t1 = ts[k + 1]
+            a = (t_in - t0) / (t1 - t0)       # (n_in,)
 
-                # Use linear interpolation to get C(t) and flux(t)
-                C0, C1 = C_all[k], C_all[k + 1]
-                f0, f1 = flux_all[k], flux_all[k + 1]
-                C_t_all    = C0 + (C1 - C0) * a[:, None, None]
-                flux_t_all = f0 + (f1 - f0) * a[:, None]
+            # Use linear interpolation to get C(t) and flux(t)
+            C0, C1 = C_all[k], C_all[k + 1]
+            f0, f1 = flux_all[k], flux_all[k + 1]
+            C_t_all    = C0 + (C1 - C0) * a[:, None, None]
+            flux_t_all = f0 + (f1 - f0) * a[:, None]
 
             # get dxdt(t) (step function)
             m = np.searchsorted(sample_times, t_in, side="left")
@@ -182,12 +171,11 @@ def main(args):
     ######################### time varying inference ###############################
     # load processed data from rawdata file
     try:
-        if add_time:
-            tag_name = tag + '-add'
+        if if_linear:
+            interp_data  = np.load('%s/rawdata/interdata_%s_linear.npz'%(HIV_DIR,tag), allow_pickle=True)
         else:
-            tag_name = tag
-            
-        interp_data  = np.load('%s/rawdata/interdata_%s.npz'%(HIV_DIR,tag_name), allow_pickle=True)
+            interp_data  = np.load('%s/rawdata/interdata_%s.npz'%(HIV_DIR,tag), allow_pickle=True)
+        
         C_all = interp_data['C_all']
         flux_all = interp_data['flux_all']
         dxdt     = interp_data['dxdt']
@@ -207,7 +195,6 @@ def main(args):
     trait_idx    = np.arange(x_length - ne, x_length)
 
     time_all = np.linspace(sample_times[0], sample_times[-1], int(sample_times[-1]-sample_times[0]+1))
-    time_mid = (sample_times[:-1] + sample_times[1:]) / 2
 
     # get gamma_1 and gamma_2
     full_time = sample_times[-1] - sample_times[0]
@@ -218,11 +205,11 @@ def main(args):
 
     tv_range = max(int(round(sample_times[-1]*0.1/10)*10),1)
     g2_vec = np.ones(x_length)* gamma_2c
-    # special site - large gamma 2
+    # special site - smaller gamma 2 - time varying
     if if_sp:
         for idx in tv_index:
             g2_vec[idx] = gamma_2tv
-    # binary trait - large gamma 2
+    # binary trait - smaller gamma 2 - time varying
     for n in range(ne):
         g2_vec[x_length-ne+n] = gamma_2tv
 
@@ -236,15 +223,14 @@ def main(args):
     solution = sp.integrate.solve_bvp(fun, bc, ExTimes, ss_extend, max_nodes=100000, tol=1e-3)
 
     sc_all = solution.sol(time_all)[:x_length,:]
-    sc_mid_sample = solution.sol(time_mid)[:x_length,:]
     
     g = open('%s/%s/sc-CH%s%s.npz'%(HIV_DIR, output_dir, tag[6:], name), mode='w+b')
-    np.savez_compressed(g, sc_all=sc_all, sc_mid_sample=sc_mid_sample, time=sample_times, ExTimes=ExTimes)
+    np.savez_compressed(g, sc_all=sc_all, time=sample_times, ExTimes=ExTimes)
     g.close()
 
     if print_time:
         end_time = time_module.time()
-        print(f"CH{tag[6:]}, finished in {end_time - start_time} seconds, if_round={if_round}, if_fixation={if_fixation}, if_sp={if_sp}")
+        print(f"CH{tag[6:]}, finished in {end_time - start_time} seconds, if_fixation={if_fixation}, if_linear={if_linear}, if_sp={if_sp}")
     
 if __name__ == '__main__':
     main(sys.argv[1:])

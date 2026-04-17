@@ -222,7 +222,7 @@ def main(args):
         x  = np.zeros((len(nVec),x_length))           # single allele frequency
         xx = np.zeros((len(nVec),x_length,x_length))  # pair allele frequency
         for t in range(len(nVec)):
-            pop_size_t = np.sum([nVec[t]])
+            pop_size_t = np.sum(nVec[t])
             for k in range(len(nVec[t])):
                 # individual locus part
                 for i in range(seq_length):

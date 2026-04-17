@@ -11,6 +11,7 @@ import scipy.interpolate as sp_interpolate
 from scipy.interpolate import interp1d
 import statistics
 import time as time_module
+from collections import defaultdict
 
 # GitHub
 SIM_DIR = 'data/simulation'
@@ -1276,6 +1277,232 @@ def simulate_sigmoid(**pdata):
             f.write('\n')
     f.close()
 
+def simulate_sigmoid_epistasis(**pdata):
+    """
+    Example evolutionary trajectory for a 20-site system
+    """
+
+    # unpack passed data
+    sim_dir       = pdata['dir']            # 'trait'
+    input_dir     = pdata['input_dir']      # 'sequences'
+    xfile         = pdata['xfile']          #'1-con'
+    seq_length    = pdata['seq_length']     # 16
+    pop_size      = pdata['pop_size']       # 1000
+    generations   = pdata['generations']    # 500
+    mut_rate      = pdata['mut_rate']       # 1e-3
+    rec_rate      = pdata['rec_rate']       # 1e-3
+    inital_state  = pdata['inital_state']   # 4
+
+    bene          = pdata['bene']           # [0,1]
+    dele          = pdata['dele'] 
+    escape_group  = pdata['escape_group']   # random choose 3 sites to consist of a binary trait
+    alpha         = pdata['alpha']          # epistasis coefficient, 0.1
+    epi_pair      = pdata['epistasis_pair'] # random choose 4 pairs with non-zero epistasis effects
+
+    fB            = pdata['s_ben']          # 0.02
+    fD            = pdata['s_del']          # -0.02
+    fn            = pdata['fn']             # time-varying escape coefficient
+
+    q  = len(binary_nuc)
+    ne = len(escape_group)
+    
+    ############################################################################
+    ############################## function ####################################
+    # get fitness of new genotype
+    def get_fitness(genotype,time):
+        fitness = 1
+        mut_sites = {i for i, g in enumerate(genotype) if g != "A"}
+
+        # individual locus
+        for i in mut_sites:
+            if i in bene: # beneficial mutation
+                fitness += fB
+            elif i in dele: # deleterious mutation
+                fitness += fD
+        
+        # epistasis part
+        for (i,j) in epi_pair[:2]: # positive epistasis for beneficial mutations
+            if i in mut_sites and j in mut_sites:
+                fitness += alpha * fB
+        for (i,j) in epi_pair[2:]: # negative epistasis for deleterious mutations
+            if i in mut_sites and j in mut_sites:
+                fitness += alpha * fD
+
+        # binary trait
+        for n in range(ne):
+            if any(nn in mut_sites for nn in escape_group[n]):
+                fitness += fn[time]
+
+        return fitness
+
+    # genetic drift
+    def offspring_step_trait(pop,time):
+        genotypes = list(pop.keys())
+        r = []
+        for genotype in genotypes:
+            numbers = pop[genotype]
+            fitness = get_fitness(genotype,time)
+            r.append(numbers * fitness)
+        weights = [x / sum(r) for x in r]
+        pop_size_t = np.sum([pop[i] for i in genotypes])
+        counts = list(np.random.multinomial(pop_size_t, weights)) # genetic drift
+        for (genotype, count) in zip(genotypes, counts):
+            if (count > 0):
+                pop[genotype] = count
+            else:
+                del pop[genotype]
+        return pop
+
+    ############################################################################
+    ############################## Simulate ####################################
+    # output file
+    out_file = '%s/%s/%s/%s.dat'%(SIM_DIR,sim_dir,input_dir,xfile)
+    if os.path.exists(out_file): # skip if the file already exists
+        return
+    
+    # Initialize population
+    pop = {}
+    initial_dis(pop,inital_state,pop_size,seq_length,q)
+
+    # in every generation, it will mutate and then the genetic drift
+    # calculate several times to get the evolution trajectory
+    # At each step in the simulation, we append to a history object.
+    history = []
+    clone_pop = dict(pop)
+    history.append(clone_pop)
+    for t in range(generations):
+        recombination_step(pop,rec_rate,seq_length)
+        mutation_step(pop,mut_rate,seq_length)
+        offspring_step_trait(pop,t)
+        clone_pop = dict(pop)
+        history.append(clone_pop)
+
+    # write the output file - dat format
+    f = open(out_file,'w')
+
+    for i in range(len(history)):
+        pop_at_t = history[i]
+        genotypes = pop_at_t.keys()
+        for genotype in genotypes:
+            time = i
+            counts = pop_at_t[genotype]
+            sequence = get_sequence(genotype, q)
+            f.write('%d\t%d\t' % (time,counts))
+            for j in range(len(sequence)):
+                f.write(' %s' % (' '.join(sequence[j])))
+            f.write('\n')
+    f.close()
+
+def simulate_sigmoid_hitchhiker(**pdata):
+    """
+    Example evolutionary trajectory for a 20-site system
+    """
+
+    # unpack passed data
+    sim_dir       = pdata['dir']            # 'trait'
+    input_dir     = pdata['input_dir']      # 'sequences'
+    xfile         = pdata['xfile']          #'1-con'
+    seq_length    = pdata['seq_length']     # 16
+    pop_size      = pdata['pop_size']       # 1000
+    generations   = pdata['generations']    # 500
+    mut_rate      = pdata['mut_rate']       # 1e-3
+    rec_rate      = pdata['rec_rate']       # 1e-3
+
+    bene          = pdata['bene']           # [0,1]
+    dele          = pdata['dele'] 
+    escape_group  = pdata['escape_group']   # random choose 3 sites to consist of a binary trait
+    
+    fB            = pdata['s_ben']          # 0.02
+    fD            = pdata['s_del']          # -0.02
+    fn            = pdata['fn']             # time-varying escape coefficient
+
+    q  = len(binary_nuc)
+    ne = len(escape_group)
+
+    ############################################################################
+    ############################## function ####################################
+    # get fitness of new genotype
+    def get_fitness_trait(genotype,time):
+        fitness = 1
+        mut_sites = {i for i, g in enumerate(genotype) if g != "A"}
+
+        # individual locus
+        for i in mut_sites:
+            if i in bene: # beneficial mutation
+                fitness += fB
+            elif i in dele: # deleterious mutation
+                fitness += fD
+        
+        # binary trait
+        for n in range(ne):
+            if any(nn in mut_sites for nn in escape_group[n]):
+                fitness += fn[time]
+
+        return fitness
+    
+    # genetic drift
+    def offspring_step_trait(pop,time):
+        genotypes = list(pop.keys())
+        r = []
+        for genotype in genotypes:
+            numbers = pop[genotype]
+            fitness = get_fitness_trait(genotype,time)
+            r.append(numbers * fitness)
+        weights = [x / sum(r) for x in r]
+        pop_size_t = np.sum([pop[i] for i in genotypes])
+        counts = list(np.random.multinomial(pop_size_t, weights)) # genetic drift
+        for (genotype, count) in zip(genotypes, counts):
+            if (count > 0):
+                pop[genotype] = count
+            else:
+                del pop[genotype]
+        return pop
+
+    ############################################################################
+    ############################## Simulate ####################################
+    # output file
+    out_file = '%s/%s/%s/%s.dat'%(SIM_DIR,sim_dir,input_dir,xfile)
+    if os.path.exists(out_file): # skip if the file already exists
+        return
+    
+    # Initialize population
+    pop = {}
+    # 80% wild type
+    wt_seq = 'A' * seq_length
+    pop[wt_seq] = int(pop_size*0.8)
+    # 20% mutant type, mutation at site 0 and 4
+    mut_seq = 'T' + 'A' * 3 + 'T' + 'A' * (seq_length-5)
+    pop[mut_seq] = pop_size - pop[wt_seq]
+
+    # in every generation, it will mutate and then the genetic drift
+    # calculate several times to get the evolution trajectory
+    # At each step in the simulation, we append to a history object.
+    history = []
+    clone_pop = dict(pop)
+    history.append(clone_pop)
+    for t in range(generations):
+        recombination_step(pop,rec_rate,seq_length)
+        mutation_step(pop,mut_rate,seq_length)
+        offspring_step_trait(pop,t)
+        clone_pop = dict(pop)
+        history.append(clone_pop)
+
+    # write the output file - dat format
+    f = open(out_file,'w')
+
+    for i in range(len(history)):
+        pop_at_t = history[i]
+        genotypes = pop_at_t.keys()
+        for genotype in genotypes:
+            time = i
+            counts = pop_at_t[genotype]
+            sequence = get_sequence(genotype, q)
+            f.write('%d\t%d\t' % (time,counts))
+            for j in range(len(sequence)):
+                f.write(' %s' % (' '.join(sequence[j])))
+            f.write('\n')
+    f.close()
+
 # def infer_sigmoid(**pdata):
 #     """
 #     Infer time-varying example (binary case) for sigmoid pattern simulation
@@ -1872,6 +2099,105 @@ def cal_sim_change(**pdata):
 
     # return action_const, action_tv
 
+def sigmoid_interp(sample_times, x_raw, new_times, k=10.0):
+    sample_times = np.asarray(sample_times)
+    x_raw = np.asarray(x_raw)
+    new_times = np.asarray(new_times)
+
+    out = np.zeros((len(new_times),) + x_raw.shape[1:])
+
+    for i, t in enumerate(new_times):
+        if t <= sample_times[0]:
+            out[i] = x_raw[0]
+            continue
+        if t >= sample_times[-1]:
+            out[i] = x_raw[-1]
+            continue
+
+        j = np.searchsorted(sample_times, t) - 1
+        t0, t1 = sample_times[j], sample_times[j+1]
+
+        u = (t - t0) / (t1 - t0)
+
+        s = 1.0 / (1.0 + np.exp(-k*(u-0.5)))
+        s = (s - 1/(1+np.exp(k/2))) / (1 - 2/(1+np.exp(k/2)))
+
+        out[i] = (1-s)*x_raw[j] + s*x_raw[j+1]
+
+    return out
+
+def sigmoid_interp_weights(steps: int, k: float = 10.0) -> np.ndarray:
+    """
+    Return s_j for j=0..steps, where s maps [0,1] -> [0,1] with sigmoid shape.
+    """
+    u = np.linspace(0.0, 1.0, steps + 1)
+    s = 1.0 / (1.0 + np.exp(-k * (u - 0.5)))
+    s = (s - s.min()) / (s.max() - s.min() + 1e-15)
+    return s  # length steps+1
+
+def sigmoid_freq_dat(input_path,output_path):
+    def write_time_slice(fh, t: int, slice_dict: dict, renormalized=False):
+        if renormalized:
+            ssum = sum(slice_dict.values())
+            if ssum > 0:
+                inv = 1.0 / ssum
+                for key in list(slice_dict.keys()):
+                    slice_dict[key] *= inv
+
+        for seq_key, val in slice_dict.items():
+            if val <= 0:
+                continue
+            seq_str = " ".join(map(str, seq_key))
+            fh.write(f"{t} {val:.6f} {seq_str}\n")
+
+    # read the input data
+    arr = np.loadtxt(input_path, dtype=int)
+    t = arr[:,0]
+    c = arr[:,1]
+    seq = arr[:,2:]
+    data = defaultdict(lambda: defaultdict(int))
+    for ti, ci, si in zip(t, c, seq):
+        data[int(ti)][tuple(si.tolist())] += int(ci)
+    times = sorted(data.keys())
+    data_freq = defaultdict(dict)
+    for t in times:
+        total_count = sum(data[t].values())
+        for seq, c in data[t].items():
+            if c > 0:
+                freq = c / total_count
+                data_freq[t][seq] = freq
+            else:
+                raise ValueError(f"Count for time {t} and sequence {seq} is {c} <= 0, cannot write to file")
+
+    # write the output data with sigmoid interpolation
+    with open(output_path, "w") as fh:
+        for i in range(len(times) - 1):
+            t0, t1 = times[i], times[i + 1]
+            steps = t1 - t0
+
+            seqs0 = data_freq[t0].keys()
+            seqs1 = data_freq[t1].keys()
+            union_seqs = set(seqs0) | set(seqs1)
+
+            s = sigmoid_interp_weights(steps)
+
+            for j in range(steps): # last time points are included
+                tt = t0 + j
+                sj = float(s[j])
+                seq_freqs = {}
+                # interpolate frequency for each sequence
+                for seq in union_seqs:
+                    y0 = data_freq[t0].get(seq, 0.0)
+                    y1 = data_freq[t1].get(seq, 0.0)
+                    freq = y0 + (y1 - y0) * sj
+                    if freq > 0:
+                        seq_freqs[seq] = freq
+                # output the interpolated results
+                write_time_slice(fh, tt, seq_freqs)
+
+        # output for the last time point
+        write_time_slice(fh, times[-1], dict(data_freq[times[-1]]))
+
 def infer_binary(if_epitope=True, theta=0.5, beta=4.0, **pdata):
     """
     Infer time-varying selection coefficients from simulated evolutionary trajectory
@@ -2103,11 +2429,11 @@ def infer_binary(if_epitope=True, theta=0.5, beta=4.0, **pdata):
             flux_t_all = f0 + (f1 - f0) * a[:, None]
 
             # dxdt(t): step function on intervals
-            m = np.searchsorted(sample_times, t_in, side="left")
-            ks = np.clip(m - 1, 0, len(sample_times) - 2)
+            m = np.searchsorted(dx_time, t_in, side="left")
+            ks = np.clip(m - 1, 0, len(dx_time) - 2)
             dxdt_t_all = dxdt[ks].copy()
-            on_node = (m < len(sample_times)) & (sample_times[m] == t_in)
-            if on_node.any(): # optional: node override when t_in equals sample_times exactly
+            on_node = (m < len(dx_time)) & (dx_time[m] == t_in)
+            if on_node.any(): # optional: node override when t_in equals dx_time exactly
                 dxdt_t_all[on_node] = dxdt_node[m[on_node]]
 
             b_t_all = flux_t_all - dxdt_t_all  # b(t) = flux(t) - dxdt(t)
@@ -2177,6 +2503,7 @@ def infer_binary(if_epitope=True, theta=0.5, beta=4.0, **pdata):
 
     # get dx
     dxdt, dxdt_node = cal_dx_all(x_raw, sample_times)
+    dx_time = sample_times
     mu_raw = get_mut_flux(x_raw, ex_raw)
 
     # get gamma_1
